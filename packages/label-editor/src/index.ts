@@ -14,4 +14,5 @@ export { default as LabelEditor } from './lib/components/LabelEditor.svelte'; ex
 export { default as LaPostePanel } from './lib/components/LaPostePanel.svelte'; export { default as DataPanel } from './lib/components/DataPanel.svelte';
 export {default as BatchPanel}from'./lib/components/BatchPanel.svelte';export{default as DirectPrintPanel}from'./lib/components/DirectPrintPanel.svelte';export{default as LocalServicePanel}from'./lib/components/LocalServicePanel.svelte';export{default as MediaPanel}from'./lib/components/MediaPanel.svelte';export{default as AssetPanel}from'./lib/components/AssetPanel.svelte';
 export{default as JobRecoveryPanel}from'./lib/components/JobRecoveryPanel.svelte';
+export{default as LibraryPanel}from'./lib/components/LibraryPanel.svelte';
 import './style.css';

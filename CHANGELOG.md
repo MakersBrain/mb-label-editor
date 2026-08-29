@@ -8,3 +8,5 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 - Added the reusable Svelte 5 editor and installable offline PWA.
 - Added canonical v4 SDK adapters, persistence, templates, and print routes.
 - Added the synthetic licensed catalogue and publication policy checks.
+- Added a usable IndexedDB document library, editable guides and view controls.
+- Made pending WebUSB response reads cooperatively cancellable.

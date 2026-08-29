@@ -18,5 +18,10 @@ documents. `.mb-assets` collections are private imports and are excluded from
 public build output. Ambiguous interrupted print jobs require an explicit retry
 after inspecting the physical printer.
 
+Use **Library** to explicitly save, list, and reopen labels stored in this
+browser. Toolbar controls toggle the grid, rulers, and snapping, set grid
+spacing, and create, edit, or remove manual guides. These view preferences are
+restored on the next visit.
+
 The app works offline after its first successful load. Device permission and
 local-service pairing cannot be completed offline.
