@@ -1,2 +1,49 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import{readdir,readFile}from'node:fs/promises';const root=new URL('../',import.meta.url);const directory=new URL('.github/workflows/',root);const files=(await readdir(directory)).filter(name=>/\.ya?ml$/.test(name));const errors=[];for(const name of files){const text=await readFile(new URL(name,directory),'utf8');for(const match of text.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/gm)){const value=match[1];if(value.startsWith('./'))continue;if(!/@[0-9a-f]{40}$/.test(value))errors.push(`${name}: action is not pinned to a full commit: ${value}`)}if(!text.startsWith('# SPDX-License-Identifier: AGPL-3.0-or-later'))errors.push(`${name}: missing SPDX header`)}const release=await readFile(new URL('release.yml',directory),'utf8');for(const required of['contents: write','id-token: write','attestations: write','https://registry.npmjs.org','release:candidate','attest-build-provenance'])if(!release.includes(required))errors.push(`release.yml: missing ${required}`);const deploy=await readFile(new URL('deploy-pages.yml',directory),'utf8');for(const required of['pages: write','id-token: write','upload-pages-artifact','deploy-pages'])if(!deploy.includes(required))errors.push(`deploy-pages.yml: missing ${required}`);if(errors.length)throw new Error(errors.join('\n'));console.log(`${files.length} workflow files satisfy SPDX, pinned-action, registry, provenance, and Pages policy`);
+import { readdir, readFile } from 'node:fs/promises';
+
+const root = new URL('../', import.meta.url);
+const directory = new URL('.github/workflows/', root);
+const files = (await readdir(directory)).filter((name) => /\.ya?ml$/.test(name));
+const errors = [];
+
+for (const name of files) {
+  const workflow = await readFile(new URL(name, directory), 'utf8');
+  for (const match of workflow.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)/gm)) {
+    const value = match[1];
+    if (value.startsWith('./')) continue;
+    if (!/@[0-9a-f]{40}$/.test(value)) {
+      errors.push(`${name}: action is not pinned to a full commit: ${value}`);
+    }
+  }
+  if (!workflow.startsWith('# SPDX-License-Identifier: AGPL-3.0-or-later')) {
+    errors.push(`${name}: missing SPDX header`);
+  }
+}
+
+const release = await readFile(new URL('release.yml', directory), 'utf8');
+for (const required of [
+  'contents: write',
+  'id-token: write',
+  'attestations: write',
+  'https://registry.npmjs.org',
+  'release:candidate',
+  'attest-build-provenance',
+]) {
+  if (!release.includes(required)) errors.push(`release.yml: missing ${required}`);
+}
+
+const deploy = await readFile(new URL('deploy-pages.yml', directory), 'utf8');
+for (const required of [
+  'pages: write',
+  'id-token: write',
+  'artifact.tar',
+  'name: github-pages',
+  'deploy-pages',
+]) {
+  if (!deploy.includes(required)) errors.push(`deploy-pages.yml: missing ${required}`);
+}
+
+if (errors.length) throw new Error(errors.join('\n'));
+console.log(
+  `${files.length} workflow files satisfy SPDX, pinned-action, registry, provenance, and Pages policy`,
+);
