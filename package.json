@@ -9,7 +9,8 @@
     "check": "npm run check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "check:licenses": "node scripts/check-license-policy.mjs"
-    ,"test:browser": "playwright test"
+    ,"test:browser": "playwright test",
+    "test:package": "node scripts/test-package.mjs"
   },
   "engines": { "node": ">=20" }
 }

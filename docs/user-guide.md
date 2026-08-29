@@ -23,5 +23,10 @@ browser. Toolbar controls toggle the grid, rulers, and snapping, set grid
 spacing, and create, edit, or remove manual guides. These view preferences are
 restored on the next visit.
 
+Hold Shift while resizing to preserve aspect ratio. CSV mappings can apply a
+safe allowlisted transform from the Data panel. Media may be clamped to the
+selected SDK printer capability. The Library also supports renaming and local
+deletion, and private asset collections can be exported back to `.mb-assets`.
+
 The app works offline after its first successful load. Device permission and
 local-service pairing cannot be completed offline.

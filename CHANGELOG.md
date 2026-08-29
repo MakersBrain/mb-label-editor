@@ -10,3 +10,7 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 - Added the synthetic licensed catalogue and publication policy checks.
 - Added a usable IndexedDB document library, editable guides and view controls.
 - Made pending WebUSB response reads cooperatively cancellable.
+- Added aspect-preserving resize, template transform controls, capability-based
+  media limits, library rename/delete, themes, private collection export, and
+  offline PDF/File System Access browser acceptance.
+- Added package-consumer, notices, PWA update, checksum, and release gates.

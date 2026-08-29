@@ -1,2 +1,2 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-@import '@makersbrain/label-editor/style.css';html,body,#app{height:100%;margin:0}body{overscroll-behavior:none;background:#f7f4ed}
+@import '@makersbrain/label-editor/style.css';html,body,#app{height:100%;margin:0}body{overscroll-behavior:none;background:#f7f4ed}html[data-theme=dark]{color-scheme:dark;filter:invert(.9) hue-rotate(180deg)}html[data-theme=light]{color-scheme:light}

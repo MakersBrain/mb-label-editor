@@ -3,7 +3,7 @@ name: Release package
 on:
   push:
     tags: ['v*']
-permissions: { contents: read, packages: write }
+permissions: { contents: write, packages: write }
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -28,6 +28,7 @@ jobs:
       - run: npm run check && npm test && npm run build && npm run check:licenses
       - run: npm pack --workspace @makersbrain/label-editor --json > package-pack.json
       - run: sha256sum *.tgz > SHA256SUMS
+      - run: find apps/pwa/dist -type f -print0 | sort -z | xargs -0 sha256sum > PWA-SHA256SUMS
       - run: npm sbom --workspace @makersbrain/label-editor --sbom-format cyclonedx > label-editor-sbom.json
       - run: npm publish --workspace @makersbrain/label-editor
         env: { NODE_AUTH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
@@ -37,4 +38,7 @@ jobs:
           path: |
             mb-label-editor/package-pack.json
             mb-label-editor/SHA256SUMS
+            mb-label-editor/PWA-SHA256SUMS
             mb-label-editor/label-editor-sbom.json
+      - run: gh release create "$GITHUB_REF_NAME" *.tgz SHA256SUMS PWA-SHA256SUMS label-editor-sbom.json --generate-notes
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
