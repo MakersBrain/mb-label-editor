@@ -1,0 +1,15 @@
+{
+  "name": "mb-label-editor-workspace",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run check --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "check:licenses": "node scripts/check-license-policy.mjs"
+    ,"test:browser": "playwright test"
+  },
+  "engines": { "node": ">=20" }
+}

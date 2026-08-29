@@ -1,0 +1,35 @@
+{
+  "version": 4,
+  "name": "SDK compatibility",
+  "media": {
+    "width": 63500,
+    "height": 33900,
+    "unit": "micrometre",
+    "dpi": 203,
+    "orientation": "landscape",
+    "printableBounds": { "x": 0, "y": 0, "width": 63500, "height": 33900 },
+    "shape": "rectangle",
+    "continuous": false,
+    "zones": []
+  },
+  "coordinateSystem": { "unit": "micrometre", "origin": "top-left", "rounding": "half-away-from-zero" },
+  "elements": [{
+    "type": "text",
+    "id": "text-1",
+    "transform": { "x": 1250, "y": 2500, "width": 30000, "height": 8000, "rotationMillidegrees": 15000 },
+    "zOrder": 0,
+    "visible": true,
+    "locked": false,
+    "groupId": null,
+    "constraints": null,
+    "text": "Hello {{name}}",
+    "fontResource": null,
+    "fontSize": 3500,
+    "horizontalAlign": "center",
+    "verticalAlign": "middle",
+    "overflow": "shrink-to-fit"
+  }],
+  "resources": [],
+  "fields": [{ "key": "name", "label": "Name" }],
+  "extensions": { "fixture:source": "mb-printer-sdk" }
+}

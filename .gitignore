@@ -1,0 +1,8 @@
+node_modules
+dist
+.svelte-kit
+coverage
+*.tsbuildinfo
+test-results/
+playwright-report/
+*.tgz

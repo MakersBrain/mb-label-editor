@@ -1,0 +1,11 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<script lang="ts">
+  import type { LocalApiConnection, LocalApiPrintRoute } from '../print/local-api.js';
+  export let route:LocalApiPrintRoute; export let onToken:(token:string)=>void=()=>{}; export let onConnection:(connection:LocalApiConnection|undefined)=>void=()=>{}; export let selectedId='';
+  let secret='';let status='';let connections:LocalApiConnection[]=[];
+  async function pair(){try{status='Requesting Local Network Access and pairing…';const grant=await route.pair(secret);onToken(grant.token);secret='';status=`Paired until ${new Date(grant.expiresAt).toLocaleString()}.`;await refresh()}catch(error){const message=error instanceof Error?error.message:String(error);status=/Failed to fetch|NetworkError/i.test(message)?'Local service unavailable or Local Network Access was denied. Allow local network access, start mb-printer api, then retry.':message}}
+  async function refresh(){try{connections=await route.connections();const selected=connections.find(item=>item.id===selectedId);onConnection(selected);status=connections.length?`${connections.length} persisted connection(s) available.`:'No persisted printer connection. Configure and probe one with mb-printer first.'}catch(error){status=error instanceof Error?error.message:String(error)}}
+  function choose(){onConnection(connections.find(item=>item.id===selectedId))}
+</script>
+<section><h2>Local service</h2><label>One-time pairing secret<input type="password" bind:value={secret} autocomplete="off"></label><button on:click={pair} disabled={!secret}>Pair on localhost</button><button on:click={refresh}>Refresh connections</button><label>Probed printer connection<select bind:value={selectedId} on:change={choose}><option value="">Select a connection</option>{#each connections as connection}<option value={connection.id}>{connection.id} · {connection.model} · {connection.transport.kind} · {connection.status}</option>{/each}</select></label><p>Printing is disabled until a persisted physical connection is selected. Capture transport is never used as a printer.</p><p aria-live="polite">{status}</p></section>
+<style>section{padding:.75rem;border-top:1px solid #ddd}h2{font-size:.8rem;text-transform:uppercase}label{display:flex;flex-direction:column;font-size:.75rem}p{font-size:.72rem}</style>

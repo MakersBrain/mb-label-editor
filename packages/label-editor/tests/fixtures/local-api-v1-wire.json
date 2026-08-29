@@ -1,0 +1,7 @@
+{
+  "pairResponse": {"grantId":"00000000-0000-0000-0000-000000000001","token":"fixture-token","expiresAt":"2026-09-01T00:00:00Z"},
+  "jobRequest": {"printerId":"m110","copies":1},
+  "queuedJob": {"id":"00000000-0000-0000-0000-000000000002","state":"queued","terminal":false,"outcome":null,"lastCompletedAction":-1,"bytesSent":0,"action":0,"actions":5,"totalBytes":128,"phase":"queued","error":null},
+  "completedJob": {"id":"00000000-0000-0000-0000-000000000002","state":"completed","terminal":true,"outcome":"completed","lastCompletedAction":4,"bytesSent":128,"action":5,"actions":5,"totalBytes":128,"phase":"completed","error":null},
+  "preflight": {"origin":"https://editor.example","requestMethod":"POST","requestHeaders":"authorization,content-type","privateNetwork":true}
+}

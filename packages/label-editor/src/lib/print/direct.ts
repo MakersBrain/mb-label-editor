@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import type { PrinterSdk, PrintRequest, PrintResult, PrintRoute, ProtocolAction, ProtocolPlan } from './types.js';
+import type { JobJournal } from '../jobs.js';
+import type { PersistedJob } from '../persistence/database.js';
+
+export interface DirectTransport {
+  readonly kind: 'bluetooth' | 'usb'; readonly physicalWriteLimit?: number; readonly negotiatedAttMtu?: number;
+  connect(): Promise<void>; disconnect(): Promise<void>; write(data: Uint8Array, signal?: AbortSignal): Promise<void>;
+  subscribe(channel: string, signal?: AbortSignal): Promise<void>; waitResponse(channel: string, timeoutMs: number, validation?: string, signal?: AbortSignal): Promise<Uint8Array>;
+}
+export class DirectPrintRoute implements PrintRoute {
+  readonly id: string; readonly label: string; private retryProhibited = false;
+  constructor(private sdk: PrinterSdk, private transportFactory: () => Promise<DirectTransport>, kind: 'bluetooth' | 'usb', private supported: () => boolean = () => true, private journal?: JobJournal) { this.id = `web-${kind}`; this.label = `Web ${kind === 'bluetooth' ? 'Bluetooth' : 'USB'}`; }
+  isSupported() { return globalThis.isSecureContext === true && this.supported(); }
+  async print(request: PrintRequest): Promise<PrintResult> {
+    if (this.retryProhibited) return { outcome: 'failed', bytesSent: 0, lastCompletedAction: -1, error: 'Automatic retry is prohibited after an ambiguous direct-print outcome. Inspect the printer and start a new explicit job.' };
+    const persisted = await this.journal?.begin(request.document, this.id);
+    let transport: DirectTransport | undefined; let bytesSent = 0; let lastCompletedAction = -1; let potentiallyAccepted = false; let notificationsAvailable = true;
+    const finish = async (result: PrintResult) => { if (persisted) await this.journal?.finish(persisted, result); if (result.outcome === 'outcome-unknown' || result.outcome === 'cancelled-partial') this.retryProhibited = true; return result; };
+    try {
+      const plan = await this.sdk.plan(request.document, request.printer, { copies: request.copies, density: request.density, record: request.record });
+      transport = await this.transportFactory();
+      preflightPlan(plan, transport);
+      if (request.signal?.aborted) return await finish({ outcome: 'cancelled-before-send', bytesSent, lastCompletedAction });
+      await abortable(transport.connect(), request.signal);
+      for (let index = 0; index < plan.actions.length; index++) {
+        if (request.signal?.aborted) return await finish({ outcome: potentiallyAccepted ? 'cancelled-partial' : 'cancelled-before-send', bytesSent, lastCompletedAction });
+        const action = plan.actions[index];
+        if (action.type === 'subscribe') {
+          try { await abortable(transport.subscribe(action.channel, request.signal), request.signal); }
+          catch (error) { if (isNotificationUnavailable(error)) notificationsAvailable = false; else throw error; }
+        } else if (action.type === 'wait-response' && !notificationsAvailable) {
+          if (action.fallbackDelayMs === undefined) throw new Error('Notifications are unavailable and this protocol has no safe fallback.');
+          await monotonicDelay(action.fallbackDelayMs, request.signal);
+        } else {
+          await executeAction(action, transport, request.signal, async (chunk) => {
+            await abortable(transport!.write(chunk, request.signal), request.signal); potentiallyAccepted = true; bytesSent += chunk.byteLength;
+          });
+        }
+        lastCompletedAction = index; const progress = { action: index + 1, actions: plan.actions.length, bytesSent, totalBytes: plan.totalBytes, phase: action.type };
+        request.onProgress?.(progress); if (persisted) void this.journal?.progress(persisted, progress);
+      }
+      return await finish({ outcome: 'completed', bytesSent, lastCompletedAction });
+    } catch (error) {
+      const aborted = request.signal?.aborted; const result: PrintResult = { outcome: potentiallyAccepted ? (aborted ? 'cancelled-partial' : 'outcome-unknown') : (aborted ? 'cancelled-before-send' : 'failed'), bytesSent, lastCompletedAction, error: error instanceof Error ? error.message : String(error) };
+      return await finish(result);
+    } finally { try { await transport?.disconnect(); } catch { /* connection may already be gone */ } }
+  }
+}
+
+export function preflightPlan(plan: ProtocolPlan, transport: DirectTransport) {
+  const mtuPayload = transport.negotiatedAttMtu === undefined ? Infinity : transport.negotiatedAttMtu - 3;
+  const cap = Math.min(transport.physicalWriteLimit ?? Infinity, mtuPayload);
+  if (!Number.isSafeInteger(cap) || cap <= 0) throw new Error('The transport has no safe, finite physical write cap.');
+  for (const [index, action] of plan.actions.entries()) {
+    if (action.type !== 'write') continue;
+    if (!Number.isSafeInteger(action.logicalChunkSize) || action.logicalChunkSize <= 0) throw new Error(`Action ${index} has an unsafe logical chunk size.`);
+    if ((action.atomic || !action.chunkable) && action.data.length > Math.min(cap, action.logicalChunkSize)) throw new Error(`Atomic command ${index} (${action.data.length} bytes) exceeds the safe transport cap before connection.`);
+  }
+}
+async function executeAction(action: ProtocolAction, transport: DirectTransport, signal: AbortSignal | undefined, write: (data: Uint8Array) => Promise<void>) {
+  if (action.type === 'delay') return monotonicDelay(action.milliseconds, signal);
+  if (action.type === 'wait-response') { const response = await abortable(transport.waitResponse(action.channel, action.timeoutMs, action.validate, signal), signal); validateResponse(response, action.validate); return; }
+  if (action.type !== 'write') return;
+  const physicalLimit = Math.min(action.logicalChunkSize, transport.physicalWriteLimit!, transport.negotiatedAttMtu === undefined ? Infinity : transport.negotiatedAttMtu - 3);
+  if (!action.chunkable) { await write(action.data); if (action.delayAfterMs) await monotonicDelay(action.delayAfterMs, signal); return; }
+  for (let offset = 0; offset < action.data.length; offset += physicalLimit) { if (signal?.aborted) throw abortError(); await write(action.data.slice(offset, offset + physicalLimit)); if (action.delayAfterMs) await monotonicDelay(action.delayAfterMs, signal); }
+}
+function validateResponse(response: Uint8Array, validation?: string) {
+  if (!response.length) throw new Error('Printer returned an empty response.');
+  if (validation === 'brother-status32' && (response.length !== 32 || response[0] !== 0x80 || response[1] !== 0x20 || response[2] !== 0x42)) throw new Error('Printer response failed Brother status validation.');
+}
+const isNotificationUnavailable = (error: unknown) => error instanceof Error && ('code' in error ? (error as Error & { code?: string }).code === 'notification-unavailable' : /notification.*unavailable/i.test(error.message));
+const abortError = () => new DOMException('Print cancelled.', 'AbortError');
+async function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise; if (signal.aborted) throw abortError();
+  return await Promise.race([promise, new Promise<T>((_, reject) => signal.addEventListener('abort', () => reject(abortError()), { once: true }))]);
+}
+export const monotonicDelay = (milliseconds: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+  const start = performance.now(); const poll = () => { if (signal?.aborted) { reject(abortError()); return; } const remaining = milliseconds - (performance.now() - start); if (remaining <= 0) resolve(); else setTimeout(poll, Math.min(remaining, 50)); }; poll();
+});

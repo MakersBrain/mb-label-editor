@@ -1,0 +1,34 @@
+[
+  {
+    "id": "synthetic-plus",
+    "name": "Synthetic plus",
+    "kind": "icon",
+    "category": "interface",
+    "tags": ["add", "plus", "synthetic"],
+    "visibility": "public",
+    "source": "Created for the MakersBrain label editor test catalogue",
+    "author": "MakersBrain contributors",
+    "license": "AGPL-3.0-or-later",
+    "licenseUrl": "https://www.gnu.org/licenses/agpl-3.0.html",
+    "sha256": "086cf7516c73bb993ddfcfd05b5e5d96e0c2a91d92a87a44e285f204aea0daf6",
+    "redistributionStatus": "verified",
+    "mediaType": "image/svg+xml",
+    "dataBase64": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTIgOGgxMk04IDJ2MTIiLz48L3N2Zz4="
+  },
+  {
+    "id": "synthetic-private-circle",
+    "name": "Synthetic private circle",
+    "kind": "icon",
+    "category": "private collection",
+    "tags": ["circle", "local", "synthetic"],
+    "visibility": "private",
+    "source": "Local synthetic fixture",
+    "author": "Local user",
+    "license": "AGPL-3.0-or-later",
+    "licenseUrl": "https://www.gnu.org/licenses/agpl-3.0.html",
+    "sha256": "0109e6354de3a26f3fe956ff7e942e1331f57c76dc7d8c8e813ea6c7f68337ed",
+    "redistributionStatus": "private-only",
+    "mediaType": "image/svg+xml",
+    "dataBase64": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIi8+PC9zdmc+"
+  }
+]

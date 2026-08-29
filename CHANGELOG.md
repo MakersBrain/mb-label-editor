@@ -1,0 +1,10 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+# Changelog
+
+All notable changes follow Keep a Changelog and Semantic Versioning.
+
+## 0.1.0 - Unreleased
+
+- Added the reusable Svelte 5 editor and installable offline PWA.
+- Added canonical v4 SDK adapters, persistence, templates, and print routes.
+- Added the synthetic licensed catalogue and publication policy checks.

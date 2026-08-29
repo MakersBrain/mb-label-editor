@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import {cloneDocument,type LabelDocument,type LabelElement,type Zone}from'./model.js';
+export const elementZone=(element:LabelElement)=>String(element.constraints?.find(item=>item.kind==='zone')?.value??'');
+export function assignToZone(element:LabelElement,zoneId:string):LabelElement{const copy=structuredClone(element);copy.constraints=[...(copy.constraints??[]).filter(item=>item.kind!=='zone'),{kind:'zone',value:zoneId}];return copy}
+export function expandClonedZones(document:LabelDocument):LabelDocument{const copy=cloneDocument(document);const zones=copy.media.zones??[];const additions:LabelElement[]=[];for(const zone of zones.filter(item=>item.cloneOf)){const source=zones.find(item=>item.id===zone.cloneOf);if(!source)throw new Error(`Clone zone ${zone.id} references missing zone ${zone.cloneOf}`);for(const element of copy.elements.filter(item=>elementZone(item)===source.id)){const clone=assignToZone(element,zone.id);clone.id=`${element.id}@${zone.id}`;clone.name=`${element.name} (${zone.name})`;clone.transform.x+=zone.x-source.x;clone.transform.y+=zone.y-source.y;additions.push(clone)}}copy.elements.push(...additions);return copy}
+export interface BatchPlacement{record:number;page:number;zone:string}
+export function layoutBatch(recordCount:number,zones:Zone[]):BatchPlacement[]{if(!zones.length)throw new Error('Batch layout requires at least one zone.');return Array.from({length:recordCount},(_,record)=>({record,page:Math.floor(record/zones.length),zone:zones[record%zones.length].id}))}
