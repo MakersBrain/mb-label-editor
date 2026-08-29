@@ -4,13 +4,13 @@ import type { JobJournal } from '../jobs.js';
 import type { PersistedJob } from '../persistence/database.js';
 
 export interface DirectTransport {
-  readonly kind: 'bluetooth' | 'usb'; readonly physicalWriteLimit?: number; readonly negotiatedAttMtu?: number;
+  readonly kind: 'bluetooth' | 'usb' | 'serial'; readonly physicalWriteLimit?: number; readonly commandWriteLimit?: number; readonly negotiatedAttMtu?: number;
   connect(): Promise<void>; disconnect(): Promise<void>; write(data: Uint8Array, signal?: AbortSignal): Promise<void>;
   subscribe(channel: string, signal?: AbortSignal): Promise<void>; waitResponse(channel: string, timeoutMs: number, validation?: string, signal?: AbortSignal): Promise<Uint8Array>;
 }
 export class DirectPrintRoute implements PrintRoute {
   readonly id: string; readonly label: string; private retryProhibited = false;
-  constructor(private sdk: PrinterSdk, private transportFactory: () => Promise<DirectTransport>, kind: 'bluetooth' | 'usb', private supported: () => boolean = () => true, private journal?: JobJournal) { this.id = `web-${kind}`; this.label = `Web ${kind === 'bluetooth' ? 'Bluetooth' : 'USB'}`; }
+  constructor(private sdk: PrinterSdk, private transportFactory: () => Promise<DirectTransport>, kind: 'bluetooth' | 'usb' | 'serial', private supported: () => boolean = () => true, private journal?: JobJournal) { this.id = `web-${kind}`; this.label = kind === 'serial' ? 'Bluetooth SPP (Web Serial)' : `Web ${kind === 'bluetooth' ? 'Bluetooth' : 'USB'}`; }
   isSupported() { return globalThis.isSecureContext === true && this.supported(); }
   async print(request: PrintRequest): Promise<PrintResult> {
     if (this.retryProhibited) return { outcome: 'failed', bytesSent: 0, lastCompletedAction: -1, error: 'Automatic retry is prohibited after an ambiguous direct-print outcome. Inspect the printer and start a new explicit job.' };
@@ -51,16 +51,18 @@ export class DirectPrintRoute implements PrintRoute {
 export function preflightPlan(plan: ProtocolPlan, transport: DirectTransport) {
   const mtuPayload = transport.negotiatedAttMtu === undefined ? Infinity : transport.negotiatedAttMtu - 3;
   const cap = Math.min(transport.physicalWriteLimit ?? Infinity, mtuPayload);
+  const commandCap = transport.commandWriteLimit ?? cap;
   if (!Number.isSafeInteger(cap) || cap <= 0) throw new Error('The transport has no safe, finite physical write cap.');
+  if (!Number.isSafeInteger(commandCap) || commandCap <= 0) throw new Error('The transport has no safe, finite command write cap.');
   for (const [index, action] of plan.actions.entries()) {
     if (action.type !== 'write') continue;
     if (!Number.isSafeInteger(action.logicalChunkSize) || action.logicalChunkSize <= 0) throw new Error(`Action ${index} has an unsafe logical chunk size.`);
-    if ((action.atomic || !action.chunkable) && action.data.length > Math.min(cap, action.logicalChunkSize)) throw new Error(`Atomic command ${index} (${action.data.length} bytes) exceeds the safe transport cap before connection.`);
+    if ((action.atomic || !action.chunkable) && action.data.length > Math.min(commandCap, action.logicalChunkSize)) throw new Error(`Atomic command ${index} (${action.data.length} bytes) exceeds the safe transport cap before connection.`);
   }
 }
 async function executeAction(action: ProtocolAction, transport: DirectTransport, signal: AbortSignal | undefined, write: (data: Uint8Array) => Promise<void>) {
   if (action.type === 'delay') return monotonicDelay(action.milliseconds, signal);
-  if (action.type === 'wait-response') { const response = await abortable(transport.waitResponse(action.channel, action.timeoutMs, action.validate, signal), signal); validateResponse(response, action.validate); return; }
+  if (action.type === 'wait-response') { try { const response = await abortable(transport.waitResponse(action.channel, action.timeoutMs, action.validate, signal), signal); validateResponse(response, action.validate); } catch(error) { if(action.validate==='brother-status32'&&isOptionalBrotherResponse(error))return;throw error } return; }
   if (action.type !== 'write') return;
   const physicalLimit = Math.min(action.logicalChunkSize, transport.physicalWriteLimit!, transport.negotiatedAttMtu === undefined ? Infinity : transport.negotiatedAttMtu - 3);
   if (!action.chunkable) { await write(action.data); if (action.delayAfterMs) await monotonicDelay(action.delayAfterMs, signal); return; }
@@ -71,6 +73,7 @@ function validateResponse(response: Uint8Array, validation?: string) {
   if (validation === 'brother-status32' && (response.length !== 32 || response[0] !== 0x80 || response[1] !== 0x20 || response[2] !== 0x42)) throw new Error('Printer response failed Brother status validation.');
 }
 const isNotificationUnavailable = (error: unknown) => error instanceof Error && ('code' in error ? (error as Error & { code?: string }).code === 'notification-unavailable' : /notification.*unavailable/i.test(error.message));
+const isOptionalBrotherResponse = (error: unknown) => error instanceof Error && ('code' in error ? ['notification-unavailable','response-timeout'].includes((error as Error & { code?: string }).code??'') : /notification.*unavailable|response.*timed out/i.test(error.message));
 const abortError = () => new DOMException('Print cancelled.', 'AbortError');
 async function abortable<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise; if (signal.aborted) throw abortError();

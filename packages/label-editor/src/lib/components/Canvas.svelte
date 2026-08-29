@@ -33,7 +33,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
 <div class="viewport" class:with-rulers={$editor.view.showRulers} on:click={() => editor.clearSelection()} on:pointerdown={gestureStart} on:pointermove={moveDrag} on:pointerup={gestureEnd} on:pointercancel={gestureEnd} role="application" aria-label="Label canvas">
   {#if $editor.view.showRulers}<div class="ruler horizontal"></div><div class="ruler vertical"></div>{/if}
-  <div class="pan" style={`transform:translate(${$editor.view.pan.x}px,${$editor.view.pan.y}px) scale(${$editor.view.zoom})`}>
+  <div class="pan" style={`transform:translate(calc(-50% + ${$editor.view.pan.x}px),calc(-50% + ${$editor.view.pan.y}px)) scale(${$editor.view.zoom})`}>
     <div class:grid={$editor.view.showGrid} class="media" style={`width:${$editor.document.media.width * pxPerMm}px;height:${$editor.document.media.height * pxPerMm}px;--grid:${$editor.view.gridSize * pxPerMm}px;border-radius:${$editor.document.media.shape === 'round' ? '50%' : '3px'}`}>
       {#if sdk}<ThermalPreview {sdk} document={$editor.document}/>{/if}
       {#each [...$editor.document.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
@@ -54,7 +54,7 @@
 </div>
 
 <style>
-  .viewport{position:relative;overflow:hidden;min-height:34rem;background:#d8ddd8;touch-action:none}.pan{position:absolute;left:50%;top:50%;transform-origin:0 0}.media{position:relative;background:#fff;box-shadow:0 8px 28px #17231c33;overflow:hidden}.media.grid{background-image:linear-gradient(#1c66471c 1px,transparent 1px),linear-gradient(90deg,#1c66471c 1px,transparent 1px);background-size:var(--grid) var(--grid)}
+  .viewport{position:absolute;inset:0;overflow:hidden;min-width:0;min-height:0;background:#d8ddd8;touch-action:none}.pan{position:absolute;left:50%;top:50%;transform-origin:center}.media{position:relative;background:#fff;box-shadow:0 8px 28px #17231c33;overflow:hidden}.media.grid{background-image:linear-gradient(#1c66471c 1px,transparent 1px),linear-gradient(90deg,#1c66471c 1px,transparent 1px);background-size:var(--grid) var(--grid)}
   .element{position:absolute;margin:0;padding:0;overflow:visible;border:1px dashed transparent;background:transparent;color:#111;transform-origin:center;cursor:move}.element.selected{border-color:#ed6146;outline:1px solid white}.element.locked{cursor:not-allowed}.element span{display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden}.handle{position:absolute;display:block;width:8px;height:8px;background:white;border:1px solid #ed6146;z-index:20}.handle.resize{right:-5px;bottom:-5px;cursor:nwse-resize}.handle.rotate{top:-18px;left:calc(50% - 5px);cursor:grab;font-size:9px;line-height:8px;color:#17231c}.rectangle,.ellipse,.triangle{border:1px solid #111}.ellipse{border-radius:50%}.triangle{clip-path:polygon(50% 0,100% 100%,0 100%);background:#111}.line{height:1px!important;background:#111}.placeholder{font-size:10px}.ruler{position:absolute;background:#f7f4ed;z-index:3}.ruler.horizontal{height:20px;left:20px;right:0;border-bottom:1px solid #aaa}.ruler.vertical{width:20px;top:20px;bottom:0;border-right:1px solid #aaa}.guide{position:absolute;background:#46a8ed;pointer-events:none}.guide.x{top:0;bottom:0;width:1px}.guide.y{left:0;right:0;height:1px}
   .element.exact:not(.selected) span{visibility:hidden}
   .ruler.horizontal{background-image:repeating-linear-gradient(90deg,transparent 0 18px,#59635e 18px 19px,transparent 19px 37.795px)}
