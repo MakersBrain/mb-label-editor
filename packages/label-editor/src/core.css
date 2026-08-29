@@ -6,6 +6,7 @@
 .mb-label-editor textarea,
 .mb-label-editor select {
   font-family: var(--mble-font-ui, system-ui, sans-serif);
+  font-size: 0.8125rem;
 }
 
 .mb-label-editor {
@@ -20,37 +21,92 @@
   color: var(--mble-text, #17231c);
 }
 
+/* Labels stay quiet; their controls carry the contrast. */
+.mb-label-editor label {
+  min-width: 0;
+  color: var(--mble-text-muted, #59635e);
+}
+
+.mb-label-editor fieldset {
+  min-width: 0;
+  border: 1px solid var(--mble-border, #e5dfd5);
+  border-radius: var(--mble-radius-sm, 4px);
+  padding: 0.5rem;
+}
+
+.mb-label-editor legend {
+  padding: 0 0.25rem;
+  color: var(--mble-text-muted, #59635e);
+  font-size: 0.7rem;
+}
+
 .mb-label-editor input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
 .mb-label-editor textarea,
 .mb-label-editor select {
-  border: 1px solid var(--mble-border-strong, #948274);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--mble-border, #e5dfd5);
   border-radius: var(--mble-radius-sm, 4px);
   background: var(--mble-surface, #fff);
-  padding: 0.3rem 0.4rem;
+  padding: 0.25rem 0.4rem;
+}
+
+.mb-label-editor input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):hover,
+.mb-label-editor textarea:hover,
+.mb-label-editor select:hover {
+  border-color: var(--mble-border-strong, #948274);
 }
 
 .mb-label-editor button:disabled,
 .mb-label-editor input:disabled,
 .mb-label-editor textarea:disabled,
 .mb-label-editor select:disabled {
-  opacity: 0.55;
+  opacity: 0.4;
 }
 
+/* Quiet by default: outline only on hover, so dense panels read as content. */
 .mb-label-editor button {
-  border: 1px solid var(--mble-border-strong, #948274);
+  border: 1px solid transparent;
   border-radius: var(--mble-radius-sm, 4px);
-  background: var(--mble-surface, #fff);
-  padding: 0.35rem 0.55rem;
+  background: transparent;
+  padding: 0.25rem 0.5rem;
+  line-height: 1.35;
+  cursor: pointer;
 }
 
 .mb-label-editor button:hover:not(:disabled) {
-  border-color: var(--mble-accent, #236447);
+  background: var(--mble-surface-sunken, #f0e9e3);
+  border-color: var(--mble-border, #e5dfd5);
+}
+
+.mb-label-editor button:active:not(:disabled) {
+  border-color: var(--mble-border-strong, #948274);
+}
+
+.mb-label-editor button:disabled {
+  cursor: default;
 }
 
 .mb-label-editor button:focus-visible,
 .mb-label-editor input:focus-visible,
 .mb-label-editor textarea:focus-visible,
-.mb-label-editor select:focus-visible {
+.mb-label-editor select:focus-visible,
+.mb-label-editor summary:focus-visible {
   outline: 2px solid var(--mble-focus, #ed6146);
-  outline-offset: 2px;
+  outline-offset: 1px;
+}
+
+.mb-label-editor summary {
+  cursor: pointer;
+}
+
+/* Section headings inside panels: small, muted, no shouting. */
+.mb-label-editor h2 {
+  margin: 0 0 0.5rem;
+  color: var(--mble-text-muted, #59635e);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }

@@ -11,8 +11,20 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
 <svelte:window on:keydown={keys}/><div class="editor mb-label-editor"><header><slot name="header"/></header><Toolbar {editor}/><main class:sidebar-closed={!sidebarOpen}><div class="canvas"><Canvas {editor} {sdk}/><button class="panel-toggle" on:click={()=>sidebarOpen=!sidebarOpen} aria-expanded={sidebarOpen} aria-label={sidebarOpen?'Hide editor panels':'Show editor panels'}>{sidebarOpen?'Hide panels':'Show panels'}</button></div><aside class:open={sidebarOpen}><details open><summary>Layers</summary><Layers {editor}/></details><details open><summary>Properties</summary><Inspector {editor}/></details><details open><summary>Media & zones</summary><MediaPanel {editor} {sdk}/></details><details><summary>Library</summary><LibraryPanel {editor}/></details><details><summary>Data</summary><DataPanel {editor}/></details><details><summary>Assets</summary><AssetPanel {editor} {sdk}/></details><slot name="sidebar"/></aside></main></div>
 <style>
   .editor{height:100%;min-width:0;overflow:hidden;display:flex;flex-direction:column;color:var(--mble-text,#17231c);background:var(--mble-background,#f7f4ed);font-family:var(--mble-font-ui,Inter,system-ui,sans-serif)}
-  header{min-width:0;flex:none}main{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 20rem;min-width:0;min-height:0;flex:1}.canvas{position:relative;min-width:0;min-height:0;overflow:hidden}main.sidebar-closed{grid-template-columns:minmax(0,1fr)}main.sidebar-closed aside{display:none}
-  aside{min-width:0;overflow:auto;overscroll-behavior:contain;background:var(--mble-surface,#fff);border-left:1px solid var(--mble-border,#d8d0c3)}aside details{border-bottom:1px solid var(--mble-border,#e5dfd5)}aside summary{position:sticky;top:0;z-index:5;padding:.65rem .75rem;background:var(--mble-surface-muted,#f7f4ed);cursor:pointer;font-size:.76rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}aside :global(details>section){border-top:0}aside :global(details>section>h2){display:none}
-  .panel-toggle{position:absolute;z-index:20;top:.65rem;right:.65rem;padding:.35rem .55rem;border:1px solid var(--mble-border-strong,#aaa);border-radius:var(--mble-radius-full,999px);background:var(--mble-surface,#fff);color:var(--mble-text,#17231c);box-shadow:var(--mble-shadow,0 2px 8px #17231c22)}
+  header{min-width:0;flex:none}
+  main{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 19rem;min-width:0;min-height:0;flex:1}
+  .canvas{position:relative;min-width:0;min-height:0;overflow:hidden}
+  main.sidebar-closed{grid-template-columns:minmax(0,1fr)}main.sidebar-closed aside{display:none}
+  aside{min-width:0;overflow:auto;overscroll-behavior:contain;background:var(--mble-background,#f7f4ed);border-left:1px solid var(--mble-border,#d8d0c3)}
+  aside details{border-bottom:1px solid var(--mble-border,#e5dfd5)}
+  aside summary{position:sticky;top:0;z-index:5;display:flex;gap:.4rem;align-items:center;padding:.5rem .75rem;background:var(--mble-background,#f7f4ed);color:var(--mble-text-muted,#59635e);cursor:pointer;font-size:.75rem;font-weight:600;list-style:none}
+  aside summary::-webkit-details-marker{display:none}
+  aside summary::before{content:'\203A';display:inline-block;width:.6rem;color:var(--mble-text-muted,#59635e);transition:transform .12s ease}
+  aside details[open]>summary{color:var(--mble-text,#17231c)}
+  aside details[open]>summary::before{transform:rotate(90deg)}
+  aside :global(details>section){border-top:0}
+  aside :global(details>section>h2){display:none}
+  .panel-toggle{position:absolute;z-index:20;top:.6rem;right:.6rem;padding:.25rem .55rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-full,999px);background:var(--mble-surface,#fff);color:var(--mble-text-muted,#59635e);font-size:.75rem}
+  .panel-toggle:hover{color:var(--mble-text,#17231c)}
   @media(max-width:760px){main,main.sidebar-closed{grid-template-columns:1fr;grid-template-rows:minmax(16rem,1fr) minmax(0,42vh)}main.sidebar-closed{grid-template-rows:minmax(0,1fr)}aside{display:block;max-height:none;border-left:0;border-top:1px solid var(--mble-border,#d8d0c3)}.panel-toggle{top:.45rem;right:.45rem}}
 </style>
