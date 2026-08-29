@@ -4,6 +4,9 @@ set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
 test -z "$(git status --porcelain)" || { echo 'release candidate requires a clean Git tree' >&2; exit 1; }
+release_temp=$(mktemp -d "${TMPDIR:-/tmp}/mb-label-editor-release.XXXXXX")
+trap 'rm -rf "$release_temp"' EXIT HUP INT TERM
+export npm_config_cache="$release_temp/npm-cache"
 version=$(node -p "require('./packages/label-editor/package.json').version")
 test "$version" = "$(node -p "require('./apps/pwa/package.json').version")"
 test -z "${RELEASE_TAG:-}" || test "$RELEASE_TAG" = "v$version"
