@@ -8,11 +8,25 @@ interface PickerWindow extends Window {
 }
 export const serializeDocument = (document: LabelDocument) => JSON.stringify(toSdkDocument(document), null, 2) + '\n';
 export function parseDocument(text: string): LabelDocument { return fromSdkDocument(JSON.parse(text) as unknown); }
-export async function openDocument(file?: File): Promise<{ document: LabelDocument; handle?: FileSystemFileHandle }> {
+export interface CanonicalDocumentValidator {
+  validateCanonical(value: unknown): Promise<{ valid: boolean; errors: string[] }>;
+  importV3Canonical?(value: unknown): Promise<unknown>;
+}
+export async function parseDocumentStrict(text: string, validator: CanonicalDocumentValidator): Promise<LabelDocument> {
+  let canonical = JSON.parse(text) as unknown;
+  if (canonical && typeof canonical === 'object' && (canonical as { version?: unknown }).version === 3) {
+    if (!validator.importV3Canonical) throw new Error('Canonical v3 import is unavailable.');
+    canonical = await validator.importV3Canonical(canonical);
+  }
+  const result = await validator.validateCanonical(canonical);
+  if (!result.valid) throw new Error(`Document validation failed: ${result.errors.join('; ')}`);
+  return fromSdkDocument(canonical);
+}
+export async function openDocument(file: File | undefined, validator: CanonicalDocumentValidator): Promise<{ document: LabelDocument; handle?: FileSystemFileHandle }> {
   let handle: FileSystemFileHandle | undefined;
   if (!file && typeof window !== 'undefined' && (window as PickerWindow).showOpenFilePicker) [handle] = await (window as PickerWindow).showOpenFilePicker!({ types: [{ description: 'MakersBrain label', accept: { 'application/json': ['.mb-label.json'] } }], multiple: false });
   const selected = file ?? await handle?.getFile(); if (!selected) throw new Error('No file selected');
-  return { document: parseDocument(await selected.text()), handle };
+  return { document: await parseDocumentStrict(await selected.text(), validator), handle };
 }
 export async function saveDocument(document: LabelDocument, suggestedName = `${document.title}.mb-label.json`, existing?: FileSystemFileHandle) {
   const contents = serializeDocument(document); let handle = existing;

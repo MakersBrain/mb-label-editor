@@ -13,6 +13,8 @@ export function loadPrinterSdk(): Promise<PrinterSdk> {
 function adaptSdk(): PrinterSdk {
   const stampCache = new Map<string, Stamp>();
   return {
+    async validateCanonical(value) { const errors = JSON.parse(wasm.validateDocument(JSON.stringify(value))) as string[]; return { valid: !errors.length, errors }; },
+    async importV3Canonical(value) { return JSON.parse(wasm.importV3(JSON.stringify(value))) as unknown; },
     async validate(document) { const errors = JSON.parse(wasm.validateDocument(JSON.stringify(toSdkDocument(document)))) as string[]; return { valid: !errors.length, errors }; },
     async render(document) { return decodePng(wasm.renderPng(JSON.stringify(toSdkDocument(document)))); },
     async exportPng(document) { return wasm.renderPng(JSON.stringify(toSdkDocument(document))); },

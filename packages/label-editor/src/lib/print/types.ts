@@ -21,6 +21,9 @@ export interface PrinterDefinition { id: string; displayName: string; dpi: numbe
 export interface RasterPreview { width: number; height: number; rgba: Uint8Array }
 export interface LaPosteSlot { id: string; sourcePage: number; slot: number; occupied: boolean; widthMm: 63.5; heightMm: 33.9; preview: RasterPreview }
 export interface PrinterSdk {
+  /** Validates an unmodified canonical value so schema-unknown fields cannot be lost by an adapter. */
+  validateCanonical(value: unknown): Promise<{ valid: boolean; errors: string[] }>;
+  importV3Canonical?(value: unknown): Promise<unknown>;
   validate(document: LabelDocument): Promise<{ valid: boolean; errors: string[] }>;
   render(document: LabelDocument, options?: { exactThermal?: boolean; record?: number }): Promise<RasterPreview>;
   exportPng(document: LabelDocument, options?: { record?: number }): Promise<Uint8Array>;

@@ -34,7 +34,7 @@ export class DirectPrintRoute implements PrintRoute {
           await monotonicDelay(action.fallbackDelayMs, request.signal);
         } else {
           await executeAction(action, transport, request.signal, async (chunk) => {
-            await abortable(transport!.write(chunk, request.signal), request.signal); potentiallyAccepted = true; bytesSent += chunk.byteLength;
+            potentiallyAccepted = true; await abortable(transport!.write(chunk, request.signal), request.signal); bytesSent += chunk.byteLength;
           });
         }
         lastCompletedAction = index; const progress = { action: index + 1, actions: plan.actions.length, bytesSent, totalBytes: plan.totalBytes, phase: action.type };
