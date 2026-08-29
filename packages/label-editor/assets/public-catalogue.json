@@ -30,5 +30,14 @@
     "redistributionStatus": "private-only",
     "mediaType": "image/svg+xml",
     "dataBase64": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iY3VycmVudENvbG9yIi8+PC9zdmc+"
+  },
+  {
+    "id":"synthetic-frame","name":"Synthetic frame","kind":"frame","category":"frames","tags":["border","frame","synthetic"],"visibility":"public","source":"Original MakersBrain synthetic artwork","author":"MakersBrain contributors","license":"AGPL-3.0-or-later","licenseUrl":"https://www.gnu.org/licenses/agpl-3.0.html","sha256":"1a6953751cc465574f81ea63eb0515366e20d874b7322a3004b87a61940cc791","redistributionStatus":"verified","mediaType":"image/svg+xml","dataBase64":"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHJlY3QgeD0iMSIgeT0iMSIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIvPjwvc3ZnPg=="
+  },
+  {
+    "id":"synthetic-font-sample","name":"Synthetic font sample","kind":"font","category":"typography","tags":["font","sample","synthetic"],"visibility":"public","source":"Original MakersBrain synthetic artwork","author":"MakersBrain contributors","license":"AGPL-3.0-or-later","licenseUrl":"https://www.gnu.org/licenses/agpl-3.0.html","sha256":"4f125086521d3ef9beb8d468a49c6619038404d1d2d33ba425cc13f9769b8d86","redistributionStatus":"verified","mediaType":"image/svg+xml","dataBase64":"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHRleHQgeD0iMSIgeT0iMTIiPkFhPC90ZXh0Pjwvc3ZnPg=="
+  },
+  {
+    "id":"synthetic-template","name":"Synthetic address template","kind":"template","category":"templates","tags":["address","template","synthetic"],"visibility":"public","source":"Original MakersBrain synthetic artwork","author":"MakersBrain contributors","license":"AGPL-3.0-or-later","licenseUrl":"https://www.gnu.org/licenses/agpl-3.0.html","sha256":"e013d889623ee47e85ce43e00d13562435a8ce3bb7ef785b5fc441a1bee7ddfe","redistributionStatus":"verified","mediaType":"image/svg+xml","dataBase64":"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZD0iTTIgNGgxMk0yOGgxME0yMTJoOCIvPjwvc3ZnPg=="
   }
 ]

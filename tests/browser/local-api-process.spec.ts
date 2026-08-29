@@ -59,11 +59,13 @@ test('real CLI process supports pairing, preflight, jobs, restart, and revocatio
     let token: string | undefined; let connection: import('../../packages/label-editor/src/lib/print/local-api.js').LocalApiConnection | undefined;
     const route = new LocalApiPrintRoute({ baseUrl: base, token: () => token, origin, connection: () => connection });
     const grant = await route.pair(secret!); token = grant.token;
-    connection = await route.configureConnection({ id: 'acceptance-file', model: 'm110', transport: { kind: 'file', path: join(directory, 'printer.capture') } });
+    connection = await route.configureConnection({ id: 'acceptance-file', model: 'm200', transport: { kind: 'file', path: join(directory, 'printer.capture') } });
     expect(grant.grantId).toBeTruthy(); expect(new Date(grant.expiresAt).getTime()).toBeGreaterThan(Date.now());
     expect((await route.validate(defaultDocument())).valid).toBe(true);
 
-    const request = { document: defaultDocument(), printer: { id: 'm110', name: 'M110', dpi: 203 }, copies: 1 };
+    // The editor's 50 mm default media exceeds the M110's 48 mm print head.
+    // Exercise a model whose declared head can physically accept that document.
+    const request = { document: defaultDocument(), printer: { id: 'm200', name: 'M200', dpi: 203 }, copies: 1 };
     const submitted = await route.submit(request);
     const progress: string[] = [];
     const terminal = await route.events(submitted.id, (event) => progress.push(event.phase));
