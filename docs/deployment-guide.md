@@ -17,3 +17,10 @@ Release tags must match package versions. Preserve the AGPL license, notices,
 source archive, dependency inventory, checksums, and provenance artifacts next
 to the npm package and PWA build. Roll back by redeploying the prior immutable
 artifact; clients pick it up when the service worker refreshes.
+
+The canonical registry for `@makersbrain/label-editor` is public npmjs, not
+GitHub Packages. Before tagging, run `npm run release:candidate` with
+`CHROMIUM_PATH` set when the Playwright-managed browser is unavailable. The
+command verifies a clean Svelte consumer and an offline installation below
+`/mb-label-editor/`, then creates deterministic source/PWA archives, package
+tarball, CycloneDX SBOMs, notices, and `SHA256SUMS` in `release-artifacts/`.

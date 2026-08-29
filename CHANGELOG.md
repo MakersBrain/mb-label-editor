@@ -3,7 +3,7 @@
 
 All notable changes follow Keep a Changelog and Semantic Versioning.
 
-## 0.1.0 - Unreleased
+## 0.1.0 - 2026-08-29
 
 - Added the reusable Svelte 5 editor and installable offline PWA.
 - Added canonical v4 SDK adapters, persistence, templates, and print routes.

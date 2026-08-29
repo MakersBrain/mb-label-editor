@@ -31,4 +31,4 @@ jobs:
         with: { path: mb-label-editor/apps/pwa/dist }
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@d6db90192e89b0d1b0f40fa4e7b186b7635c267 # v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

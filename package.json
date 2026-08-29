@@ -10,7 +10,10 @@
     "test": "npm run test --workspaces --if-present",
     "check:licenses": "node scripts/check-license-policy.mjs"
     ,"test:browser": "playwright test",
-    "test:package": "node scripts/test-package.mjs"
+    "test:package": "node scripts/test-package.mjs",
+    "test:pwa-release": "node scripts/test-pwa-release.mjs",
+    "check:workflows": "node scripts/check-workflows.mjs",
+    "release:candidate": "sh scripts/release-candidate.sh"
   },
   "engines": { "node": ">=20" }
 }

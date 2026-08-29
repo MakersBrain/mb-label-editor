@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Reusable Svelte 5 thermal label editor",
   "license": "AGPL-3.0-or-later",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "svelte": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,6 +20,7 @@
   },
   "files": [
     "dist",
+    "assets",
     "README.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md"

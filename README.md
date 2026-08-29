@@ -11,6 +11,7 @@ npm test
 npm run check
 npm run build
 npm run test:browser
+npm run release:candidate
 ```
 
 The browser suite uses Chromium for open/save, touch/rulers, autosave recovery,
@@ -34,3 +35,7 @@ Operational documentation is in [docs/user-guide.md](docs/user-guide.md),
 [docs/deployment-guide.md](docs/deployment-guide.md).
 
 Licensed under AGPL-3.0-or-later. See [LICENSE](LICENSE).
+
+The reusable package is released publicly through npmjs. `release:candidate`
+performs the local, non-publishing release build and writes reproducible npm,
+PWA, source, SBOM, notice, and checksum evidence to `release-artifacts/`.
