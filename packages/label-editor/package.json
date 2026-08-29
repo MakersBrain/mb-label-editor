@@ -16,7 +16,10 @@
       "svelte": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./style.css": "./dist/style.css"
+    "./style.css": "./dist/style.css",
+    "./core.css": "./dist/core.css",
+    "./themes/standalone.css": "./dist/themes/standalone.css",
+    "./themes/mb-ui.css": "./dist/themes/mb-ui.css"
   },
   "files": [
     "dist",

@@ -3,6 +3,14 @@
 
 All notable changes follow Keep a Changelog and Semantic Versioning.
 
+## Unreleased
+
+- Split structural and standalone editor styles so the reusable package remains
+  independent of MakersBrain UI and no longer injects a theme on import.
+- Added the optional MB UI/Shadcn semantic adapter and applied it, including the
+  canonical brand lockup and native light/dark palettes, to the hosted PWA.
+- Added clean-package and browser acceptance for both styling modes.
+
 ## 0.1.0 - 2026-08-29
 
 - Added the reusable Svelte 5 editor and installable offline PWA.

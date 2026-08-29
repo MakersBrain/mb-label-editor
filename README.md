@@ -25,6 +25,12 @@ The printer SDK is connected through `PrinterSdk`, a narrow injectable
 interface. The production app loads `@makersbrain/printer-sdk`; tests may use a
 deterministic in-memory implementation.
 
+The reusable package remains independent of `@makersbrain/ui`: consumers select
+`core.css` plus the dependency-free `themes/standalone.css`. The first-party PWA
+installs MB UI and selects `themes/mb-ui.css`, which maps the same editor token
+contract through MB UI's Shadcn-compatible semantic variables and adds the
+canonical `BrandLockup` in the application shell.
+
 The production browser-WASM and Node-WASM artifacts are built from the sibling
 SDK and smoke-tested against its shared exact packed-raster, PNG, PDF, and La
 Poste fixtures. Web Bluetooth/WebUSB still require explicit browser permission

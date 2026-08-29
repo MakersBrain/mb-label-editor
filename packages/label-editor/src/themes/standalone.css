@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Dependency-free defaults for embedding outside MakersBrain products. */
+.mb-label-editor {
+  color-scheme: light;
+  --mble-background: #f7f4ed;
+  --mble-surface: #fff;
+  --mble-surface-muted: #f7f4ed;
+  --mble-surface-sunken: #f0e9e3;
+  --mble-text: #17231c;
+  --mble-text-muted: #59635e;
+  --mble-accent: #236447;
+  --mble-primary: #ed6146;
+  --mble-primary-text: #fff;
+  --mble-focus: #ed6146;
+  --mble-danger: #a21;
+  --mble-warning: #96600d;
+  --mble-guide: #46a8ed;
+  --mble-border: #e5dfd5;
+  --mble-border-strong: #aaa;
+  --mble-selection: #f5c8b9;
+  --mble-shadow: 0 8px 24px rgb(23 35 28 / 27%);
+  --mble-radius-sm: 4px;
+  --mble-radius-md: 6px;
+  --mble-radius-full: 999px;
+  --mble-font-ui: Inter, system-ui, sans-serif;
+}
+
+[data-theme='dark'] .mb-label-editor {
+  color-scheme: dark;
+  --mble-background: #17231c;
+  --mble-surface: #223128;
+  --mble-surface-muted: #1b2921;
+  --mble-surface-sunken: #101a14;
+  --mble-text: #f7f4ed;
+  --mble-text-muted: #bac6be;
+  --mble-accent: #73b995;
+  --mble-primary: #f1846d;
+  --mble-primary-text: #17231c;
+  --mble-focus: #f1846d;
+  --mble-danger: #ff9a86;
+  --mble-warning: #f5c877;
+  --mble-guide: #7ea8c4;
+  --mble-border: #3d5145;
+  --mble-border-strong: #718378;
+  --mble-selection: #59463f;
+  --mble-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+}

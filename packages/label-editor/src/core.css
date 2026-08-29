@@ -1,0 +1,56 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Structural editor styles. Supply standalone.css or another token adapter. */
+.mb-label-editor,
+.mb-label-editor button,
+.mb-label-editor input,
+.mb-label-editor textarea,
+.mb-label-editor select {
+  font-family: var(--mble-font-ui, system-ui, sans-serif);
+}
+
+.mb-label-editor {
+  color: var(--mble-text, #17231c);
+  background: var(--mble-background, #f7f4ed);
+}
+
+.mb-label-editor button,
+.mb-label-editor input,
+.mb-label-editor textarea,
+.mb-label-editor select {
+  color: var(--mble-text, #17231c);
+}
+
+.mb-label-editor input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+.mb-label-editor textarea,
+.mb-label-editor select {
+  border: 1px solid var(--mble-border-strong, #948274);
+  border-radius: var(--mble-radius-sm, 4px);
+  background: var(--mble-surface, #fff);
+  padding: 0.3rem 0.4rem;
+}
+
+.mb-label-editor button:disabled,
+.mb-label-editor input:disabled,
+.mb-label-editor textarea:disabled,
+.mb-label-editor select:disabled {
+  opacity: 0.55;
+}
+
+.mb-label-editor button {
+  border: 1px solid var(--mble-border-strong, #948274);
+  border-radius: var(--mble-radius-sm, 4px);
+  background: var(--mble-surface, #fff);
+  padding: 0.35rem 0.55rem;
+}
+
+.mb-label-editor button:hover:not(:disabled) {
+  border-color: var(--mble-accent, #236447);
+}
+
+.mb-label-editor button:focus-visible,
+.mb-label-editor input:focus-visible,
+.mb-label-editor textarea:focus-visible,
+.mb-label-editor select:focus-visible {
+  outline: 2px solid var(--mble-focus, #ed6146);
+  outline-offset: 2px;
+}

@@ -12,6 +12,7 @@
   "dependencies": {
     "@makersbrain/label-editor": "0.1.0",
     "@makersbrain/printer-sdk": "file:../../../mb-printer-sdk/crates/mb-printer-wasm",
+    "@makersbrain/ui": "file:../../../mb-ui",
     "svelte": "^5.56.1"
   },
   "devDependencies": {

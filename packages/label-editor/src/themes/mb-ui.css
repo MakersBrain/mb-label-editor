@@ -1,0 +1,30 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Optional MakersBrain/Shadcn bridge. Consumers must install @makersbrain/ui. */
+@import '@makersbrain/ui/tokens.css';
+@import '@makersbrain/ui/fonts.css';
+@import '@makersbrain/ui/base.css';
+@import '@makersbrain/ui/adapters/shadcn.css';
+
+.mb-label-editor {
+  --mble-background: var(--background);
+  --mble-surface: var(--card);
+  --mble-surface-muted: var(--secondary);
+  --mble-surface-sunken: var(--muted);
+  --mble-text: var(--foreground);
+  --mble-text-muted: var(--muted-foreground);
+  --mble-accent: var(--primary);
+  --mble-primary: var(--primary);
+  --mble-primary-text: var(--primary-foreground);
+  --mble-focus: var(--ring);
+  --mble-danger: var(--destructive);
+  --mble-warning: var(--warning);
+  --mble-guide: var(--mb-info);
+  --mble-border: var(--border);
+  --mble-border-strong: var(--input);
+  --mble-selection: var(--accent);
+  --mble-shadow: var(--mb-shadow-lg);
+  --mble-radius-sm: var(--mb-radius-sm);
+  --mble-radius-md: var(--mb-radius-md);
+  --mble-radius-full: var(--mb-radius-full);
+  --mble-font-ui: var(--mb-font-ui);
+}

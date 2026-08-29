@@ -1,2 +1,4 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-:root{--mb-ink:#17231c;--mb-paper:#f7f4ed;--mb-leaf:#236447;--mb-coral:#ed6146}button,input,textarea,select{font:inherit}button{border:1px solid #bbb;border-radius:4px;background:white;padding:.35rem .55rem;color:var(--mb-ink)}button:hover:not(:disabled){border-color:var(--mb-leaf)}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--mb-coral);outline-offset:1px}
+/* Backwards-compatible complete standalone stylesheet. */
+@import './core.css';
+@import './themes/standalone.css';

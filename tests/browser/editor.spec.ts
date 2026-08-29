@@ -29,6 +29,29 @@ test('open, edit, save, and reload the installed shell offline', async ({ page, 
   await expect(page.getByRole('button', { name: 'Text', exact: true })).toBeVisible();
 });
 
+test('MB UI branding and semantic light/dark themes apply without inversion', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('[title="MakersBrain Label Editor"]')).toBeVisible();
+  const colors = await page.evaluate(() => {
+    const editor = document.querySelector<HTMLElement>('.mb-label-editor');
+    if (!editor) throw new Error('editor theme root is missing');
+    document.documentElement.dataset.theme = 'light';
+    const light = getComputedStyle(editor).backgroundColor;
+    document.documentElement.dataset.theme = 'dark';
+    const dark = getComputedStyle(editor).backgroundColor;
+    return {
+      light,
+      dark,
+      filter: getComputedStyle(document.documentElement).filter,
+      shadcnPrimary: getComputedStyle(document.documentElement).getPropertyValue('--primary').trim(),
+      mbAccent: getComputedStyle(document.documentElement).getPropertyValue('--mb-accent').trim()
+    };
+  });
+  expect(colors.light).not.toBe(colors.dark);
+  expect(colors.filter).toBe('none');
+  expect(colors.shadcnPrimary).toBe(colors.mbAccent);
+});
+
 test('touch gestures, rulers, local SVG import, and autosave recovery work',async({page})=>{await page.goto('/');await expect(page.locator('.ruler.horizontal')).toBeVisible();await expect(page.locator('.ruler.vertical')).toBeVisible();const viewport=page.getByRole('application',{name:'Label canvas'});await viewport.dispatchEvent('pointerdown',{pointerId:1,pointerType:'touch',clientX:100,clientY:100});await viewport.dispatchEvent('pointerdown',{pointerId:2,pointerType:'touch',clientX:200,clientY:100});await viewport.dispatchEvent('pointermove',{pointerId:2,pointerType:'touch',clientX:260,clientY:100});await viewport.dispatchEvent('pointerup',{pointerId:1,pointerType:'touch',clientX:100,clientY:100});await viewport.dispatchEvent('pointerup',{pointerId:2,pointerType:'touch',clientX:260,clientY:100});await expect(page.locator('input.zoom')).toBeVisible();const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>';await page.locator('input[type=file][accept*="image"]' ).setInputFiles({name:'local.svg',mimeType:'image/svg+xml',buffer:Buffer.from(svg)});await expect(page.getByText('local.svg',{exact:true}).first()).toBeVisible();await page.waitForTimeout(1700);const autosaves=await page.evaluate(async()=>await new Promise<number>((resolve,reject)=>{const request=indexedDB.open('makersbrain-label-editor');request.onerror=()=>reject(request.error);request.onsuccess=()=>{const count=request.result.transaction('autosaves').objectStore('autosaves').count();count.onsuccess=()=>resolve(count.result);count.onerror=()=>reject(count.error)}}));expect(autosaves).toBeGreaterThan(0);await page.reload();await expect(page.locator('footer')).toContainText('Recovered autosave');await expect(page.getByText('local.svg',{exact:true}).first()).toBeVisible()});
 
 test('compiled SDK rejects an unknown canonical field before replacing the document',async({page})=>{const fixture=JSON.parse(await readFile(new URL('../../packages/label-editor/tests/fixtures/sdk-v4-text.mb-label.json',import.meta.url),'utf8')) as Record<string,unknown>;fixture.unknownField=true;await page.goto('/');await page.locator('input[type=file][accept*="mb-label"]').setInputFiles({name:'invalid.mb-label.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});await expect(page.locator('footer')).toContainText('Document validation failed');await expect(page.locator('footer')).not.toContainText('Opened SDK compatibility')});
