@@ -40,7 +40,7 @@ function dismiss(event:FocusEvent){const menu=event.currentTarget as HTMLDetails
   .menu>summary::-webkit-details-marker{display:none}
   .menu>summary::after{content:'⌄';margin-left:.3rem;font-size:.7em;vertical-align:.15em}
   .menu>summary:hover,.menu[open]>summary{background:var(--mble-surface-sunken,#f0e9e3);color:var(--mble-text,#17231c)}
-  .sheet{position:absolute;z-index:40;left:0;top:calc(100% + .3rem);display:grid;gap:.35rem;min-width:14rem;padding:.6rem;background:var(--mble-surface,#fff);border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-md,6px);box-shadow:var(--mble-shadow,0 8px 24px #17231c22)}
+  .sheet{position:absolute;z-index:40;left:0;top:calc(100% + .3rem);display:grid;gap:.35rem;min-width:14rem;max-width:calc(100vw - 1rem);padding:.6rem;background:var(--mble-surface,#fff);border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-md,6px);box-shadow:var(--mble-shadow,0 8px 24px #17231c22)}
   .sheet .row{display:flex;flex-wrap:wrap;gap:.25rem;align-items:center}
   .sheet .hint{margin:.15rem 0 0;color:var(--mble-text-muted,#59635e);font-size:.7rem}
   .sheet label{display:flex;gap:.3rem;align-items:center;font-size:.75rem}
@@ -49,5 +49,5 @@ function dismiss(event:FocusEvent){const menu=event.currentTarget as HTMLDetails
   .zoom-field{display:flex;gap:.35rem;align-items:center;font-size:.75rem}
   .zoom{width:6rem}
   .zoom-field output{min-width:2.5rem;color:var(--mble-text-muted,#59635e);font-variant-numeric:tabular-nums}
-  @media(max-width:900px){nav{flex-wrap:wrap;row-gap:.25rem}.spacer{display:none}.group+.group{margin-left:0}.zoom{width:4rem}}
+  @media(max-width:900px){nav{flex-wrap:wrap;row-gap:.25rem}.group{flex-wrap:wrap;row-gap:.25rem}.spacer{display:none}.group+.group{margin-left:0}.zoom{width:4rem}}
 </style>
