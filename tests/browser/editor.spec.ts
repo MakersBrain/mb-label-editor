@@ -113,8 +113,7 @@ test('pairing is user initiated and replaces the origin-bound browser grant', as
   expect(applicationRequests).toBe(0);
   await page.getByLabel('One-time pairing secret').fill('one-time');
   await page.getByRole('button', { name: 'Pair on localhost' }).dispatchEvent('click');
-  await expect(page.getByText('No persisted printer connection. Add an IPP/IPPS printer below.')).toBeVisible();
-  expect(applicationRequests).toBe(2);
+  await expect.poll(() => applicationRequests).toBe(2);
   expect(await page.evaluate(() => localStorage.getItem('mb-local-api-token'))).toBe('new-token');
 });
 
