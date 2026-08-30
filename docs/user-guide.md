@@ -30,3 +30,56 @@ deletion, and private asset collections can be exported back to `.mb-assets`.
 
 The app works offline after its first successful load. Device permission and
 local-service pairing cannot be completed offline.
+
+## Printing on label sheets
+
+Use **Print → Label sheet…** to place the current label on adhesive sheets for
+a general-purpose inkjet or laser printer. This workflow produces a PDF; it does
+not send printer-language commands and does not use the thermal print routes.
+
+1. Finish the label design and confirm its width and height.
+2. Choose **Current label copies** and enter a copy count, or choose **CSV
+   records** to materialize every imported record in its displayed order. CSV
+   mode is unavailable until the document contains records. Selecting a subset
+   of records is not currently exposed in the panel.
+3. Select one of the generic A4 or US Letter grids, or select **Custom grid**.
+   A custom grid defines paper size, orientation, rows, columns, label width and
+   height, top and left margins, horizontal and vertical gaps, and fill order.
+   Invalid grids are rejected, and the document width and height must exactly
+   match the selected slot dimensions before export.
+4. Select **Rows first** or **Columns first**. Choose the **First unused label**
+   by number or click it in the first-sheet preview. Earlier slots on the first
+   page are left empty; subsequent pages start at their first slot.
+5. Select **Export sheet PDF** to download `label-sheet.pdf`, or **Open print
+   PDF** to open the generated PDF in a new tab or window. Opening the PDF does
+   not print automatically. If the browser blocks the new window, allow the
+   popup for this app or use the download action instead.
+6. In the PDF viewer, select the matching A4 or Letter paper, choose **Actual
+   size** or **100%**, and disable **Fit to page**, **Shrink oversized pages**,
+   or any equivalent scaling option. Test on plain paper before loading label
+   stock.
+
+Sheet rasterization is currently fixed at 300 DPI monochrome. The generated PDF
+uses the selected paper and slot dimensions, calculated in integer micrometres.
+That establishes the software geometry; it does not guarantee that every
+printer, driver, paper path, or PDF viewer will place ink at the same physical
+position. Non-printable margins, automatic scaling, duplex settings, tray
+selection, feed skew, humidity, and repeated-feed tolerances can all affect the
+result. Qualify each printer, driver, and stock combination before production
+use with the [label-sheet qualification checklist](label-sheet-qualification.md).
+
+The current preset catalogue is generic and contains no branded product claims.
+A branded preset may be added only from a verified primary manufacturer
+specification that states the paper size, label dimensions, margins, pitch or
+gaps, and row/column count. A reseller listing, community template, measured
+sample, or similarly named product is not sufficient evidence. Record the
+source and revision with the preset and physically qualify it; manufacturer
+dimensions still do not guarantee a particular printer's accuracy.
+
+Planning and PDF generation run locally and can work offline after the app and
+printer SDK have completed their first successful load and are cached. Opening
+or printing the local PDF does not require a cloud print service, although the
+browser PDF viewer and operating-system printer driver must already be
+available. Browser popup policy applies to **Open print PDF**. Browser download
+policy applies to **Export sheet PDF**. Mobile and embedded browsers may offer
+fewer paper-size and scaling controls than a desktop PDF viewer.
