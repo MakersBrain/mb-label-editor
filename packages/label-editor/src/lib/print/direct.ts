@@ -10,7 +10,7 @@ export interface DirectTransport {
 }
 export class DirectPrintRoute implements PrintRoute {
   readonly id: string; readonly label: string; private retryProhibited = false;
-  constructor(private sdk: PrinterSdk, private transportFactory: () => Promise<DirectTransport>, kind: 'bluetooth' | 'usb' | 'serial', private supported: () => boolean = () => true, private journal?: JobJournal) { this.id = `web-${kind}`; this.label = kind === 'serial' ? 'Bluetooth SPP (Web Serial)' : `Web ${kind === 'bluetooth' ? 'Bluetooth' : 'USB'}`; }
+  constructor(private sdk: PrinterSdk, private transportFactory: () => Promise<DirectTransport>, private kind: 'bluetooth' | 'usb' | 'serial', private supported: () => boolean = () => true, private journal?: JobJournal) { this.id = `web-${kind}`; this.label = kind === 'serial' ? 'Bluetooth SPP (Web Serial)' : `Web ${kind === 'bluetooth' ? 'Bluetooth' : 'USB'}`; }
   isSupported() { return globalThis.isSecureContext === true && this.supported(); }
   async print(request: PrintRequest): Promise<PrintResult> {
     if (this.retryProhibited) return { outcome: 'failed', bytesSent: 0, lastCompletedAction: -1, error: 'Automatic retry is prohibited after an ambiguous direct-print outcome. Inspect the printer and start a new explicit job.' };
@@ -18,7 +18,9 @@ export class DirectPrintRoute implements PrintRoute {
     let transport: DirectTransport | undefined; let bytesSent = 0; let lastCompletedAction = -1; let potentiallyAccepted = false; let notificationsAvailable = true;
     const finish = async (result: PrintResult) => { if (persisted) await this.journal?.finish(persisted, result); if (result.outcome === 'outcome-unknown' || result.outcome === 'cancelled-partial') this.retryProhibited = true; return result; };
     try {
-      const plan = await this.sdk.plan(request.document, request.printer, { copies: request.copies, density: request.density, record: request.record });
+      // Only GATT needs the per-chunk pacing; a serial port or a bulk endpoint
+      // streams the job the way the vendor drivers do.
+      const plan = await this.sdk.plan(request.document, request.printer, { copies: request.copies, density: request.density, record: request.record, streaming: this.kind !== 'bluetooth', lzo: request.compressRaster });
       transport = await this.transportFactory();
       preflightPlan(plan, transport);
       if (request.signal?.aborted) return await finish({ outcome: 'cancelled-before-send', bytesSent, lastCompletedAction });

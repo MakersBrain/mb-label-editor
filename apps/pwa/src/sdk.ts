@@ -19,8 +19,9 @@ function adaptSdk(): PrinterSdk {
     async render(document) { return decodePng(wasm.renderPng(JSON.stringify(toSdkDocument(document)))); },
     async exportPng(document) { return wasm.renderPng(JSON.stringify(toSdkDocument(document))); },
     async exportPdf(documents) { return wasm.renderBatchPdf(JSON.stringify(documents.map(toSdkDocument))); },
-    async plan(document, printer) {
-      const parsed = JSON.parse(wasm.renderProtocolPlan(JSON.stringify(toSdkDocument(document)), printer.id)) as { protocol: string; actions: SdkPlanAction[] };
+    async plan(document, printer, options) {
+      const request = JSON.stringify({ copies: options.copies, ...(options.density === undefined ? {} : { density: options.density }), streaming: !!options.streaming, lzo: !!options.lzo });
+      const parsed = JSON.parse(wasm.renderProtocolPlanWithOptions(JSON.stringify(toSdkDocument(document)), printer.id, request)) as { protocol: string; actions: SdkPlanAction[] };
       return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
     },
     async mediaPresets(printer): Promise<MediaPreset[]> {
