@@ -45,7 +45,7 @@ export interface BarcodeElement extends ElementBase { type: 'barcode'; value: st
 export interface QrElement extends ElementBase { type: 'qr'; value: string; errorCorrection: 'L' | 'M' | 'Q' | 'H' }
 export interface GroupElement extends ElementBase { type: 'group'; childIds: Id[] }
 export type LabelElement = TextElement | ImageElement | SvgElement | ShapeElement | BarcodeElement | QrElement | GroupElement;
-export interface DitherSettings { algorithm: 'threshold' | 'bayer' | 'floyd-steinberg'; threshold: number }
+export interface DitherSettings { algorithm: 'auto' | 'threshold' | 'bayer' | 'floyd-steinberg' | 'atkinson'; threshold: number }
 export interface TemplateData { fields: string[]; records: Record<string, string>[]; currentRecord: number }
 export interface LabelDocument {
   version: 4;

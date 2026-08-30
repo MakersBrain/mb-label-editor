@@ -109,5 +109,8 @@ export const ungroup = (groupId: Id): Command => ({ label: 'Ungroup elements', a
   copy.elements.forEach((item) => { if (item.groupId === groupId) delete item.groupId; }); copy.elements = copy.elements.filter((item) => item.id !== groupId);
 }) });
 export const updateDocument = (patch: Partial<Omit<LabelDocument, 'version' | 'elements' | 'resources' | 'fonts'>>): Command => ({ label: 'Edit document', apply: (doc) => changed(doc, (copy) => Object.assign(copy, structuredClone(patch))) });
-export const addResource = (resource: LabelDocument['resources'][number]): Command => ({label:'Import asset',apply:(doc)=>changed(doc,copy=>{if(!copy.resources.some(item=>item.sha256===resource.sha256))copy.resources.push(structuredClone(resource))})});
+// Resource references are ID-based. Two imports may intentionally share bytes
+// while using different IDs, so content-hash deduplication would leave a newly
+// placed element pointing at a resource that was never inserted.
+export const addResource = (resource: LabelDocument['resources'][number]): Command => ({label:'Import asset',apply:(doc)=>changed(doc,copy=>{if(!copy.resources.some(item=>item.id===resource.id))copy.resources.push(structuredClone(resource))})});
 export const addFont = (font: LabelDocument['fonts'][number]): Command => ({label:'Import font',apply:(doc)=>changed(doc,copy=>{if(!copy.fonts.some(item=>item.sha256===font.sha256))copy.fonts.push(structuredClone(font))})});

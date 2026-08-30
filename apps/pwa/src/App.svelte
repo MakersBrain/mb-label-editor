@@ -4,7 +4,7 @@
   import {BrandLockup} from '@makersbrain/ui/svelte';
   import { BatchPanel,DirectPrintPanel,JobRecoveryPanel,JobJournal,LabelEditor,LaPostePanel,LocalServicePanel,createEditorStore,defaultDocument,EditorDatabase,createAutosaver,openDocument,saveDocument,LocalApiPrintRoute,Modal,Menu,updateDocument,type LocalApiConnection,type PrinterSdk,type PrinterDefinition,type PrintProgress,type PrintRoute } from '@makersbrain/label-editor'; import {loadPrinterSdk} from './sdk.js';
   const editor=createEditorStore(defaultDocument()); const database=new EditorDatabase(); const autosave=createAutosaver(database); let status='Ready'; let sdk:PrinterSdk|undefined;let printers:PrinterDefinition[]=[];let printerId='';let progress:PrintProgress|undefined;let apiToken=localStorage.getItem('mb-local-api-token')??'';let connectionId=localStorage.getItem('mb-local-api-connection')??'';let localConnection:LocalApiConnection|undefined;let handle:unknown;let online=navigator.onLine;let theme:'system'|'light'|'dark'='system';let defaultRoute='local-api';let updateAvailable=false;const localRoute=new LocalApiPrintRoute({token:()=>apiToken,connection:()=>localConnection,journal:new JobJournal(database)});let selectedRoute:PrintRoute=localRoute;
-  onMount(()=>{const update=()=>updateAvailable=true;window.addEventListener('mb-pwa-update',update);return()=>window.removeEventListener('mb-pwa-update',update)});
+  onMount(()=>{void ensureSdk();const update=()=>updateAvailable=true;window.addEventListener('mb-pwa-update',update);return()=>window.removeEventListener('mb-pwa-update',update)});
   let dialog='';
   async function restoreAutosave(){try{const recovered=await database.latestAutosave();if(recovered){editor.replace(recovered.document);status=`Recovered autosave from ${new Date(recovered.savedAt).toLocaleTimeString()}`;}}catch(error){status=`Autosave recovery unavailable: ${message(error)}`;}}
   async function restorePreferences(){const preferences=await database.getPreferences();if(preferences){editor.setView({gridSize:preferences.gridSize,showGrid:preferences.showGrid,showRulers:preferences.showRulers,snapping:preferences.snapping});printerId=preferences.defaultPrinterId??printerId;theme=preferences.theme;defaultRoute=preferences.defaultRoute??defaultRoute;applyTheme()}}
@@ -13,6 +13,7 @@
   async function open(event?:Event){try{const file=(event?.currentTarget as HTMLInputElement)?.files?.[0];const loaded=await ensureSdk();const opened=await openDocument(file,loaded);editor.replace(opened.document);handle=opened.handle;status=`Opened ${opened.document.title}`;}catch(error){status=message(error)}}
   async function save(){try{handle=await saveDocument($editor.document,undefined,handle as never);await database.saveDocument($editor.document);status='Saved';}catch(error){status=message(error)}}
   async function ensureSdk(){if(!sdk){status='Loading printer SDK…';sdk=await loadPrinterSdk();printers=await sdk.printerDefinitions();printerId||=printers[0]?.id??'';}return sdk}
+  function selectPrinter(id:string){printerId=id;persistPreferences();status=id?`Selected ${printers.find(item=>item.id===id)?.displayName??id}. Connect it in the printer panel.`:'Select a printer model.'}
   async function preview(){try{const loaded=await ensureSdk();const raster=await loaded.render($editor.document,{exactThermal:true});status=`Thermal preview: ${raster.width} × ${raster.height} dots`;}catch(error){status=message(error)}}
   async function exportFile(kind:'png'|'pdf'){try{const loaded=await ensureSdk();const data=kind==='png'?await loaded.exportPng($editor.document):await loaded.exportPdf([$editor.document]);const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([data.slice().buffer],{type:kind==='png'?'image/png':'application/pdf'}));link.download=`label.${kind}`;link.click();URL.revokeObjectURL(link.href);status=`Exported ${kind.toUpperCase()}.`}catch(error){status=message(error)}}
   async function print(){try{await ensureSdk();const printer=printers.find(item=>item.id===printerId);if(!printer)throw new Error('Select a printer model.');status='Printing…';const result=await localRoute.print({document:$editor.document,printer,copies:1,onProgress:value=>progress=value});status=result.outcome==='completed'?`Printed ${result.bytesSent} bytes`:`${result.outcome}: ${result.error??'Check the printer before retrying.'}`;}catch(error){status=message(error)}}
@@ -26,7 +27,7 @@
 </script>
 <svelte:window on:online={()=>online=true} on:offline={()=>online=false}/>
 <div class="app">
-  <LabelEditor {editor} {sdk}>
+  <LabelEditor {editor} {sdk} {printers} {printerId} onPrinter={selectPrinter}>
     <BrandLockup slot="brand" product="Label Editor" href="./"/>
     <Menu slot="menu-start" label="File">
       <button on:click={()=>open()}>Open picker</button>
@@ -42,7 +43,6 @@
       {#if updateAvailable}<button on:click={()=>location.reload()}>Update application</button>{/if}
     </Menu>
     <Menu slot="menu-end" label="Print">
-      <button on:click={()=>dialog='direct'}>Direct browser print…</button>
       <button on:click={()=>dialog='batch'}>Batch printing…</button>
       <button on:click={()=>dialog='laposte'}>La Poste sheets…</button>
       <hr>
@@ -50,14 +50,15 @@
       <button on:click={()=>dialog='jobs'}>Recover print jobs…</button>
     </Menu>
     <svelte:fragment slot="actions">
-      <select bind:value={printerId} on:focus={()=>void ensureSdk()} aria-label="Printer model"><option value="">Printer model</option>{#each printers as printer}<option value={printer.id}>{printer.displayName}</option>{/each}</select>
+      <span class="media-chip">{$editor.document.media.width} × {$editor.document.media.height} mm · {$editor.document.media.shape}</span>
+      <select value={printerId} on:change={event=>selectPrinter(event.currentTarget.value)} on:focus={()=>void ensureSdk()} aria-label="Printer model"><option value="">Printer model</option>{#each printers as printer}<option value={printer.id}>{printer.displayName}</option>{/each}</select>
       <button class="primary" on:click={print} disabled={!localConnection}>Print via service</button>
     </svelte:fragment>
+    <svelte:fragment slot="sidebar">{#if sdk}<DirectPrintPanel document={$editor.document} {sdk} printer={printers.find(item=>item.id===printerId)} {database} localRoute={localRoute} {localConnection} onLocalConnection={acceptConnection} onConfigureLocal={()=>dialog='service'} onSelectLocal={()=>{selectedRoute=localRoute;defaultRoute=localRoute.id;persistPreferences()}} onRoute={acceptRoute} onMedia={applyPrinterMedia}/>{:else}<p class="pending">Loading printer support…</p>{/if}</svelte:fragment>
   </LabelEditor>
   <footer aria-live="polite"><span class:offline={!online}>{online?'Online':'Offline — local editing and export remain available'}</span> · {status}{#if progress} · action {progress.action}/{progress.actions}, {progress.bytesSent}/{progress.totalBytes} bytes{/if}</footer>
   <Modal open={dialog==='service'} title="Local service" onClose={()=>dialog=''}><LocalServicePanel route={localRoute} onToken={acceptToken} onConnection={acceptConnection} selectedId={connectionId}/></Modal>
   <Modal open={dialog==='jobs'} title="Recover print jobs" onClose={()=>dialog=''}><JobRecoveryPanel {database} onRetry={retryRecovered}/></Modal>
-  <Modal open={dialog==='direct'} title="Direct browser print" onClose={()=>dialog=''}>{#if sdk}<DirectPrintPanel document={$editor.document} {sdk} printer={printers.find(item=>item.id===printerId)} {database} onRoute={acceptRoute} onMedia={applyPrinterMedia}/>{:else}<p class="pending">Select a printer model to load the printer SDK first.</p>{/if}</Modal>
   <Modal open={dialog==='batch'} title="Batch printing" onClose={()=>dialog=''}>{#if sdk}<BatchPanel document={$editor.document} {sdk} route={selectedRoute} printer={printers.find(item=>item.id===printerId)}/>{:else}<p class="pending">Select a printer model to load the printer SDK first.</p>{/if}</Modal>
   <Modal open={dialog==='laposte'} title="La Poste sheets" onClose={()=>dialog=''}>{#if sdk}<LaPostePanel {sdk} route={selectedRoute} printRequest={printers.find(item=>item.id===printerId)?{printer:printers.find(item=>item.id===printerId)!,copies:1}:undefined}/>{:else}<p class="pending">Select a printer model to load the printer SDK first.</p>{/if}</Modal>
 </div>
@@ -68,6 +69,7 @@
   .file:hover{background:var(--mb-surface-2)}
   .file input[type=file]{position:absolute;opacity:0;width:1px}
   .token{width:8rem}
+  .media-chip{color:var(--mb-text-muted);font-size:.75rem;white-space:nowrap}
   .primary{background:var(--mb-accent);color:var(--mb-text-on-accent);border:1px solid var(--mb-accent);border-radius:var(--mb-radius-sm);padding:.28rem .55rem;white-space:nowrap;cursor:pointer}
   .primary:hover:not(:disabled){background:var(--mb-accent-hover);border-color:var(--mb-accent-hover)}
   .primary:disabled{opacity:.45;cursor:default}

@@ -79,11 +79,15 @@ test('canvas elements stay unfilled on hover and the grid survives the thermal p
 test('webp imports transcode to a printable halftone png',async({page})=>{await page.goto('/');
   const webp=await page.evaluate(async()=>{const canvas=new OffscreenCanvas(48,48);const context=canvas.getContext('2d')!;const gradient=context.createLinearGradient(0,0,48,48);gradient.addColorStop(0,'#000');gradient.addColorStop(1,'#fff');context.fillStyle=gradient;context.fillRect(0,0,48,48);return [...new Uint8Array(await (await canvas.convertToBlob({type:'image/webp'})).arrayBuffer())]});
   await openDialog(page,'Label','Assets…');
-  await page.locator('input[type=file][accept*="webp"]').setInputFiles({name:'photo.webp',mimeType:'image/webp',buffer:Buffer.from(webp)});
+  const imageInput=page.locator('input[type=file][accept*="webp"]');
+  await imageInput.setInputFiles({name:'photo.webp',mimeType:'image/webp',buffer:Buffer.from(webp)});
+  // Placing the same cached bytes again must keep the second resource ID valid.
+  await imageInput.setInputFiles({name:'photo.webp',mimeType:'image/webp',buffer:Buffer.from(webp)});
   await expect(page.getByText('Imported and placed photo.webp')).toBeVisible();
   await page.getByRole('button',{name:'Close Assets'}).click();
+  await expect(page.locator('img.asset')).toHaveCount(2);
   const asset=page.locator('img.asset').first();
-  await expect(asset).toBeVisible();
+  await expect(asset).toBeAttached();
   expect(await asset.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
   const tones=await asset.evaluate(async(node:HTMLImageElement)=>{await node.decode();const canvas=document.createElement('canvas');canvas.width=node.naturalWidth;canvas.height=node.naturalHeight;const context=canvas.getContext('2d')!;context.drawImage(node,0,0);const{data}=context.getImageData(0,0,canvas.width,canvas.height);let black=0,white=0;for(let index=0;index<data.length;index+=4)data[index]<128?black++:white++;return{black,white}});
   expect(tones.black).toBeGreaterThan(0);expect(tones.white).toBeGreaterThan(0);
@@ -203,4 +207,3 @@ test('WebUSB offers every attached printer without an identity',async({page})=>{
     document.querySelectorAll('button').forEach(button=>{if(button.textContent?.includes('Read printer status'))button.click()});
     await new Promise(resolve=>setTimeout(resolve,400));return captured});
   expect(filters).toEqual([{classCode:7}])});
-
