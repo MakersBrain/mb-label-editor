@@ -25,4 +25,4 @@
 </script>
 <canvas bind:this={canvas} aria-label="Exact thermal SDK preview"></canvas>
 {#if error}<span class="error" title={error}>SDK preview unavailable</span>{/if}
-<style>canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;pointer-events:none;z-index:0}.error{position:absolute;right:.3rem;bottom:.3rem;background:color-mix(in srgb,var(--mble-surface,#fff) 80%,transparent);color:var(--mble-danger,#a21);font-size:9px;z-index:2}</style>
+<style>canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;mix-blend-mode:multiply;pointer-events:none;z-index:0}.error{position:absolute;right:.3rem;bottom:.3rem;background:color-mix(in srgb,var(--mble-surface,#fff) 80%,transparent);color:var(--mble-danger,#a21);font-size:9px;z-index:2}</style>
