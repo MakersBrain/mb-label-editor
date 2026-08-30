@@ -75,7 +75,7 @@
             {:else if element.type === 'qr'}<span class="placeholder">▦</span>
             {:else if element.type === 'image' || element.type === 'svg'}
               {@const resource = $editor.document.resources.find((item) => item.id === element.resourceId)}
-              {#if resource}<img class="asset" style={`object-fit:${element.type === 'image' && element.fit === 'stretch' ? 'fill' : element.type === 'image' && element.fit === 'cover' ? 'cover' : 'contain'}`} alt={element.name} src={`data:${resource.mimeType};base64,${resource.data}`}>{:else}<span class="placeholder">Missing asset</span>{/if}
+              {#if resource}<img class="asset" style={`object-fit:${element.type === 'image' && element.fit === 'stretch' ? 'fill' : element.type === 'image' && element.fit === 'cover' ? 'cover' : 'contain'};filter:${element.type === 'image' && element.invert ? 'invert(1)' : 'none'}`} alt={element.name} src={`data:${resource.mimeType};base64,${resource.data}`}>{:else}<span class="placeholder">Missing asset</span>{/if}
             {:else}<span class="placeholder">{element.type}</span>{/if}
             {#if $editor.selection.has(element.id) && !element.locked}<i class="handle resize" role="presentation" on:pointerdown={(event)=>startHandle(event,'resize',element)} on:pointerup={finishDrag}></i><i class="handle rotate" role="presentation" on:pointerdown={(event)=>startHandle(event,'rotate',element)} on:pointerup={finishDrag}>↻</i>{/if}
           </button>
