@@ -18,7 +18,8 @@ export type SdkPlanAction =
   | { action:'wait-for-response';timeout_ms:number;fallback_delay_ms:number;validation:string };
 export function adaptSdkProtocolPlan(protocol:string,actions:SdkPlanAction[]):ProtocolPlan { let totalBytes=0;const normalized:ProtocolAction[]=actions.map((item)=>{switch(item.action){case'job-boundary':return{type:'job-boundary',phase:item.kind,id:`${protocol}-${item.kind}`};case'subscribe-notifications':return{type:'subscribe',channel:'printer'};case'command-write':{const data=Uint8Array.from(item.bytes);totalBytes+=data.length;return{type:'write',data,chunkable:false,atomic:item.atomic,logicalChunkSize:data.length,delayAfterMs:0}}case'raster-write':{const data=Uint8Array.from(item.bytes);totalBytes+=data.length;return{type:'write',data,chunkable:true,atomic:false,logicalChunkSize:item.logical_chunk,delayAfterMs:item.delay_after_each_physical_write_ms}}case'delay':return{type:'delay',milliseconds:item.milliseconds};case'wait-for-response':return{type:'wait-response',channel:'printer',timeoutMs:item.timeout_ms,fallbackDelayMs:item.fallback_delay_ms,validate:item.validation}}});return{protocol,actions:normalized,totalBytes} }
 export interface PrinterDefinition { id: string; displayName: string; dpi: number; protocols: string[]; media: { minWidth: number; maxWidth: number; minHeight: number; maxHeight: number } }
-export interface PrinterStatus { protocol: string; mediaWidthMm?: number; mediaLengthMm?: number; mediaType?: string; statusType?: string; phase?: string; battery?: number; paper?: string; cover?: string; label?: string; heating?: string; firmware?: string; version?: string; serial?: string; errors: string[]; raw: Uint8Array[] }
+export interface MediaPreset { id: string; name: string; widthMm: number; /** Zero for continuous stock. */ heightMm: number; shape: 'rectangle' | 'round' | 'continuous'; tapeWidthMm?: number }
+export interface PrinterStatus { protocol: string; mediaWidthMm?: number; mediaLengthMm?: number; mediaType?: string; statusType?: string; phase?: string; battery?: number; paper?: string; cover?: string; label?: string; heating?: string; firmware?: string; version?: string; serial?: string; media?: MediaPreset; errors: string[]; raw: Uint8Array[] }
 export interface RasterPreview { width: number; height: number; rgba: Uint8Array }
 export interface LaPosteSlot { id: string; sourcePage: number; slot: number; occupied: boolean; widthMm: 63.5; heightMm: 33.9; preview: RasterPreview }
 export interface PrinterSdk {
@@ -31,6 +32,8 @@ export interface PrinterSdk {
   exportPdf(documents: LabelDocument[]): Promise<Uint8Array>;
   plan(document: LabelDocument, printer: PrinterDefinition, options: { copies: number; density?: number; record?: number }): Promise<ProtocolPlan>;
   printerDefinitions(): Promise<PrinterDefinition[]>;
+  /** Media the model can carry, already filtered by head width and tape width. */
+  mediaPresets?(printer: PrinterDefinition): Promise<MediaPreset[]>;
   /** Document-free plan that only asks the printer for its status. Absent when the protocol cannot answer. */
   statusPlan?(printer: PrinterDefinition): Promise<ProtocolPlan>;
   /** Decodes the captured status replies for the printer's protocol. Brother answers once; Phomemo answers per query. */

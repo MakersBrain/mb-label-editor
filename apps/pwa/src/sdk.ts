@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import init, * as wasm from '@makersbrain/printer-sdk/web';
-import { adaptSdkProtocolPlan, defaultDocument, toSdkDocument, uuid, type LabelDocument, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type RasterPreview, type SdkPlanAction } from '@makersbrain/label-editor';
+import { adaptSdkProtocolPlan, defaultDocument, toSdkDocument, uuid, type LabelDocument, type MediaPreset, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type RasterPreview, type SdkPlanAction } from '@makersbrain/label-editor';
 
 interface NormalizedPage { page: number; widthUm: number; heightUm: number; rasterWidth: number; rasterHeight: number; pixels: number[] }
 interface Stamp extends NormalizedPage { slot: number }
@@ -23,6 +23,9 @@ function adaptSdk(): PrinterSdk {
       const parsed = JSON.parse(wasm.renderProtocolPlan(JSON.stringify(toSdkDocument(document)), printer.id)) as { protocol: string; actions: SdkPlanAction[] };
       return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
     },
+    async mediaPresets(printer): Promise<MediaPreset[]> {
+      return JSON.parse(wasm.mediaPresets(printer.id)) as MediaPreset[];
+    },
     async statusPlan(printer) {
       const parsed = JSON.parse(wasm.statusPlan(printer.id)) as { protocol: string; actions: SdkPlanAction[] };
       return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
@@ -31,7 +34,9 @@ function adaptSdk(): PrinterSdk {
       const protocol = printer.protocols[0] ?? 'brother';
       if (protocol === 'brother') {
         const status = JSON.parse(wasm.parseBrotherStatus(frames[frames.length - 1])) as Omit<PrinterStatus, 'protocol' | 'raw'>;
-        return { protocol, ...status, raw: frames };
+        // Name the roll the printer just reported, so the reading is actionable.
+        const media = JSON.parse(wasm.matchMedia(printer.id, status.mediaWidthMm ?? 0, status.mediaLengthMm ?? 0)) as MediaPreset | null;
+        return { protocol, ...status, media: media ?? undefined, raw: frames };
       }
       const status = JSON.parse(wasm.parsePhomemoStatus(JSON.stringify(frames.map((frame) => [...frame])))) as Omit<PrinterStatus, 'protocol' | 'raw'>;
       return { protocol, ...status, raw: frames };

@@ -113,3 +113,41 @@ test('the compiled SDK queries Phomemo status and decodes notification frames',a
   expect(probe.queries).toHaveLength(6);
   expect(probe.status).toEqual({battery:5,cover:'closed',paper:'out',serial:'MB1',errors:['no media']})});
 
+test('the SDK lists the media a model can carry and names what it reported',async({page})=>{await page.goto('/');
+  const probe=await page.evaluate(async()=>{const{loadPrinterSdk}=await import('/src/sdk.ts');const sdk=await loadPrinterSdk();const printers=await sdk.printerDefinitions();
+    const find=(id:string)=>printers.find(item=>item.id===id)!;
+    const list=async(id:string)=>(await sdk.mediaPresets!(find(id))).map(item=>item.id);
+    const brother=await sdk.mediaPresets!(find('ql-1110nwb'));
+    const reply=new Uint8Array(32);reply.set([0x80,0x20,0x42]);reply[10]=62;reply[11]=0x0b;reply[17]=29;
+    const status=await sdk.parseStatus!(find('ql-1110nwb'),[reply]);
+    return{brother:brother.map(item=>item.id),narrow:await list('m110'),wide:await list('m200'),tape:await list('p12'),media:status.media?.name}});
+  expect(probe.brother).toContain('62x29');
+  expect(probe.brother).toContain('102x152');
+  expect(probe.narrow).toContain('40x30');
+  expect(probe.narrow).not.toContain('60x40');
+  expect(probe.wide).toContain('60x40');
+  expect(probe.tape).toEqual(['40x12','30x12','22x12','12x12']);
+  expect(probe.media).toBe('62mm x 29mm')});
+
+test('the label takes its size from the media the printer reports',async({page})=>{await page.goto('/');
+  await page.getByLabel('Printer model').focus();
+  await page.getByLabel('Printer model').selectOption('ql-1110nwb');
+  await page.getByText('Print',{exact:true}).click();
+  await page.getByRole('button',{name:'Direct browser print…'}).click();
+  // Answer the status query from a stub transport instead of real hardware.
+  await page.evaluate(()=>{const reply=new Uint8Array(32);reply.set([0x80,0x20,0x42]);reply[10]=62;reply[11]=0x0b;reply[17]=29;
+    const device={opened:true,configuration:{interfaces:[{interfaceNumber:0,alternates:[{alternateSetting:0,endpoints:[{direction:'out',type:'bulk',endpointNumber:1,packetSize:64},{direction:'in',type:'bulk',endpointNumber:2,packetSize:64}]}]}]},open:async()=>{},close:async()=>{},selectConfiguration:async()=>{},claimInterface:async()=>{},selectAlternateInterface:async()=>{},transferOut:async(_endpoint:number,data:ArrayBuffer)=>({status:'ok',bytesWritten:data.byteLength}),transferIn:async()=>({status:'ok',data:new DataView(reply.buffer)})};
+    // navigator.usb is a prototype accessor, so it has to be replaced outright.
+    Object.defineProperty(navigator,'usb',{configurable:true,value:{requestDevice:async()=>device}})});
+  await page.getByLabel('Route').selectOption('usb');
+  await page.getByRole('button',{name:'Read printer status'}).click();
+  await expect(page.getByText('62mm x 29mm')).toBeVisible();
+  await page.getByRole('button',{name:'Use this media for the label'}).click();
+  await expect(page.locator('footer')).toContainText('Label media set to 62 × 29 mm');
+  await page.getByRole('button',{name:'Close Direct browser print'}).click();
+  await page.getByText('Label',{exact:true}).click();
+  await page.getByRole('button',{name:'Media & zones…'}).click();
+  const dialog=page.getByRole('dialog');
+  await expect(dialog.getByLabel('width')).toHaveValue('62');
+  await expect(dialog.getByLabel('height')).toHaveValue('29')});
+
