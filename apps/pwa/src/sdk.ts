@@ -27,9 +27,14 @@ function adaptSdk(): PrinterSdk {
       const parsed = JSON.parse(wasm.statusPlan(printer.id)) as { protocol: string; actions: SdkPlanAction[] };
       return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
     },
-    async parseStatus(printer: PrinterDefinition, data: Uint8Array): Promise<PrinterStatus> {
-      const status = JSON.parse(wasm.parseBrotherStatus(data)) as { mediaWidthMm: number; mediaLengthMm: number; mediaType: string; statusType: string; phase: string; errors: string[] };
-      return { protocol: printer.protocols[0] ?? 'brother', ...status, raw: data };
+    async parseStatus(printer: PrinterDefinition, frames: Uint8Array[]): Promise<PrinterStatus> {
+      const protocol = printer.protocols[0] ?? 'brother';
+      if (protocol === 'brother') {
+        const status = JSON.parse(wasm.parseBrotherStatus(frames[frames.length - 1])) as Omit<PrinterStatus, 'protocol' | 'raw'>;
+        return { protocol, ...status, raw: frames };
+      }
+      const status = JSON.parse(wasm.parsePhomemoStatus(JSON.stringify(frames.map((frame) => [...frame])))) as Omit<PrinterStatus, 'protocol' | 'raw'>;
+      return { protocol, ...status, raw: frames };
     },
     async printerDefinitions() {
       const definitions = JSON.parse(wasm.printerCapabilities()) as { id: string; name: string; dpi: number; protocol: string; min_width_mm?: number; max_width_mm?: number; min_height_mm?: number; max_height_mm?: number }[];
