@@ -13,12 +13,14 @@ listener on loopback, preserve Host/origin/CORS/Private-Network-Access checks,
 and do not place an unauthenticated proxy in front of it. Revoke grants when an
 origin is retired.
 
-The PWA uses `http://127.0.0.1:8766` as its default asset-catalogue URL. Set
-`VITE_ASSET_CATALOG_URL` during the build to choose another default; users can
-override or disable it in the File menu. Configure that service with the exact
-PWA origin through repeatable `--cors-origin` flags. When bearer authentication
-is enabled, previews and font/asset downloads are fetched through the client so
-the token never needs to appear in a URL.
+The PWA creates an `mbprint-asset-catalog` connection for
+`http://127.0.0.1:8766` by default. Set `VITE_ASSET_CATALOG_URL` during the build
+to choose another initial endpoint. Users manage named external-resource
+connections in the File menu; provider kind, endpoint, enabled state, and the
+active connection are stored locally, while bearer tokens remain session-only.
+Configure every service with the exact PWA origin through its CORS settings.
+Previews and font/asset downloads pass through the selected provider so a token
+never needs to appear in a URL.
 
 For standalone cloud printing, publish `mb-print-cloud` behind HTTPS and add
 the PWA's exact origin to its `cors_origins` config list. The user enters the

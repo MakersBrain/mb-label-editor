@@ -60,7 +60,7 @@ test('standalone PWA submits and polls one cloud label without persisting its to
   expect(body.request.model).toBe('m110');
   expect(body.request).not.toHaveProperty('payloadLimit');
   expect(submissions[0].body).not.toMatch(/transport|connectionId|certificatePem/);
-  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.includes('cloud')))).toEqual(['mb-cloud-print-printer', 'mb-cloud-print-tenant', 'mb-cloud-print-url']);
+  expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.includes('cloud')).sort())).toEqual(['mb-cloud-print-printer', 'mb-cloud-print-tenant', 'mb-cloud-print-url']);
   expect(await page.evaluate(() => Object.values(localStorage).includes('session-token'))).toBe(false);
 });
 

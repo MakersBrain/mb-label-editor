@@ -41,11 +41,12 @@ Operational documentation is in [docs/user-guide.md](docs/user-guide.md),
 [docs/device-guide.md](docs/device-guide.md), and
 [docs/deployment-guide.md](docs/deployment-guide.md).
 
-The Assets dialog connects to `mbprint-asset-catalog` at
-`http://127.0.0.1:8766` by default. The URL and optional bearer token can be
-changed in the File menu, or the build-time default can be set with
-`VITE_ASSET_CATALOG_URL`. Its typed client is generated from the pinned OpenAPI
-contract with `npm run generate:asset-catalog -w @makersbrain/label-editor`.
+The External resources manager starts with an `mbprint-asset-catalog`
+connection at `http://127.0.0.1:8766`. Users can add, edit, test, enable, and
+select named connections from the File menu. Connection metadata is remembered
+but bearer tokens remain in memory. `VITE_ASSET_CATALOG_URL` changes the first
+connection's build-time default. Its typed client is generated from the pinned
+OpenAPI contract with `npm run generate:asset-catalog -w @makersbrain/label-editor`.
 
 Cloud printing connects to the standalone `mb-print-cloud` JSON API. The PWA
 remembers only its service URL, tenant, and selected printer; the print-only

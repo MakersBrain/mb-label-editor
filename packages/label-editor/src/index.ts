@@ -3,6 +3,9 @@ export * from './lib/model.js'; export * from './lib/commands.js'; export * from
 export * from './lib/snapping.js';
 export * from './lib/catalogue.js';
 export * from './lib/asset-catalog/client.js';
+export * from './lib/external-resources/types.js';
+export * from './lib/external-resources/manager.js';
+export * from './lib/external-resources/asset-catalog-provider.js';
 export * from './lib/cloud-print/client.js';
 export * from './lib/zones.js';export*from'./lib/gestures.js';export*from'./lib/jobs.js';
 export * from './lib/imports.js';
@@ -18,6 +21,7 @@ export { default as LaPostePanel } from './lib/components/LaPostePanel.svelte'; 
 export {default as BatchPanel}from'./lib/components/BatchPanel.svelte';export{default as DirectPrintPanel}from'./lib/components/DirectPrintPanel.svelte';export{default as LocalServicePanel}from'./lib/components/LocalServicePanel.svelte';export{default as MediaPanel}from'./lib/components/MediaPanel.svelte';export{default as AssetPanel}from'./lib/components/AssetPanel.svelte';
 export{default as JobRecoveryPanel}from'./lib/components/JobRecoveryPanel.svelte';
 export{default as CloudPrintPanel}from'./lib/components/CloudPrintPanel.svelte';
+export{default as ExternalResourceConnectionsPanel}from'./lib/components/ExternalResourceConnectionsPanel.svelte';
 export{default as LibraryPanel}from'./lib/components/LibraryPanel.svelte';
 export{default as Modal}from'./lib/components/Modal.svelte';export{default as Menu}from'./lib/components/Menu.svelte';export{default as Icon}from'./lib/components/Icon.svelte';export{default as GuidesPanel}from'./lib/components/GuidesPanel.svelte';
 export * from './lib/insert.js';
