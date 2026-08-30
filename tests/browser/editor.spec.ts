@@ -88,3 +88,17 @@ test('webp imports transcode to a printable halftone png',async({page})=>{await 
   await page.getByLabel('Printer model').focus();
   await expect(page.locator('.media canvas')).toBeAttached({timeout:10000});
   await expect(page.locator('.media ~ .error, .error')).toHaveCount(0)});
+
+test('the compiled SDK builds a Brother status plan and decodes the reply',async({page})=>{await page.goto('/');
+  const probe=await page.evaluate(async()=>{const{loadPrinterSdk}=await import('/src/sdk.ts');const sdk=await loadPrinterSdk();const printers=await sdk.printerDefinitions();
+    const brother=printers.find(item=>item.id==='ql-1110nwb')!;const plan=await sdk.statusPlan!(brother);
+    const reply=new Uint8Array(32);reply.set([0x80,0x20,0x42]);reply[10]=62;reply[11]=0x0b;reply[17]=29;reply[8]=1;
+    const parsed=await sdk.parseStatus!(brother,reply);
+    let unsupported='';try{await sdk.statusPlan!(printers.find(item=>item.id==='m110')!)}catch(error){unsupported=(error as Error).message??String(error)}
+    return{request:[...(plan.actions.filter(action=>action.type==='write').at(-1) as {data:Uint8Array}).data],last:plan.actions.at(-1)?.type,validate:(plan.actions.at(-1) as {validate?:string}).validate,
+      raster:plan.actions.some(action=>action.type==='write'&&action.chunkable),
+      status:{width:parsed.mediaWidthMm,length:parsed.mediaLengthMm,type:parsed.mediaType,errors:parsed.errors},unsupported}});
+  expect(probe.request).toEqual([0x1b,0x69,0x53]);expect(probe.last).toBe('wait-response');expect(probe.validate).toBe('brother-status32');expect(probe.raster).toBe(false);
+  expect(probe.status).toEqual({width:62,length:29,type:'die-cut',errors:['no media']});
+  expect(probe.unsupported).toMatch(/does not support/)});
+

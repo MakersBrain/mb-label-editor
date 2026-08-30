@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import init, * as wasm from '@makersbrain/printer-sdk/web';
-import { adaptSdkProtocolPlan, defaultDocument, toSdkDocument, uuid, type LabelDocument, type PrinterSdk, type RasterPreview, type SdkPlanAction } from '@makersbrain/label-editor';
+import { adaptSdkProtocolPlan, defaultDocument, toSdkDocument, uuid, type LabelDocument, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type RasterPreview, type SdkPlanAction } from '@makersbrain/label-editor';
 
 interface NormalizedPage { page: number; widthUm: number; heightUm: number; rasterWidth: number; rasterHeight: number; pixels: number[] }
 interface Stamp extends NormalizedPage { slot: number }
@@ -22,6 +22,14 @@ function adaptSdk(): PrinterSdk {
     async plan(document, printer) {
       const parsed = JSON.parse(wasm.renderProtocolPlan(JSON.stringify(toSdkDocument(document)), printer.id)) as { protocol: string; actions: SdkPlanAction[] };
       return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
+    },
+    async statusPlan(printer) {
+      const parsed = JSON.parse(wasm.statusPlan(printer.id)) as { protocol: string; actions: SdkPlanAction[] };
+      return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
+    },
+    async parseStatus(printer: PrinterDefinition, data: Uint8Array): Promise<PrinterStatus> {
+      const status = JSON.parse(wasm.parseBrotherStatus(data)) as { mediaWidthMm: number; mediaLengthMm: number; mediaType: string; statusType: string; phase: string; errors: string[] };
+      return { protocol: printer.protocols[0] ?? 'brother', ...status, raw: data };
     },
     async printerDefinitions() {
       const definitions = JSON.parse(wasm.printerCapabilities()) as { id: string; name: string; dpi: number; protocol: string; min_width_mm?: number; max_width_mm?: number; min_height_mm?: number; max_height_mm?: number }[];

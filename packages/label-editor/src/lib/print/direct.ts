@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { PrinterSdk, PrintRequest, PrintResult, PrintRoute, ProtocolAction, ProtocolPlan } from './types.js';
+import type { PrinterDefinition, PrinterSdk, PrinterStatus, PrintRequest, PrintResult, PrintRoute, ProtocolAction, ProtocolPlan } from './types.js';
 import type { JobJournal } from '../jobs.js';
 import type { PersistedJob } from '../persistence/database.js';
 
@@ -46,6 +46,24 @@ export class DirectPrintRoute implements PrintRoute {
       return await finish(result);
     } finally { try { await transport?.disconnect(); } catch { /* connection may already be gone */ } }
   }
+  /** Runs the SDK's status-only plan and decodes the reply. Brother printers report media width, type, and errors. */
+  async queryStatus(printer: PrinterDefinition, options?: { signal?: AbortSignal }): Promise<PrinterStatus> {
+    if (!this.sdk.statusPlan || !this.sdk.parseStatus) throw new Error('The installed printer SDK cannot query printer status.');
+    const plan = await this.sdk.statusPlan(printer);
+    const transport = await this.transportFactory();
+    try {
+      preflightPlan(plan, transport);
+      await abortable(transport.connect(), options?.signal);
+      let captured: Uint8Array | undefined;
+      for (const action of plan.actions) {
+        if (action.type === 'subscribe') { await abortable(transport.subscribe(action.channel, options?.signal), options?.signal); continue; }
+        const response = await executeAction(action, transport, options?.signal, async (chunk) => { await abortable(transport.write(chunk, options?.signal), options?.signal); }, { requireResponse: true });
+        if (response) captured = response;
+      }
+      if (!captured) throw new Error('The printer did not return a status reply.');
+      return await this.sdk.parseStatus(printer, captured);
+    } finally { try { await transport.disconnect(); } catch { /* connection may already be gone */ } }
+  }
 }
 
 export function preflightPlan(plan: ProtocolPlan, transport: DirectTransport) {
@@ -60,9 +78,9 @@ export function preflightPlan(plan: ProtocolPlan, transport: DirectTransport) {
     if ((action.atomic || !action.chunkable) && action.data.length > Math.min(commandCap, action.logicalChunkSize)) throw new Error(`Atomic command ${index} (${action.data.length} bytes) exceeds the safe transport cap before connection.`);
   }
 }
-async function executeAction(action: ProtocolAction, transport: DirectTransport, signal: AbortSignal | undefined, write: (data: Uint8Array) => Promise<void>) {
-  if (action.type === 'delay') return monotonicDelay(action.milliseconds, signal);
-  if (action.type === 'wait-response') { try { const response = await abortable(transport.waitResponse(action.channel, action.timeoutMs, action.validate, signal), signal); validateResponse(response, action.validate); } catch(error) { if(action.validate==='brother-status32'&&isOptionalBrotherResponse(error))return;throw error } return; }
+async function executeAction(action: ProtocolAction, transport: DirectTransport, signal: AbortSignal | undefined, write: (data: Uint8Array) => Promise<void>, options?: { requireResponse?: boolean }): Promise<Uint8Array | undefined> {
+  if (action.type === 'delay') { await monotonicDelay(action.milliseconds, signal); return; }
+  if (action.type === 'wait-response') { try { const response = await abortable(transport.waitResponse(action.channel, action.timeoutMs, action.validate, signal), signal); validateResponse(response, action.validate); return response; } catch(error) { if(!options?.requireResponse&&action.validate==='brother-status32'&&isOptionalBrotherResponse(error))return;throw error } }
   if (action.type !== 'write') return;
   const physicalLimit = Math.min(action.logicalChunkSize, transport.physicalWriteLimit!, transport.negotiatedAttMtu === undefined ? Infinity : transport.negotiatedAttMtu - 3);
   if (!action.chunkable) { await write(action.data); if (action.delayAfterMs) await monotonicDelay(action.delayAfterMs, signal); return; }
