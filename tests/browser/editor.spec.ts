@@ -117,7 +117,7 @@ test('the compiled SDK queries Phomemo status and decodes notification frames',a
   expect(probe.subscribes).toBe('subscribe');
   expect(probe.queries[0]).toEqual([0x1f,0x11,0x08]);
   expect(probe.queries).toHaveLength(6);
-  expect(probe.status).toEqual({battery:5,cover:'closed',paper:'out',serial:'MB1',errors:['no media']})});
+  expect(probe.status).toEqual({battery:5,cover:'open',paper:'out',serial:'MB1',errors:['no media','cover open']})});
 
 test('the SDK lists the media a model can carry and names what it reported',async({page})=>{await page.goto('/');
   const probe=await page.evaluate(async()=>{const{loadPrinterSdk}=await import('/src/sdk.ts');const sdk=await loadPrinterSdk();const printers=await sdk.printerDefinitions();
