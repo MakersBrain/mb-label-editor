@@ -20,6 +20,9 @@
   function gestureStart(event:PointerEvent){if(event.target!==event.currentTarget&&!(event.target as HTMLElement).classList.contains('media'))return;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);gestures.start(event.pointerId,{x:event.clientX,y:event.clientY})}
   function moveDrag(event: PointerEvent) { if (!drag){const update=gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});if(update)editor.setView({zoom:Math.max(.25,Math.min(4,$editor.view.zoom*update.zoomFactor)),pan:{x:$editor.view.pan.x+update.panDelta.x,y:$editor.view.pan.y+update.panDelta.y}});return} drag = {...drag,current:{x:event.clientX,y:event.clientY}}; if(drag.kind==='move'&&$editor.view.snapping){const raw={x:(event.clientX-drag.at.x)/pxPerMm/$editor.view.zoom,y:(event.clientY-drag.at.y)/pxPerMm/$editor.view.zoom};const result=snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),{grid:$editor.view.gridSize,gridEnabled:$editor.view.showGrid,threshold:1.25/$editor.view.zoom,guides:$editor.view.manualGuides});editor.setView({guides:result.guides})} }
   function gestureEnd(event:PointerEvent){gestures.end(event.pointerId)}
+  function clearSelection(event: MouseEvent) {
+    if (!(event.target as Element).closest('.element')) editor.clearSelection();
+  }
   function wheel(event: WheelEvent) {
     event.preventDefault();
     const viewport = event.currentTarget as HTMLElement;
@@ -59,7 +62,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-<div class="viewport" class:with-rulers={$editor.view.showRulers} on:click={() => editor.clearSelection()} on:wheel|nonpassive={wheel} on:pointerdown={gestureStart} on:pointermove={moveDrag} on:pointerup={gestureEnd} on:pointercancel={gestureEnd} role="application" aria-label="Label canvas">
+<div class="viewport" class:with-rulers={$editor.view.showRulers} on:click={clearSelection} on:wheel|nonpassive={wheel} on:pointerdown={gestureStart} on:pointermove={moveDrag} on:pointerup={gestureEnd} on:pointercancel={gestureEnd} role="application" aria-label="Label canvas">
   {#if $editor.view.showRulers}<div class="ruler horizontal"></div><div class="ruler vertical"></div>{/if}
   <div class="pan" style={`transform:translate(calc(-50% + ${$editor.view.pan.x}px),calc(-50% + ${$editor.view.pan.y}px)) scale(${$editor.view.zoom})`}>
     <div class:grid={$editor.view.showGrid} class="media" style={`width:${$editor.document.media.width * pxPerMm}px;height:${$editor.document.media.height * pxPerMm}px;--grid:${$editor.view.gridSize * pxPerMm}px;border-radius:${$editor.document.media.shape === 'round' ? '50%' : '3px'}`}>
