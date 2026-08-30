@@ -20,6 +20,34 @@
   function gestureStart(event:PointerEvent){if(event.target!==event.currentTarget&&!(event.target as HTMLElement).classList.contains('media'))return;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);gestures.start(event.pointerId,{x:event.clientX,y:event.clientY})}
   function moveDrag(event: PointerEvent) { if (!drag){const update=gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});if(update)editor.setView({zoom:Math.max(.25,Math.min(4,$editor.view.zoom*update.zoomFactor)),pan:{x:$editor.view.pan.x+update.panDelta.x,y:$editor.view.pan.y+update.panDelta.y}});return} drag = {...drag,current:{x:event.clientX,y:event.clientY}}; if(drag.kind==='move'&&$editor.view.snapping){const raw={x:(event.clientX-drag.at.x)/pxPerMm/$editor.view.zoom,y:(event.clientY-drag.at.y)/pxPerMm/$editor.view.zoom};const result=snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),{grid:$editor.view.gridSize,gridEnabled:$editor.view.showGrid,threshold:1.25/$editor.view.zoom,guides:$editor.view.manualGuides});editor.setView({guides:result.guides})} }
   function gestureEnd(event:PointerEvent){gestures.end(event.pointerId)}
+  function wheel(event: WheelEvent) {
+    event.preventDefault();
+    const viewport = event.currentTarget as HTMLElement;
+    const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? viewport.clientHeight : 1;
+    if (event.shiftKey) {
+      const delta = (event.deltaX || event.deltaY) * unit;
+      editor.setView({ pan: { x: $editor.view.pan.x - delta, y: $editor.view.pan.y } });
+      return;
+    }
+    if (event.ctrlKey || event.metaKey) {
+      const delta = (event.deltaY || event.deltaX) * unit;
+      editor.setView({ pan: { x: $editor.view.pan.x, y: $editor.view.pan.y - delta } });
+      return;
+    }
+    const delta = (event.deltaY || event.deltaX) * unit;
+    const zoom = Math.max(.25, Math.min(4, $editor.view.zoom * Math.exp(-delta * .0015)));
+    if (zoom === $editor.view.zoom) return;
+    const bounds = viewport.getBoundingClientRect();
+    const pointer = { x: event.clientX - bounds.left - bounds.width / 2, y: event.clientY - bounds.top - bounds.height / 2 };
+    const ratio = zoom / $editor.view.zoom;
+    editor.setView({
+      zoom,
+      pan: {
+        x: $editor.view.pan.x + (pointer.x - $editor.view.pan.x) * (1 - ratio),
+        y: $editor.view.pan.y + (pointer.y - $editor.view.pan.y) * (1 - ratio)
+      }
+    });
+  }
   function finishDrag(event: PointerEvent) { if (!drag) return; let zoom = 1; editor.view.subscribe((value) => { zoom = value.zoom; })();
     const raw = { x: (event.clientX - drag.at.x) / pxPerMm / zoom, y: (event.clientY - drag.at.y) / pxPerMm / zoom };
     if (drag.kind === 'move') { const snapped = $editor.view.snapping ? snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),{grid:$editor.view.gridSize,gridEnabled:$editor.view.showGrid,threshold:1.25/$editor.view.zoom,guides:$editor.view.manualGuides}) : {delta:raw,guides:[]}; if(snapped.delta.x||snapped.delta.y)editor.execute(moveElements(drag.ids,snapped.delta)); editor.setView({guides:[]}); }
@@ -31,7 +59,7 @@
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-<div class="viewport" class:with-rulers={$editor.view.showRulers} on:click={() => editor.clearSelection()} on:pointerdown={gestureStart} on:pointermove={moveDrag} on:pointerup={gestureEnd} on:pointercancel={gestureEnd} role="application" aria-label="Label canvas">
+<div class="viewport" class:with-rulers={$editor.view.showRulers} on:click={() => editor.clearSelection()} on:wheel|nonpassive={wheel} on:pointerdown={gestureStart} on:pointermove={moveDrag} on:pointerup={gestureEnd} on:pointercancel={gestureEnd} role="application" aria-label="Label canvas">
   {#if $editor.view.showRulers}<div class="ruler horizontal"></div><div class="ruler vertical"></div>{/if}
   <div class="pan" style={`transform:translate(calc(-50% + ${$editor.view.pan.x}px),calc(-50% + ${$editor.view.pan.y}px)) scale(${$editor.view.zoom})`}>
     <div class:grid={$editor.view.showGrid} class="media" style={`width:${$editor.document.media.width * pxPerMm}px;height:${$editor.document.media.height * pxPerMm}px;--grid:${$editor.view.gridSize * pxPerMm}px;border-radius:${$editor.document.media.shape === 'round' ? '50%' : '3px'}`}>

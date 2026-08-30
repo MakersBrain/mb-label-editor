@@ -30,7 +30,25 @@ export const transformElements = (ids: Iterable<Id>, transform: (current: Transf
     if (selected.has(element.id) && !element.locked) element.transform = transform(structuredClone(element.transform));
   })) };
 };
-export const moveElements = (ids: Iterable<Id>, delta: Point): Command => transformElements(ids, (current) => ({ ...current, x: current.x + delta.x, y: current.y + delta.y }));
+export const moveElements = (ids: Iterable<Id>, delta: Point): Command => {
+  const selected = [...new Set(ids)];
+  return { label: 'Move elements', apply: (doc) => changed(doc, (copy) => {
+    const moving = new Set<Id>();
+    const include = (id: Id) => {
+      if (moving.has(id)) return;
+      const element = elementById(copy, id);
+      moving.add(id);
+      if (element.type === 'group') element.childIds.forEach(include);
+    };
+    selected.forEach(include);
+    copy.elements.forEach((element) => {
+      if (moving.has(element.id) && !element.locked) {
+        element.transform.x += delta.x;
+        element.transform.y += delta.y;
+      }
+    });
+  }) };
+};
 export const resizeElement = (id: Id, size: { width: number; height: number }, origin?: Point): Command => transformElements([id], (current) => ({ ...current, ...(origin ?? {}), width: Math.max(0.1, size.width), height: Math.max(0.1, size.height) }));
 export const rotateElements = (ids: Iterable<Id>, degrees: number): Command => transformElements(ids, (current) => ({ ...current, rotation: ((degrees % 360) + 360) % 360 }));
 export const duplicateElements = (ids: Iterable<Id>, offset: Point = { x: 1, y: 1 }): Command => {

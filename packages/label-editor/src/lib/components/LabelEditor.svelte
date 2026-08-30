@@ -7,7 +7,7 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
   else if(modifier&&event.key.toLowerCase()==='v'){event.preventDefault();const items=pasteElements();for(const item of items)editor.execute(addElement(item));editor.select(items.map(i=>i.id))}
   else if(modifier&&event.key.toLowerCase()==='g'){event.preventDefault();if(event.shiftKey){for(const item of $editor.selectedElements)if(item.type==='group')editor.execute(ungroup(item.id))}else editor.execute(groupElements($editor.selection))}
   else if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();editor.execute(removeElements($editor.selection));editor.clearSelection()}
-  else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();const step=event.shiftKey?1:.1;editor.execute(moveElements($editor.selection,{x:event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0,y:event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0}))}}
+  else if($editor.selection.size&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();const step=event.shiftKey?1:.1;editor.execute(moveElements($editor.selection,{x:event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0,y:event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0}))}}
 </script>
 <svelte:window on:keydown={keys}/>
 <div class="editor mb-label-editor">
