@@ -151,3 +151,17 @@ test('the label takes its size from the media the printer reports',async({page})
   await expect(dialog.getByLabel('width')).toHaveValue('62');
   await expect(dialog.getByLabel('height')).toHaveValue('29')});
 
+test('the print route follows the selected printer and stays where it is put',async({page})=>{await page.goto('/');
+  await page.getByLabel('Printer model').focus();
+  await page.getByText('Print',{exact:true}).click();
+  await page.getByRole('button',{name:'Direct browser print…'}).click();
+  const route=page.getByLabel('Route');
+  await page.getByLabel('Printer model').selectOption('m110');
+  await expect(route).toHaveValue('spp');
+  await page.getByLabel('Printer model').selectOption('ql-1110nwb');
+  await expect(route).toHaveValue('usb');
+  // A choice of its own outranks the printer.
+  await route.selectOption('bluetooth');
+  await page.getByLabel('Printer model').selectOption('m110');
+  await expect(route).toHaveValue('bluetooth')});
+
