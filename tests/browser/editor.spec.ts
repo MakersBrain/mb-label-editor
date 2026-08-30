@@ -138,19 +138,15 @@ test('the SDK lists the media a model can carry and names what it reported',asyn
 test('the label takes its size from the media the printer reports',async({page})=>{await page.goto('/');
   await page.getByLabel('Printer model').focus();
   await page.getByLabel('Printer model').selectOption('ql-1110nwb');
-  await page.getByText('Print',{exact:true}).click();
-  await page.getByRole('button',{name:'Direct browser print…'}).click();
   // Answer the status query from a stub transport instead of real hardware.
   await page.evaluate(()=>{const reply=new Uint8Array(32);reply.set([0x80,0x20,0x42]);reply[10]=62;reply[11]=0x0b;reply[17]=29;
     const device={opened:true,configuration:{interfaces:[{interfaceNumber:0,alternates:[{alternateSetting:0,endpoints:[{direction:'out',type:'bulk',endpointNumber:1,packetSize:64},{direction:'in',type:'bulk',endpointNumber:2,packetSize:64}]}]}]},open:async()=>{},close:async()=>{},selectConfiguration:async()=>{},claimInterface:async()=>{},selectAlternateInterface:async()=>{},transferOut:async(_endpoint:number,data:ArrayBuffer)=>({status:'ok',bytesWritten:data.byteLength}),transferIn:async()=>({status:'ok',data:new DataView(reply.buffer)})};
     // navigator.usb is a prototype accessor, so it has to be replaced outright.
     Object.defineProperty(navigator,'usb',{configurable:true,value:{requestDevice:async()=>device}})});
-  await page.getByLabel('Route').selectOption('usb');
-  await page.getByRole('button',{name:'Read printer status'}).click();
-  await expect(page.getByText('62mm x 29mm')).toBeVisible();
-  await page.getByRole('button',{name:'Use this media for the label'}).click();
+  await page.getByLabel('Connection').selectOption('usb');
+  await page.getByRole('button',{name:'Connect',exact:true}).click();
+  await expect(page.getByText('Connected · label set to 62mm x 29mm',{exact:true})).toBeVisible();
   await expect(page.locator('footer')).toContainText('Label media set to 62 × 29 mm');
-  await page.getByRole('button',{name:'Close Direct browser print'}).click();
   await page.getByText('Label',{exact:true}).click();
   await page.getByRole('button',{name:'Media & zones…'}).click();
   const dialog=page.getByRole('dialog');
@@ -159,11 +155,9 @@ test('the label takes its size from the media the printer reports',async({page})
 
 test('the print route follows the selected printer and stays where it is put',async({page})=>{await page.goto('/');
   await page.getByLabel('Printer model').focus();
-  await page.getByText('Print',{exact:true}).click();
-  await page.getByRole('button',{name:'Direct browser print…'}).click();
-  const route=page.getByLabel('Route');
+  const route=page.getByLabel('Connection');
   await page.getByLabel('Printer model').selectOption('m110');
-  await expect(route).toHaveValue('spp');
+  await expect(route).toHaveValue('bluetooth');
   await page.getByLabel('Printer model').selectOption('ql-1110nwb');
   await expect(route).toHaveValue('usb');
   // A choice of its own outranks the printer.
@@ -186,8 +180,8 @@ test('the compiled SDK drops the pacing when the transport streams and compresse
 
 test('a dialog the app mounts outside the editor still carries its styling',async({page})=>{await page.goto('/');
   await page.getByLabel('Printer model').focus();
-  await page.getByText('Print',{exact:true}).click();
-  await page.getByRole('button',{name:'Direct browser print…'}).click();
+  await page.getByLabel('Editor menus').getByText('Print',{exact:true}).click();
+  await page.getByRole('button',{name:'Batch printing…'}).click();
   const styling=await page.evaluate(()=>{const dialog=document.querySelector('[role=dialog]') as HTMLElement;
     const label=dialog.querySelector('label') as HTMLElement;const button=dialog.querySelector('button') as HTMLElement;
     return{scoped:dialog.classList.contains('mb-label-editor'),label:getComputedStyle(label).fontSize,button:getComputedStyle(button).fontSize,body:getComputedStyle(document.body).fontSize}});
@@ -198,12 +192,11 @@ test('a dialog the app mounts outside the editor still carries its styling',asyn
 
 test('WebUSB offers every attached printer without an identity',async({page})=>{await page.goto('/');
   await page.getByLabel('Printer model').focus();
-  await page.getByText('Print',{exact:true}).click();
-  await page.getByRole('button',{name:'Direct browser print…'}).click();
-  await page.getByLabel('Route').selectOption('usb');
+  await page.getByLabel('Printer model').selectOption('ql-1110nwb');
+  await page.getByLabel('Connection').selectOption('usb');
   await expect(page.getByLabel('Vendor ID')).toBeHidden();
   const filters=await page.evaluate(async()=>{let captured:unknown;
     Object.defineProperty(navigator,'usb',{configurable:true,value:{requestDevice:async(options:{filters:unknown})=>{captured=options.filters;throw new DOMException('cancelled','NotFoundError')}}});
-    document.querySelectorAll('button').forEach(button=>{if(button.textContent?.includes('Read printer status'))button.click()});
+    document.querySelectorAll('button').forEach(button=>{if(button.textContent?.trim()==='Connect')button.click()});
     await new Promise(resolve=>setTimeout(resolve,400));return captured});
   expect(filters).toEqual([{classCode:7}])});
