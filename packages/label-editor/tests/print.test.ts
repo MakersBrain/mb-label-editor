@@ -32,4 +32,11 @@ it('paces a raster by protocol chunk, not by transport fragment',async()=>{const
   // 256 bytes is two 128-byte chunks: 13 fragments but only two delays.
   expect(writes.length).toBe(14);
   expect(elapsed).toBeLessThan(300)});
+it('asks for a streamed plan on serial and a paced one on bluetooth',async()=>{const asked:Record<string,unknown>[]=[];
+  const transport=(kind:'serial'|'bluetooth'):DirectTransport=>({kind,physicalWriteLimit:64,connect:async()=>{},disconnect:async()=>{},write:async()=>{},subscribe:async()=>{},waitResponse:async()=>new Uint8Array()});
+  const fake=sdk();fake.plan=async(_document,_printer,options)=>{asked.push(options);return{protocol:'m110',totalBytes:0,actions:[]}};
+  await new DirectPrintRoute(fake,async()=>transport('serial'),'serial').print({document:defaultDocument(),printer,copies:1});
+  await new DirectPrintRoute(fake,async()=>transport('bluetooth'),'bluetooth').print({document:defaultDocument(),printer,copies:1,compressRaster:true});
+  expect(asked[0]).toMatchObject({streaming:true,lzo:undefined});
+  expect(asked[1]).toMatchObject({streaming:false,lzo:true})});
 

@@ -165,3 +165,16 @@ test('the print route follows the selected printer and stays where it is put',as
   await page.getByLabel('Printer model').selectOption('m110');
   await expect(route).toHaveValue('bluetooth')});
 
+test('the compiled SDK drops the pacing when the transport streams and compresses on request',async({page})=>{await page.goto('/');
+  const probe=await page.evaluate(async()=>{const{loadPrinterSdk}=await import('/src/sdk.ts');const sdk=await loadPrinterSdk();const printer=(await sdk.printerDefinitions()).find(item=>item.id==='m110')!;
+    const document={version:4 as const,id:'pace',title:'Pace',media:{width:40,height:30,unit:'mm' as const,dpi:203,orientation:'portrait' as const,printableBounds:{x:0,y:0,width:40,height:30},shape:'rectangle' as const},coordinateSystem:{unit:'mm' as const,origin:'top-left' as const},elements:[],resources:[],fonts:[],createdAt:'2026-01-01T00:00:00Z',modifiedAt:'2026-01-01T00:00:00Z'};
+    const bytes=async(options:Record<string,unknown>)=>{const plan=await sdk.plan(document as never,printer,{copies:1,...options});
+      const raster=plan.actions.find(action=>action.type==='write'&&action.chunkable) as {data:Uint8Array;delayAfterMs:number};
+      return{delay:raster.delayAfterMs,length:raster.data.length}};
+    return{paced:await bytes({}),streamed:await bytes({streaming:true}),compressed:await bytes({streaming:true,lzo:true})}});
+  expect(probe.paced.delay).toBe(20);
+  expect(probe.streamed.delay).toBe(0);
+  expect(probe.streamed.length).toBe(probe.paced.length);
+  // An empty label is almost entirely one repeated byte, so LZO shrinks it hard.
+  expect(probe.compressed.length).toBeLessThan(probe.streamed.length/4)});
+

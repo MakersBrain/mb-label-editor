@@ -30,7 +30,7 @@ export interface PrinterSdk {
   render(document: LabelDocument, options?: { exactThermal?: boolean; record?: number }): Promise<RasterPreview>;
   exportPng(document: LabelDocument, options?: { record?: number }): Promise<Uint8Array>;
   exportPdf(documents: LabelDocument[]): Promise<Uint8Array>;
-  plan(document: LabelDocument, printer: PrinterDefinition, options: { copies: number; density?: number; record?: number }): Promise<ProtocolPlan>;
+  plan(document: LabelDocument, printer: PrinterDefinition, options: { copies: number; density?: number; record?: number; streaming?: boolean; lzo?: boolean }): Promise<ProtocolPlan>;
   printerDefinitions(): Promise<PrinterDefinition[]>;
   /** Media the model can carry, already filtered by head width and tape width. */
   mediaPresets?(printer: PrinterDefinition): Promise<MediaPreset[]>;
@@ -47,5 +47,5 @@ export type LaPosteFormat = typeof LA_POSTE_FORMATS[number];
 export type PrintOutcome = 'completed' | 'cancelled-before-send' | 'cancelled-partial' | 'outcome-unknown' | 'failed';
 export interface PrintProgress { action: number; actions: number; bytesSent: number; totalBytes: number; phase: string }
 export interface PrintResult { outcome: PrintOutcome; lastCompletedAction: number; bytesSent: number; error?: string }
-export interface PrintRequest { document: LabelDocument; printer: PrinterDefinition; copies: number; density?: number; record?: number; signal?: AbortSignal; onProgress?: (progress: PrintProgress) => void }
+export interface PrintRequest { document: LabelDocument; printer: PrinterDefinition; copies: number; density?: number; record?: number; /** Send the raster LZO-compressed, which Phomemo firmware accepts on the M110 family. */ compressRaster?: boolean; signal?: AbortSignal; onProgress?: (progress: PrintProgress) => void }
 export interface PrintRoute { readonly id: string; readonly label: string; isSupported(): boolean; print(request: PrintRequest): Promise<PrintResult>; queryStatus?(printer: PrinterDefinition, options?: { signal?: AbortSignal }): Promise<PrinterStatus> }
