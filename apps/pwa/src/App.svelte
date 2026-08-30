@@ -2,10 +2,10 @@
 <script lang="ts">
   import {onMount} from 'svelte';
   import {BrandLockup} from '@makersbrain/ui/svelte';
-  import { BatchPanel,DirectPrintPanel,JobRecoveryPanel,JobJournal,LabelEditor,LaPostePanel,LocalServicePanel,createEditorStore,defaultDocument,EditorDatabase,createAutosaver,openDocument,saveDocument,LocalApiPrintRoute,type LocalApiConnection,type PrinterSdk,type PrinterDefinition,type PrintProgress,type PrintRoute } from '@makersbrain/label-editor'; import {loadPrinterSdk} from './sdk.js';
+  import { BatchPanel,DirectPrintPanel,JobRecoveryPanel,JobJournal,LabelEditor,LaPostePanel,LocalServicePanel,createEditorStore,defaultDocument,EditorDatabase,createAutosaver,openDocument,saveDocument,LocalApiPrintRoute,Modal,Menu,type LocalApiConnection,type PrinterSdk,type PrinterDefinition,type PrintProgress,type PrintRoute } from '@makersbrain/label-editor'; import {loadPrinterSdk} from './sdk.js';
   const editor=createEditorStore(defaultDocument()); const database=new EditorDatabase(); const autosave=createAutosaver(database); let status='Ready'; let sdk:PrinterSdk|undefined;let printers:PrinterDefinition[]=[];let printerId='';let progress:PrintProgress|undefined;let apiToken=localStorage.getItem('mb-local-api-token')??'';let connectionId=localStorage.getItem('mb-local-api-connection')??'';let localConnection:LocalApiConnection|undefined;let handle:unknown;let online=navigator.onLine;let theme:'system'|'light'|'dark'='system';let defaultRoute='local-api';let updateAvailable=false;const localRoute=new LocalApiPrintRoute({token:()=>apiToken,connection:()=>localConnection,journal:new JobJournal(database)});let selectedRoute:PrintRoute=localRoute;
   onMount(()=>{const update=()=>updateAvailable=true;window.addEventListener('mb-pwa-update',update);return()=>window.removeEventListener('mb-pwa-update',update)});
-  let compact=false;onMount(()=>{const query=window.matchMedia('(max-width:800px)');const sync=()=>compact=query.matches;sync();query.addEventListener('change',sync);return()=>query.removeEventListener('change',sync)});
+  let dialog='';
   async function restoreAutosave(){try{const recovered=await database.latestAutosave();if(recovered){editor.replace(recovered.document);status=`Recovered autosave from ${new Date(recovered.savedAt).toLocaleTimeString()}`;}}catch(error){status=`Autosave recovery unavailable: ${message(error)}`;}}
   async function restorePreferences(){const preferences=await database.getPreferences();if(preferences){editor.setView({gridSize:preferences.gridSize,showGrid:preferences.showGrid,showRulers:preferences.showRulers,snapping:preferences.snapping});printerId=preferences.defaultPrinterId??printerId;theme=preferences.theme;defaultRoute=preferences.defaultRoute??defaultRoute;applyTheme()}}
   function applyTheme(){if(theme==='system')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=theme}function persistPreferences(){void database.savePreferences({gridSize:$editor.view.gridSize,showGrid:$editor.view.showGrid,showRulers:$editor.view.showRulers,snapping:$editor.view.snapping,defaultPrinterId:printerId||undefined,defaultRoute,theme})}
@@ -23,39 +23,55 @@
   async function retryRecovered(job:import('@makersbrain/label-editor').PersistedJob){if(job.route!=='local-api'){status='Reconnect through Direct browser print to start a new explicit hardware job; the interrupted job was not replayed.';return}const document=await database.get<import('@makersbrain/label-editor').LabelDocument>('documents',job.documentId);const printer=printers.find(item=>item.id===printerId);if(!document||!printer||!localConnection){status='Open the saved document and select its printer connection before explicitly retrying.';return}const result=await localRoute.print({document,printer,copies:1});status=`Explicit recovery attempt: ${result.outcome}.`}
   const message=(error:unknown)=>error instanceof Error?error.message:String(error);
 </script>
-<svelte:window on:online={()=>online=true} on:offline={()=>online=false}/><div class="app"><LabelEditor {editor} {sdk}><div slot="header" class="appbar"><BrandLockup product="Label Editor" href="./"/><div class="primary-actions">{#if !compact}<button on:click={()=>open()}>Open picker</button><label class="file">Upload<input type="file" accept=".mb-label.json,application/json" on:change={open}></label><button on:click={save}>Save</button><select bind:value={printerId} on:focus={()=>void ensureSdk()} aria-label="Printer model"><option value="">Printer model</option>{#each printers as printer}<option value={printer.id}>{printer.displayName}</option>{/each}</select>{/if}<button class="primary" on:click={print} disabled={!localConnection}>Print via service</button></div><details class="more"><summary>More</summary><div class="menu">{#if compact}<div class="menu-group"><button on:click={()=>open()}>Open picker</button><label class="file">Upload<input type="file" accept=".mb-label.json,application/json" on:change={open}></label><button on:click={save}>Save</button><select bind:value={printerId} on:focus={()=>void ensureSdk()} aria-label="Printer model"><option value="">Printer model</option>{#each printers as printer}<option value={printer.id}>{printer.displayName}</option>{/each}</select></div>{/if}<button on:click={preview}>Thermal preview</button><button on:click={()=>exportFile("png")}>Export PNG</button><button on:click={()=>exportFile("pdf")}>Export PDF</button><label>Theme<select bind:value={theme} on:change={()=>{applyTheme();persistPreferences()}}><option>system</option><option>light</option><option>dark</option></select></label>{#if updateAvailable}<button on:click={()=>location.reload()}>Update application</button>{/if}<input class="token" type="password" bind:value={apiToken} on:change={storeToken} placeholder="Local API token" aria-label="Local service token"></div></details></div><div slot="sidebar"><details class="workflow"><summary>Local service</summary><LocalServicePanel route={localRoute} onToken={acceptToken} onConnection={acceptConnection} selectedId={connectionId}/></details><details class="workflow"><summary>Recover print jobs</summary><JobRecoveryPanel {database} onRetry={retryRecovered}/></details>{#if sdk}<details class="workflow"><summary>La Poste sheets</summary><LaPostePanel {sdk} route={selectedRoute} printRequest={printers.find(item=>item.id===printerId)?{printer:printers.find(item=>item.id===printerId)!,copies:1}:undefined}/></details><details class="workflow"><summary>Batch printing</summary><BatchPanel document={$editor.document} {sdk} route={selectedRoute} printer={printers.find(item=>item.id===printerId)}/></details><details class="workflow" open><summary>Direct browser print</summary><DirectPrintPanel document={$editor.document} {sdk} printer={printers.find(item=>item.id===printerId)} {database} onRoute={acceptRoute}/></details>{/if}</div></LabelEditor><footer aria-live="polite"><span class:offline={!online}>{online?'Online':'Offline — local editing and export remain available'}</span> · {status}{#if progress} · action {progress.action}/{progress.actions}, {progress.bytesSent}/{progress.totalBytes} bytes{/if}</footer></div>
+<svelte:window on:online={()=>online=true} on:offline={()=>online=false}/>
+<div class="app">
+  <LabelEditor {editor} {sdk}>
+    <BrandLockup slot="brand" product="Label Editor" href="./"/>
+    <Menu slot="menu-start" label="File">
+      <button on:click={()=>open()}>Open picker</button>
+      <label class="file">Upload<input type="file" accept=".mb-label.json,application/json" on:change={open}></label>
+      <button on:click={save}>Save</button>
+      <hr>
+      <button on:click={preview}>Thermal preview</button>
+      <button on:click={()=>exportFile("png")}>Export PNG</button>
+      <button on:click={()=>exportFile("pdf")}>Export PDF</button>
+      <hr>
+      <label>Theme<select bind:value={theme} on:change={()=>{applyTheme();persistPreferences()}}><option>system</option><option>light</option><option>dark</option></select></label>
+      <label>Local API token<input class="token" type="password" bind:value={apiToken} on:change={storeToken} placeholder="Token" aria-label="Local service token"></label>
+      {#if updateAvailable}<button on:click={()=>location.reload()}>Update application</button>{/if}
+    </Menu>
+    <Menu slot="menu-end" label="Print">
+      <button on:click={()=>dialog='direct'}>Direct browser print…</button>
+      <button on:click={()=>dialog='batch'}>Batch printing…</button>
+      <button on:click={()=>dialog='laposte'}>La Poste sheets…</button>
+      <hr>
+      <button on:click={()=>dialog='service'}>Local service…</button>
+      <button on:click={()=>dialog='jobs'}>Recover print jobs…</button>
+    </Menu>
+    <svelte:fragment slot="actions">
+      <select bind:value={printerId} on:focus={()=>void ensureSdk()} aria-label="Printer model"><option value="">Printer model</option>{#each printers as printer}<option value={printer.id}>{printer.displayName}</option>{/each}</select>
+      <button class="primary" on:click={print} disabled={!localConnection}>Print via service</button>
+    </svelte:fragment>
+  </LabelEditor>
+  <footer aria-live="polite"><span class:offline={!online}>{online?'Online':'Offline — local editing and export remain available'}</span> · {status}{#if progress} · action {progress.action}/{progress.actions}, {progress.bytesSent}/{progress.totalBytes} bytes{/if}</footer>
+  <Modal open={dialog==='service'} title="Local service" onClose={()=>dialog=''}><LocalServicePanel route={localRoute} onToken={acceptToken} onConnection={acceptConnection} selectedId={connectionId}/></Modal>
+  <Modal open={dialog==='jobs'} title="Recover print jobs" onClose={()=>dialog=''}><JobRecoveryPanel {database} onRetry={retryRecovered}/></Modal>
+  <Modal open={dialog==='direct'} title="Direct browser print" onClose={()=>dialog=''}>{#if sdk}<DirectPrintPanel document={$editor.document} {sdk} printer={printers.find(item=>item.id===printerId)} {database} onRoute={acceptRoute}/>{:else}<p class="pending">Select a printer model to load the printer SDK first.</p>{/if}</Modal>
+  <Modal open={dialog==='batch'} title="Batch printing" onClose={()=>dialog=''}>{#if sdk}<BatchPanel document={$editor.document} {sdk} route={selectedRoute} printer={printers.find(item=>item.id===printerId)}/>{:else}<p class="pending">Select a printer model to load the printer SDK first.</p>{/if}</Modal>
+  <Modal open={dialog==='laposte'} title="La Poste sheets" onClose={()=>dialog=''}>{#if sdk}<LaPostePanel {sdk} route={selectedRoute} printRequest={printers.find(item=>item.id===printerId)?{printer:printers.find(item=>item.id===printerId)!,copies:1}:undefined}/>{:else}<p class="pending">Select a printer model to load the printer SDK first.</p>{/if}</Modal>
+</div>
 <style>
   .app{height:100dvh;min-width:0;overflow:hidden;display:grid;grid-template-rows:minmax(0,1fr) auto}
-  .appbar{display:flex;gap:var(--mb-space-3);align-items:center;padding:.4rem var(--mb-space-4);background:var(--mb-bg);color:var(--mb-text);border-bottom:var(--mb-border)}
-  .appbar :global(.mb-lockup){margin-right:auto}
-  .primary-actions{display:flex;gap:.15rem;align-items:center}
-  .primary-actions button,.file{border:1px solid transparent;border-radius:var(--mb-radius-sm);background:transparent;color:var(--mb-text);padding:.28rem .55rem;font-size:.8125rem;cursor:pointer}
-  .primary-actions button:hover:not(:disabled),.file:hover{background:var(--mb-surface-2)}
-  .file input{position:absolute;opacity:0;width:1px}
-  .primary-actions select{border:1px solid var(--mb-line);border-radius:var(--mb-radius-sm);background:var(--mb-surface);color:var(--mb-text);padding:.24rem .4rem;font-size:.8125rem}
-  .primary{background:var(--mb-accent);color:var(--mb-text-on-accent);border-color:var(--mb-accent)}
+  .app :global(.mb-lockup){white-space:nowrap}
+  .file{display:flex;gap:.5rem;align-items:center;width:100%;padding:.3rem .45rem;border-radius:var(--mb-radius-sm);cursor:pointer}
+  .file:hover{background:var(--mb-surface-2)}
+  .file input[type=file]{position:absolute;opacity:0;width:1px}
+  .token{width:8rem}
+  .primary{background:var(--mb-accent);color:var(--mb-text-on-accent);border:1px solid var(--mb-accent);border-radius:var(--mb-radius-sm);padding:.28rem .55rem;white-space:nowrap;cursor:pointer}
   .primary:hover:not(:disabled){background:var(--mb-accent-hover);border-color:var(--mb-accent-hover)}
-  .primary:disabled{opacity:.45}
-  .more{position:relative}
-  .more summary{cursor:pointer;padding:.28rem .5rem;border-radius:var(--mb-radius-sm);color:var(--mb-text-muted);list-style:none}
-  .more summary::-webkit-details-marker{display:none}
-  .more summary:hover,.more[open] summary{background:var(--mb-surface-2);color:var(--mb-text)}
-  .menu{position:absolute;z-index:50;right:0;top:calc(100% + .35rem);display:grid;gap:var(--mb-space-2);min-width:12rem;padding:var(--mb-space-3);background:var(--mb-surface);color:var(--mb-text);border:var(--mb-border);border-radius:var(--mb-radius-md);box-shadow:var(--mb-shadow-lg);font-size:.8125rem}
-  .menu button{justify-self:stretch;text-align:left;border:1px solid transparent;border-radius:var(--mb-radius-sm);background:transparent;color:var(--mb-text);padding:.3rem .4rem;cursor:pointer}
-  .menu button:hover{background:var(--mb-surface-2)}
-  .menu label{display:flex;gap:.4rem;align-items:center;justify-content:space-between;color:var(--mb-text-muted)}
-  .menu .file{display:block;color:var(--mb-text);padding:.3rem .4rem}
-  .token{min-width:0;width:100%;box-sizing:border-box}
-  .workflow{border-bottom:var(--mb-border)}
-  .workflow>summary{position:sticky;top:0;z-index:4;display:flex;gap:.4rem;align-items:center;padding:.5rem .75rem;background:var(--mb-bg);color:var(--mb-text-muted);cursor:pointer;font-size:.75rem;font-weight:600;list-style:none}
-  .workflow>summary::-webkit-details-marker{display:none}
-  .workflow>summary::before{content:'\203A';display:inline-block;width:.6rem;transition:transform .12s ease}
-  .workflow[open]>summary{color:var(--mb-text)}
-  .workflow[open]>summary::before{transform:rotate(90deg)}
-  .workflow :global(section>h2){display:none}
+  .primary:disabled{opacity:.45;cursor:default}
+  .pending{margin:0;padding:.9rem;color:var(--mb-text-muted);font-size:.8125rem}
   footer{padding:.35rem 1rem;background:var(--mb-bg);color:var(--mb-text-muted);border-top:var(--mb-border);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .offline{color:var(--mb-kiln-300)}
-  .menu-group{display:grid;gap:.25rem;padding-bottom:.35rem;border-bottom:var(--mb-border)}
-  .menu-group select,.menu-group .file{width:100%;box-sizing:border-box}
-  @media(max-width:800px){.appbar{gap:.35rem;padding:.35rem .5rem}.appbar :global(.mb-lockup){min-width:0;overflow:hidden}.primary-actions{flex:none}.menu{position:fixed;top:2.9rem;right:.5rem;left:.5rem;min-width:0}.menu button,.menu .file{text-align:left}}
+  @media(max-width:800px){.app :global(.appbar select){max-width:7.5rem}}
 </style>

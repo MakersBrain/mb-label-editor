@@ -75,12 +75,12 @@
   cursor: pointer;
 }
 
-.mb-label-editor button:hover:not(:disabled) {
+.mb-label-editor button:hover:not(:disabled):not(.element) {
   background: var(--mble-surface-sunken, #f0e9e3);
   border-color: var(--mble-border, #e5dfd5);
 }
 
-.mb-label-editor button:active:not(:disabled) {
+.mb-label-editor button:active:not(:disabled):not(.element) {
   border-color: var(--mble-border-strong, #948274);
 }
 
