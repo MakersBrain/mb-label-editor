@@ -36,6 +36,8 @@ export interface ElementBase {
 }
 export interface TextElement extends ElementBase {
   type: 'text'; text: string; fontFamily: string; fontSize: number; fontWeight: number;
+  /** Canonical embedded-font resource retained even when the editor cannot identify its family. */
+  fontResourceId?: Id;
   horizontalAlign: 'left' | 'center' | 'right'; verticalAlign: 'top' | 'middle' | 'bottom'; overflow: OverflowMode;
 }
 export interface ImageElement extends ElementBase { type: 'image'; resourceId: Id; fit: 'contain' | 'cover' | 'stretch'; crop?: Bounds; dither?: DitherSettings; invert?: boolean }
@@ -46,7 +48,7 @@ export interface QrElement extends ElementBase { type: 'qr'; value: string; erro
 export interface GroupElement extends ElementBase { type: 'group'; childIds: Id[] }
 export type LabelElement = TextElement | ImageElement | SvgElement | ShapeElement | BarcodeElement | QrElement | GroupElement;
 export interface DitherSettings { algorithm: 'auto' | 'threshold' | 'bayer' | 'floyd-steinberg' | 'atkinson'; threshold: number }
-export interface TemplateData { fields: string[]; records: Record<string, string>[]; currentRecord: number }
+export interface TemplateData { fields: string[]; fieldLabels?: Record<string, string>; records: Record<string, string>[]; currentRecord: number }
 export interface LabelDocument {
   version: 4;
   id: Id;

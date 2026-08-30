@@ -1,0 +1,53 @@
+[
+  {
+    "id": "a4-70x36-3x8",
+    "name": "A4 · 70 × 36 mm · 3 × 8",
+    "paper": "a4",
+    "orientation": "portrait",
+    "grid": {
+      "rows": 8,
+      "columns": 3,
+      "labelWidthMm": 70,
+      "labelHeightMm": 36,
+      "marginLeftMm": 0,
+      "marginTopMm": 4.5,
+      "gapXMm": 0,
+      "gapYMm": 0,
+      "fillOrder": "row-major"
+    }
+  },
+  {
+    "id": "a4-105x42-2x7",
+    "name": "A4 · 105 × 42 mm · 2 × 7",
+    "paper": "a4",
+    "orientation": "portrait",
+    "grid": {
+      "rows": 7,
+      "columns": 2,
+      "labelWidthMm": 105,
+      "labelHeightMm": 42,
+      "marginLeftMm": 0,
+      "marginTopMm": 1.5,
+      "gapXMm": 0,
+      "gapYMm": 0,
+      "fillOrder": "row-major"
+    }
+  },
+  {
+    "id": "letter-66.675x25.4-3x10",
+    "name": "Letter · 66.675 × 25.4 mm · 3 × 10",
+    "paper": "letter",
+    "orientation": "portrait",
+    "grid": {
+      "rows": 10,
+      "columns": 3,
+      "labelWidthMm": 66.675,
+      "labelHeightMm": 25.4,
+      "marginLeftMm": 7.937,
+      "marginTopMm": 12.7,
+      "gapXMm": 0,
+      "gapYMm": 0,
+      "fillOrder": "row-major"
+    }
+  }
+]

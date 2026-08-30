@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { Id, LabelDocument, LabelElement, Point, Transform } from './model.js';
+import type { ElementBase, Id, LabelDocument, LabelElement, Point, Transform } from './model.js';
 import { cloneDocument, uuid } from './model.js';
 
-export interface Command { readonly label: string; apply(document: LabelDocument): LabelDocument }
+export interface Command {
+  readonly label: string;
+  /** Consecutive commands with the same key form one user-visible undo step. */
+  readonly coalesceKey?: string;
+  apply(document: LabelDocument): LabelDocument;
+}
 const changed = (document: LabelDocument, mutate: (copy: LabelDocument) => void): LabelDocument => {
   const copy = cloneDocument(document); mutate(copy); copy.modifiedAt = new Date().toISOString(); return copy;
 };
@@ -11,6 +16,43 @@ const elementById = (doc: LabelDocument, id: Id): LabelElement => {
   if (!item) throw new Error(`Unknown element ${id}`); return item;
 };
 
+/** Checks the bidirectional group links relied on by editor commands. */
+export function assertGroupInvariants(document: LabelDocument): void {
+  const elements = new Map(document.elements.map((element) => [element.id, element]));
+  const groups = new Map(document.elements.filter((element) => element.type === 'group').map((group) => [group.id, group]));
+  for (const element of document.elements) {
+    if (!element.groupId) continue;
+    const parent = groups.get(element.groupId);
+    if (!parent) throw new Error(`Element ${element.id} references missing group ${element.groupId}`);
+    if (!parent.childIds.includes(element.id)) throw new Error(`Group ${parent.id} does not contain child ${element.id}`);
+  }
+  for (const group of groups.values()) {
+    const children = new Set<Id>();
+    for (const childId of group.childIds) {
+      if (childId === group.id) throw new Error(`Group ${group.id} cannot contain itself`);
+      if (children.has(childId)) throw new Error(`Group ${group.id} contains duplicate child ${childId}`);
+      children.add(childId);
+      const child = elements.get(childId);
+      if (!child) throw new Error(`Group ${group.id} references missing child ${childId}`);
+      if (child.groupId !== group.id) throw new Error(`Child ${childId} does not reference group ${group.id}`);
+    }
+  }
+  const visiting = new Set<Id>();
+  const visited = new Set<Id>();
+  const visit = (group: Extract<LabelElement, { type: 'group' }>) => {
+    if (visiting.has(group.id)) throw new Error(`Group cycle includes ${group.id}`);
+    if (visited.has(group.id)) return;
+    visiting.add(group.id);
+    for (const childId of group.childIds) {
+      const child = groups.get(childId);
+      if (child) visit(child);
+    }
+    visiting.delete(group.id);
+    visited.add(group.id);
+  };
+  for (const group of groups.values()) visit(group);
+}
+
 export const addElement = (element: LabelElement): Command => ({
   label: `Add ${element.type}`, apply: (doc) => changed(doc, (copy) => { copy.elements.push(structuredClone(element)); })
 });
@@ -18,21 +60,28 @@ export const removeElements = (ids: Iterable<Id>): Command => {
   const selected = new Set(ids);
   return { label: 'Delete elements', apply: (doc) => changed(doc, (copy) => {
     copy.elements = copy.elements.filter((element) => !selected.has(element.id));
-    copy.elements.forEach((element) => { if (element.type === 'group') element.childIds = element.childIds.filter((id) => !selected.has(id)); });
+    copy.elements.forEach((element) => {
+      if (element.groupId && selected.has(element.groupId)) delete element.groupId;
+      if (element.type === 'group') element.childIds = element.childIds.filter((id) => !selected.has(id));
+    });
+    assertGroupInvariants(copy);
   }) };
 };
 export const patchElement = (id: Id, patch: Partial<LabelElement>): Command => ({
-  label: 'Edit element', apply: (doc) => changed(doc, (copy) => Object.assign(elementById(copy, id), structuredClone(patch)))
+  label: 'Edit element', coalesceKey: `edit:${id}:${Object.keys(patch).sort().join(',')}`, apply: (doc) => changed(doc, (copy) => {
+    if (['id', 'type', 'groupId', 'childIds'].some((key) => Object.hasOwn(patch, key))) throw new Error('Element identity and group links require a dedicated command');
+    Object.assign(elementById(copy, id), structuredClone(patch));
+  })
 });
-export const transformElements = (ids: Iterable<Id>, transform: (current: Transform) => Transform): Command => {
-  const selected = new Set(ids);
-  return { label: 'Transform elements', apply: (doc) => changed(doc, (copy) => copy.elements.forEach((element) => {
+export const transformElements = (ids: Iterable<Id>, transform: (current: Transform) => Transform, operation = 'transform'): Command => {
+  const selected = new Set(ids); const coalesceKey = `${operation}:${[...selected].sort().join(',')}`;
+  return { label: 'Transform elements', coalesceKey, apply: (doc) => changed(doc, (copy) => copy.elements.forEach((element) => {
     if (selected.has(element.id) && !element.locked) element.transform = transform(structuredClone(element.transform));
   })) };
 };
 export const moveElements = (ids: Iterable<Id>, delta: Point): Command => {
-  const selected = [...new Set(ids)];
-  return { label: 'Move elements', apply: (doc) => changed(doc, (copy) => {
+  const selected = [...new Set(ids)]; const coalesceKey = `move:${[...selected].sort().join(',')}`;
+  return { label: 'Move elements', coalesceKey, apply: (doc) => changed(doc, (copy) => {
     const moving = new Set<Id>();
     const include = (id: Id) => {
       if (moving.has(id)) return;
@@ -49,18 +98,32 @@ export const moveElements = (ids: Iterable<Id>, delta: Point): Command => {
     });
   }) };
 };
-export const resizeElement = (id: Id, size: { width: number; height: number }, origin?: Point): Command => transformElements([id], (current) => ({ ...current, ...(origin ?? {}), width: Math.max(0.1, size.width), height: Math.max(0.1, size.height) }));
-export const rotateElements = (ids: Iterable<Id>, degrees: number): Command => transformElements(ids, (current) => ({ ...current, rotation: ((degrees % 360) + 360) % 360 }));
+export const resizeElement = (id: Id, size: { width: number; height: number }, origin?: Point): Command => transformElements([id], (current) => ({ ...current, ...(origin ?? {}), width: Math.max(0.1, size.width), height: Math.max(0.1, size.height) }), 'resize');
+export const rotateElements = (ids: Iterable<Id>, degrees: number): Command => transformElements(ids, (current) => ({ ...current, rotation: ((degrees % 360) + 360) % 360 }), 'rotate');
 export const duplicateElements = (ids: Iterable<Id>, offset: Point = { x: 1, y: 1 }): Command => {
   const selected = new Set(ids); return { label: 'Duplicate elements', apply: (doc) => changed(doc, (copy) => {
+    const include = (id: Id) => {
+      if (selected.has(id)) return;
+      selected.add(id);
+      const element = elementById(copy, id);
+      if (element.type === 'group') element.childIds.forEach(include);
+    };
+    [...selected].forEach((id) => {
+      const element = elementById(copy, id);
+      if (element.type === 'group') element.childIds.forEach(include);
+    });
     const source = copy.elements.filter((item) => selected.has(item.id)); const replacements = new Map(source.map((item) => [item.id, uuid()]));
-    for (const item of source) { const duplicate = structuredClone(item); duplicate.id = replacements.get(item.id)!; duplicate.name = `${item.name} copy`; duplicate.transform.x += offset.x; duplicate.transform.y += offset.y; duplicate.zIndex = copy.elements.length;
-      if (duplicate.groupId && replacements.has(duplicate.groupId)) duplicate.groupId = replacements.get(duplicate.groupId); if (duplicate.type === 'group') duplicate.childIds = duplicate.childIds.map((id) => replacements.get(id) ?? id); copy.elements.push(duplicate); }
+    const firstZIndex = copy.elements.length;
+    for (const [index, item] of source.entries()) { const duplicate = structuredClone(item); duplicate.id = replacements.get(item.id)!; duplicate.name = `${item.name} copy`; duplicate.transform.x += offset.x; duplicate.transform.y += offset.y; duplicate.zIndex = firstZIndex + index;
+      if (duplicate.groupId && replacements.has(duplicate.groupId)) duplicate.groupId = replacements.get(duplicate.groupId); else delete duplicate.groupId;
+      if (duplicate.type === 'group') duplicate.childIds = duplicate.childIds.map((id) => replacements.get(id)!);
+      copy.elements.push(duplicate); }
+    assertGroupInvariants(copy);
   }) };
 };
 export const setVisibility = (ids: Iterable<Id>, visible: boolean): Command => bulkPatch(ids, { visible });
 export const setLocked = (ids: Iterable<Id>, locked: boolean): Command => bulkPatch(ids, { locked });
-export const bulkPatch = (ids: Iterable<Id>, patch: Partial<LabelElement>): Command => {
+export const bulkPatch = (ids: Iterable<Id>, patch: Partial<Pick<ElementBase, 'visible' | 'locked'>>): Command => {
   const selected = new Set(ids); return { label: 'Edit elements', apply: (doc) => changed(doc, (copy) => copy.elements.forEach((item) => {
     if (selected.has(item.id)) Object.assign(item, structuredClone(patch));
   })) };
@@ -98,15 +161,22 @@ export const reorderElement = (id: Id, target: 'front' | 'back' | 'forward' | 'b
 export const groupElements = (ids: Iterable<Id>): Command => {
   const selected = [...new Set(ids)]; return { label: 'Group elements', apply: (doc) => changed(doc, (copy) => {
     if (selected.length < 2) return; const children = selected.map((id) => elementById(copy, id));
+    if (children.some((item) => item.groupId)) throw new Error('Ungroup nested elements before grouping them again');
     const x = Math.min(...children.map((item) => item.transform.x)); const y = Math.min(...children.map((item) => item.transform.y));
     const right = Math.max(...children.map((item) => item.transform.x + item.transform.width)); const bottom = Math.max(...children.map((item) => item.transform.y + item.transform.height));
     const id = uuid(); children.forEach((item) => { item.groupId = id; });
     copy.elements.push({ id, type: 'group', name: 'Group', childIds: selected, transform: { x, y, width: right - x, height: bottom - y, rotation: 0 }, zIndex: Math.max(...children.map((item) => item.zIndex)) + 1, visible: true, locked: false });
+    assertGroupInvariants(copy);
   }) };
 };
 export const ungroup = (groupId: Id): Command => ({ label: 'Ungroup elements', apply: (doc) => changed(doc, (copy) => {
   const group = elementById(copy, groupId); if (group.type !== 'group') return;
-  copy.elements.forEach((item) => { if (item.groupId === groupId) delete item.groupId; }); copy.elements = copy.elements.filter((item) => item.id !== groupId);
+  const parent = group.groupId ? elementById(copy, group.groupId) : undefined;
+  if (parent && parent.type !== 'group') throw new Error(`Parent ${parent.id} is not a group`);
+  copy.elements.forEach((item) => { if (item.groupId === groupId) { if (parent) item.groupId = parent.id; else delete item.groupId; } });
+  if (parent) parent.childIds = parent.childIds.flatMap((id) => id === groupId ? group.childIds : [id]);
+  copy.elements = copy.elements.filter((item) => item.id !== groupId);
+  assertGroupInvariants(copy);
 }) });
 export const updateDocument = (patch: Partial<Omit<LabelDocument, 'version' | 'elements' | 'resources' | 'fonts'>>): Command => ({ label: 'Edit document', apply: (doc) => changed(doc, (copy) => Object.assign(copy, structuredClone(patch))) });
 // Resource references are ID-based. Two imports may intentionally share bytes

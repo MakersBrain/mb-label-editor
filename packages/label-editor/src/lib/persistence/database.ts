@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { LabelDocument, Resource, TemplateData } from '../model.js';
+import type { SheetPreferencesV1 } from '../sheets/types.js';
 
 const DB_NAME = 'makersbrain-label-editor'; const DB_VERSION = 1;
 export type StoreName = 'documents' | 'autosaves' | 'templates' | 'assets' | 'recent' | 'preferences' | 'jobs';
 export interface PersistedJob { id: string; documentId: string; createdAt: string; state: string; route: string; resumable: boolean; details?: unknown }
 export interface RecentItem { id:string; kind:'document'|'template'|'asset'; openedAt:string }
-export interface EditorPreferences { gridSize:number; showGrid:boolean; showRulers:boolean; snapping:boolean; defaultPrinterId?:string; defaultRoute?:string; theme:'system'|'light'|'dark' }
+export interface EditorPreferences { gridSize:number; showGrid:boolean; showRulers:boolean; snapping:boolean; defaultPrinterId?:string; defaultRoute?:string; theme:'system'|'light'|'dark'; sheet?:SheetPreferencesV1 }
 const stores: StoreName[] = ['documents', 'autosaves', 'templates', 'assets', 'recent', 'preferences', 'jobs'];
 export class EditorDatabase {
   #database?: Promise<IDBDatabase>;
@@ -14,10 +15,10 @@ export class EditorDatabase {
     request.onupgradeneeded = () => { for (const name of stores) if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name); };
     request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
   }); }
-  async put<T>(store: StoreName, key: IDBValidKey, value: T) { const db = await this.open(); await transactionPromise(db.transaction(store, 'readwrite').objectStore(store).put(structuredClone(value), key)); }
-  async get<T>(store: StoreName, key: IDBValidKey): Promise<T | undefined> { const db = await this.open(); return await transactionPromise(db.transaction(store).objectStore(store).get(key)) as T | undefined; }
-  async delete(store: StoreName, key: IDBValidKey) { const db = await this.open(); await transactionPromise(db.transaction(store, 'readwrite').objectStore(store).delete(key)); }
-  async entries<T>(store: StoreName): Promise<{ key: IDBValidKey; value: T }[]> { const db = await this.open(); const transaction = db.transaction(store); const objectStore = transaction.objectStore(store); const keys = await transactionPromise(objectStore.getAllKeys()); const values = await transactionPromise(objectStore.getAll()) as T[]; return keys.map((key, index) => ({ key, value: values[index] })); }
+  async put<T>(store: StoreName, key: IDBValidKey, value: T) { const db = await this.open(); const transaction = db.transaction(store, 'readwrite'); const done = transactionComplete(transaction); const request = requestResult(transaction.objectStore(store).put(structuredClone(value), key)); await Promise.all([request, done]); }
+  async get<T>(store: StoreName, key: IDBValidKey): Promise<T | undefined> { const db = await this.open(); const transaction = db.transaction(store); const done = transactionComplete(transaction); const request = requestResult(transaction.objectStore(store).get(key)); const [value] = await Promise.all([request, done]); return value as T | undefined; }
+  async delete(store: StoreName, key: IDBValidKey) { const db = await this.open(); const transaction = db.transaction(store, 'readwrite'); const done = transactionComplete(transaction); const request = requestResult(transaction.objectStore(store).delete(key)); await Promise.all([request, done]); }
+  async entries<T>(store: StoreName): Promise<{ key: IDBValidKey; value: T }[]> { const db = await this.open(); const transaction = db.transaction(store); const done = transactionComplete(transaction); const objectStore = transaction.objectStore(store); /* Queue both requests before yielding, while the transaction is active. */ const keysRequest = requestResult(objectStore.getAllKeys()); const valuesRequest = requestResult(objectStore.getAll()) as Promise<T[]>; const [keys, values] = await Promise.all([keysRequest, valuesRequest, done]); return keys.map((key, index) => ({ key, value: values[index] })); }
   saveDocument(document: LabelDocument) { return this.put('documents', document.id, document); }
   async listDocuments() { return (await this.entries<LabelDocument>('documents')).map(entry=>entry.value).sort((a,b)=>b.modifiedAt.localeCompare(a.modifiedAt)); }
   async removeDocument(id:string) { await this.delete('documents',id); await this.delete('autosaves',id); }
@@ -34,9 +35,43 @@ export class EditorDatabase {
   savePreferences(preferences:EditorPreferences) { return this.put('preferences','editor',preferences); }
   getPreferences() { return this.get<EditorPreferences>('preferences','editor'); }
 }
-const transactionPromise = <T>(request: IDBRequest<T>) => new Promise<T>((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+const requestResult = <T>(request: IDBRequest<T>) => new Promise<T>((resolve, reject) => { request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+const transactionComplete = (transaction: IDBTransaction) => new Promise<void>((resolve, reject) => {
+  transaction.oncomplete = () => resolve();
+  transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted'));
+  transaction.onerror = () => { /* onabort carries the final transaction error */ };
+});
 
-export function createAutosaver(database: EditorDatabase, intervalMs = 1500) {
+export interface Autosaver {
+  (document: LabelDocument): void;
+  flush(): Promise<void>;
+  dispose(): Promise<void>;
+}
+export function createAutosaver(database: EditorDatabase, intervalMs = 1500, onError: (error: unknown) => void = () => {}) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
-  return (document: LabelDocument) => { if (timeout) clearTimeout(timeout); timeout = setTimeout(() => { void database.autosave(document); }, intervalMs); };
+  let pending: LabelDocument | undefined;
+  let inFlight = Promise.resolve();
+  let disposed = false;
+  const queue = () => {
+    const document = pending;
+    pending = undefined;
+    if (!document) return inFlight;
+    inFlight = inFlight.catch(() => {}).then(() => database.autosave(document));
+    return inFlight;
+  };
+  const autosaver = ((document: LabelDocument) => {
+    if (disposed) return;
+    pending = structuredClone(document);
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => { timeout = undefined; void queue().catch(onError); }, intervalMs);
+  }) as Autosaver;
+  autosaver.flush = async () => {
+    if (timeout) { clearTimeout(timeout); timeout = undefined; }
+    await queue();
+  };
+  autosaver.dispose = async () => {
+    disposed = true;
+    try { await autosaver.flush(); } catch (error) { onError(error); }
+  };
+  return autosaver;
 }

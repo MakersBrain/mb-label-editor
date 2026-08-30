@@ -9,6 +9,8 @@ export * from './lib/external-resources/asset-catalog-provider.js';
 export * from './lib/cloud-print/client.js';
 export * from './lib/zones.js';export*from'./lib/gestures.js';export*from'./lib/jobs.js';
 export * from './lib/imports.js';
+export * from './lib/browser-files.js';
+export * from './lib/materialization.js';
 export * from './lib/sdk-document.js';
 export * from './lib/clipboard.js';
 export * from './lib/persistence/database.js'; export * from './lib/template/csv.js'; export * from './lib/template/evaluate.js';
@@ -25,3 +27,9 @@ export{default as ExternalResourceConnectionsPanel}from'./lib/components/Externa
 export{default as LibraryPanel}from'./lib/components/LibraryPanel.svelte';
 export{default as Modal}from'./lib/components/Modal.svelte';export{default as Menu}from'./lib/components/Menu.svelte';export{default as Icon}from'./lib/components/Icon.svelte';export{default as GuidesPanel}from'./lib/components/GuidesPanel.svelte';
 export * from './lib/insert.js';
+export * from './lib/print/batch.js';
+export * from './lib/sheets/types.js';
+export * from './lib/sheets/catalogue.js';
+export * from './lib/sheets/normalize.js';
+export * from './lib/sheets/job.js';
+export { default as SheetPanel } from './lib/components/SheetPanel.svelte';

@@ -2,6 +2,7 @@
 import type { PrintProgress, PrintRequest, PrintResult, PrintRoute } from './types.js';
 import { toSdkDocument } from '../sdk-document.js';
 import type { JobJournal } from '../jobs.js';
+import type { PersistedJob } from '../persistence/database.js';
 
 export type LocalApiTransport = { kind: 'file'; path: string } | { kind: 'tcp'; address: string } | { kind: 'serial' | 'rfcomm'; path: string; baud?: number } | { kind: 'ipp'; uri: string; certificatePem?: string };
 export interface LocalApiConnection { id: string; model: string; transport: LocalApiTransport; status: string; media?: unknown }
@@ -11,6 +12,13 @@ export interface LocalApiJob {
   id: string; state: string; terminal: boolean; outcome?: PrintResult['outcome'] | null;
   lastCompletedAction: number; bytesSent: number; action: number; actions: number;
   totalBytes: number; phase: string; error?: string | null;
+}
+export interface LocalApiJobDetails {
+  kind: 'local-api-print';
+  idempotencyKey: string;
+  requestBody?: string;
+  remoteJobId?: string;
+  lastJob?: LocalApiJob;
 }
 
 export class LocalApiPrintRoute implements PrintRoute {
@@ -52,28 +60,37 @@ export class LocalApiPrintRoute implements PrintRoute {
     return await response.json() as LocalApiConnectionStatus;
   }
 
-  async submit(request: PrintRequest): Promise<LocalApiJob> {
+  private prepare(request: PrintRequest) {
     const connection = this.options.connection?.();
     if (!connection) throw new Error('Select a persisted, probed local-service printer connection before printing. Capture is never a printing destination.');
     if (['unavailable', 'error'].includes(connection.status) || !['file', 'tcp', 'serial', 'rfcomm', 'ipp'].includes(connection.transport.kind)) throw new Error('The selected local-service connection is not a ready physical transport.');
     const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? `mb-editor-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const requestBody = JSON.stringify({ document: toSdkDocument(request.document), printerId: request.printer.id, connectionId: connection.id, copies: request.copies, ...(request.density === undefined ? {} : { density: request.density }) });
+    return { idempotencyKey, requestBody };
+  }
+
+  private async submitPrepared(idempotencyKey: string, requestBody: string, signal?: AbortSignal): Promise<LocalApiJob> {
     const response = await fetch(`${this.baseUrl}/jobs`, {
-      method: 'POST', signal: request.signal, headers: { ...this.headers(true, true), 'idempotency-key': idempotencyKey },
-      body: JSON.stringify({ document: toSdkDocument(request.document), printerId: request.printer.id, connectionId: connection.id, copies: request.copies, ...(request.density === undefined ? {} : { density: request.density }) })
+      method: 'POST', signal, headers: { ...this.headers(true, true), 'idempotency-key': idempotencyKey }, body: requestBody
     });
-    if (!response.ok) throw new Error(await actionableResponse(response));
+    if (!response.ok) throw new LocalApiResponseError(await actionableResponse(response));
     return await response.json() as LocalApiJob;
   }
 
-  async job(id: string): Promise<LocalApiJob> {
-    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(id)}`, { headers: this.headers(false, true) });
-    if (!response.ok) throw new Error(await actionableResponse(response));
+  async submit(request: PrintRequest): Promise<LocalApiJob> {
+    const prepared = this.prepare(request);
+    return await this.submitPrepared(prepared.idempotencyKey, prepared.requestBody, request.signal);
+  }
+
+  async job(id: string, signal?: AbortSignal): Promise<LocalApiJob> {
+    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(id)}`, { signal, headers: this.headers(false, true) });
+    if (!response.ok) throw new LocalApiResponseError(await actionableResponse(response));
     return await response.json() as LocalApiJob;
   }
 
-  async cancel(id: string) {
-    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST', headers: this.headers(false, true) });
-    if (!response.ok) throw new Error(await actionableResponse(response));
+  async cancel(id: string, signal?: AbortSignal) {
+    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST', signal, headers: this.headers(false, true) });
+    if (!response.ok) throw new LocalApiResponseError(await actionableResponse(response));
     return normalizeJob(await response.json() as LocalApiJob);
   }
 
@@ -95,16 +112,63 @@ export class LocalApiPrintRoute implements PrintRoute {
 
   async print(request: PrintRequest): Promise<PrintResult> {
     if (!this.options.token()) return { outcome: 'failed', bytesSent: 0, lastCompletedAction: -1, error: 'Pair with the local printer service first.' };
+    const prepared = this.prepare(request);
+    let persisted = await this.options.journal?.save({
+      id: `local:${prepared.idempotencyKey}`, documentId: request.document.id,
+      createdAt: new Date().toISOString(), state: 'submitting', route: this.id, resumable: true,
+      details: { kind: 'local-api-print', ...prepared } satisfies LocalApiJobDetails
+    });
     try {
-      const submitted = await this.submit(request);
-      const persisted = await this.options.journal?.begin(request.document, this.id, submitted.id);
-      for (;;) {
-        const job = await this.job(submitted.id); const progress = progressOf(job); request.onProgress?.(progress); if (persisted) await this.options.journal?.progress(persisted, progress); if (job.terminal) { const result = normalizeJob(job); if (persisted) await this.options.journal?.finish(persisted, result); return result; }
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
+      const submitted = await this.submitPrepared(prepared.idempotencyKey, prepared.requestBody, request.signal);
+      if (persisted) persisted = await this.save(persisted, submitted.state, true, { kind: 'local-api-print', idempotencyKey: prepared.idempotencyKey, remoteJobId: submitted.id, lastJob: submitted });
+      const terminal = submitted.terminal ? submitted : await this.poll(submitted.id, request.signal, request.onProgress, async (job) => {
+        if (persisted) persisted = await this.save(persisted, job.state, true, { ...localDetails(persisted), lastJob: job });
+      });
+      const result = normalizeJob(terminal);
+      if (persisted) await this.save(persisted, terminal.state, isAmbiguous(result), { ...localDetails(persisted), lastJob: terminal });
+      return result;
     } catch (error) {
-      return { outcome: request.signal?.aborted ? 'outcome-unknown' : 'failed', bytesSent: 0, lastCompletedAction: -1, error: error instanceof Error ? error.message : String(error) };
+      const uncertain = !(error instanceof LocalApiResponseError) || !!(persisted && localDetails(persisted).remoteJobId);
+      const details: LocalApiJobDetails = persisted ? localDetails(persisted) : { kind: 'local-api-print', ...prepared };
+      if (persisted) await this.save(persisted, uncertain ? 'status-unknown' : 'failed', uncertain, uncertain ? details : { ...details, requestBody: undefined });
+      return uncertain
+        ? { outcome: 'outcome-unknown', bytesSent: details.lastJob?.bytesSent ?? 0, lastCompletedAction: details.lastJob?.lastCompletedAction ?? -1, error: 'The local job may have been accepted. Resume its status before printing again.' }
+        : { outcome: 'failed', bytesSent: 0, lastCompletedAction: -1, error: error instanceof Error ? error.message : String(error) };
     }
+  }
+
+  async recover(job: PersistedJob, signal?: AbortSignal, onProgress?: (progress: PrintProgress) => void): Promise<PrintResult> {
+    let details = localDetails(job);
+    try {
+      let remote: LocalApiJob;
+      if (details.remoteJobId) remote = await this.job(details.remoteJobId, signal);
+      else if (details.requestBody) {
+        remote = await this.submitPrepared(details.idempotencyKey, details.requestBody, signal);
+        details = { ...details, remoteJobId: remote.id, requestBody: undefined, lastJob: remote };
+        job = await this.save(job, remote.state, true, details);
+      } else throw new Error('The exact local submission snapshot is unavailable.');
+      const terminal = remote.terminal ? remote : await this.poll(remote.id, signal, onProgress, async (current) => {
+        job = await this.save(job, current.state, true, { ...localDetails(job), lastJob: current });
+      });
+      const result = normalizeJob(terminal);
+      await this.save(job, terminal.state, isAmbiguous(result), { ...localDetails(job), lastJob: terminal });
+      return result;
+    } catch (error) {
+      return { outcome: 'failed', lastCompletedAction: details.lastJob?.lastCompletedAction ?? -1, bytesSent: details.lastJob?.bytesSent ?? 0, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  private async poll(id: string, signal?: AbortSignal, onProgress?: (progress: PrintProgress) => void, onJob?: (job: LocalApiJob) => Promise<void>): Promise<LocalApiJob> {
+    for (;;) {
+      if (signal?.aborted) throw signal.reason ?? new DOMException('Stopped watching local job.', 'AbortError');
+      const current = await this.job(id, signal); onProgress?.(progressOf(current)); await onJob?.(current);
+      if (current.terminal) return current;
+      await abortableDelay(250, signal);
+    }
+  }
+
+  private async save(job: PersistedJob, state: string, resumable: boolean, details: LocalApiJobDetails) {
+    return await this.options.journal!.save({ ...job, state, resumable, details });
   }
 
   private headers(json: boolean, authenticated = false): Record<string, string> {
@@ -117,6 +181,18 @@ export class LocalApiPrintRoute implements PrintRoute {
   private requireToken() { const token = this.options.token(); if (!token) throw new Error('Pair with the local printer service first.'); return token; }
 }
 
+export function isLocalApiJobDetails(value: unknown): value is LocalApiJobDetails {
+  return !!value && typeof value === 'object' && (value as { kind?: unknown }).kind === 'local-api-print';
+}
+
 const progressOf = (job: LocalApiJob): PrintProgress => ({ action: job.action, actions: job.actions, bytesSent: job.bytesSent, totalBytes: job.totalBytes, phase: job.phase });
 const normalizeJob = (job: LocalApiJob): PrintResult => ({ outcome: job.outcome ?? (job.terminal ? 'failed' : 'outcome-unknown'), lastCompletedAction: job.lastCompletedAction, bytesSent: job.bytesSent, error: job.error ?? undefined });
-async function actionableResponse(response: Response) { if (response.status === 401) return 'Pairing expired or was revoked. Pair with the local service again.'; if (response.status === 403) return 'The local service denied this origin.'; if (response.status === 413) return 'The document or job is too large for the local service.'; return `${response.status} ${response.statusText}: ${await response.text()}`; }
+const localDetails = (job: PersistedJob | undefined): LocalApiJobDetails => { if (!job || !isLocalApiJobDetails(job.details)) throw new Error('Invalid local job recovery details.'); return job.details; };
+const isAmbiguous = (result: PrintResult) => ['outcome-unknown', 'cancelled-partial'].includes(result.outcome);
+class LocalApiResponseError extends Error {}
+const abortableDelay = (milliseconds: number, signal?: AbortSignal) => new Promise<void>((resolve, reject) => {
+  const aborted = () => { clearTimeout(timeout); reject(signal?.reason ?? new DOMException('Stopped watching local job.', 'AbortError')); };
+  const timeout = setTimeout(() => { signal?.removeEventListener('abort', aborted); resolve(); }, milliseconds);
+  signal?.addEventListener('abort', aborted, { once: true });
+});
+async function actionableResponse(response: Response) { if (response.status === 401) return 'Pairing secret expired or the saved grant was revoked. Generate a fresh one-time secret and pair with the local service again.'; if (response.status === 403) return 'The local service denied this editor origin. Add the exact editor origin to LABEL_EDITOR_ORIGINS, restart mb-printer api, and pair again.'; if (response.status === 413) return 'The document or job is too large for the local service.'; return `${response.status} ${response.statusText}: ${await response.text()}`; }

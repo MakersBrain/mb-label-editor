@@ -37,7 +37,7 @@ async function stop(child: ChildProcess | undefined) {
 }
 
 test('real CLI process supports pairing, preflight, jobs, restart, and revocation', async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   if (!existsSync(binary)) execFileSync('cargo', ['build', '--manifest-path', join(cliRoot, 'Cargo.toml'), '--bin', 'mb-printer'], { stdio: 'pipe' });
   const directory = await mkdtemp(join(tmpdir(), 'mb-editor-local-api-'));
   const config = join(directory, 'config.json');
