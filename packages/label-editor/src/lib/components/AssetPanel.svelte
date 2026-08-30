@@ -7,21 +7,21 @@
   import { importAsset, importFont } from '../imports.js';
   import { uuid, type Resource, type FontResource } from '../model.js';
   import { AssetCatalogue, type CatalogueAsset } from '../catalogue.js';
-  import type { AssetCatalogClient, RemoteAsset, RemoteFont } from '../asset-catalog/client.js';
+  import type { ExternalAsset, ExternalFont, ExternalResourceProvider } from '../external-resources/types.js';
   import { EditorDatabase } from '../persistence/database.js';
   import RemoteAssetPreview from './RemoteAssetPreview.svelte';
   import manifest from '../../../assets/public-catalogue.json';
 
   export let editor: EditorStore;
   export let sdk: PrinterSdk | undefined = undefined;
-  export let assetCatalog: AssetCatalogClient | undefined = undefined;
+  export let resourceProvider: ExternalResourceProvider | undefined = undefined;
 
   const database = new EditorDatabase();
   const pageSize = 12;
   let query = '';
   let category = '';
   let status = '';
-  let source: 'service' | 'browser' = assetCatalog ? 'service' : 'browser';
+  let source: 'service' | 'browser' = resourceProvider ? 'service' : 'browser';
   let remoteKind: 'assets' | 'fonts' = 'assets';
   let privateAssets: CatalogueAsset[] = [];
   let savedResources: Resource[] = [];
@@ -31,8 +31,8 @@
   let remotePage = 1;
   let remotePages = 1;
   let remoteTotal = 0;
-  let remoteAssets: RemoteAsset[] = [];
-  let remoteFonts: RemoteFont[] = [];
+  let remoteAssets: ExternalAsset[] = [];
+  let remoteFonts: ExternalFont[] = [];
   let remoteLoading = false;
   let imageProfile: 'photo' | 'logo' | 'line-art' = 'photo';
   let mounted = false;
@@ -43,7 +43,7 @@
   $: all = catalogue.search({ query, category: category || undefined }).sort((a, b) => recents.indexOf(b.id) - recents.indexOf(a.id));
   $: results = all.slice(page * pageSize, (page + 1) * pageSize);
   $: pages = Math.max(1, Math.ceil(all.length / pageSize));
-  $: if (mounted && source === 'service' && assetCatalog) {
+  $: if (mounted && source === 'service' && resourceProvider) {
     query; category; remoteKind;
     scheduleRemoteSearch();
   }
@@ -68,21 +68,21 @@
   }
 
   async function searchRemote(nextPage: number) {
-    if (!assetCatalog) return;
+    if (!resourceProvider) return;
     const sequence = ++requestSequence;
     remoteLoading = true;
     try {
       const common = { query, categories: category ? [category] : undefined, page: nextPage, pageSize };
       const result = remoteKind === 'assets'
-        ? await assetCatalog.searchAssets(common)
-        : await assetCatalog.searchFonts(common);
+        ? await resourceProvider.searchAssets(common)
+        : await resourceProvider.searchFonts(common);
       if (sequence !== requestSequence) return;
       remotePage = result.page;
       remotePages = result.pages;
       remoteTotal = result.total;
-      if (remoteKind === 'assets') { remoteAssets = result.items as RemoteAsset[]; remoteFonts = []; }
-      else { remoteFonts = result.items as RemoteFont[]; remoteAssets = []; }
-      status = `${result.total} ${remoteKind} from the asset service.`;
+      if (remoteKind === 'assets') { remoteAssets = result.items as ExternalAsset[]; remoteFonts = []; }
+      else { remoteFonts = result.items as ExternalFont[]; remoteAssets = []; }
+      status = `${result.total} ${remoteKind} from ${resourceProvider.displayName}.`;
     } catch (error) {
       if (sequence === requestSequence) status = message(error);
     } finally {
@@ -123,11 +123,11 @@
     await remember(item.id);
     status = `Added ${item.name}`;
   }
-  async function useRemoteAsset(item: RemoteAsset) {
-    if (!assetCatalog) return;
+  async function useRemoteAsset(item: ExternalAsset) {
+    if (!resourceProvider) return;
     try {
       status = `Downloading ${item.title}…`;
-      const blob = await assetCatalog.fetchBlob(item.contentUrl);
+      const blob = await resourceProvider.fetchBlob(item.contentUrl);
       const file = new File([blob], item.title, { type: blob.type });
       if (blob.type.startsWith('font/')) {
         const imported = await importFont(file);
@@ -142,18 +142,19 @@
       status = `Added ${item.title}`;
     } catch (error) { status = message(error); }
   }
-  async function useRemoteFont(item: RemoteFont) {
-    if (!assetCatalog) return;
+  async function useRemoteFont(item: ExternalFont) {
+    if (!resourceProvider) return;
     try {
       status = `${item.availability === 'remote' ? 'Caching' : 'Downloading'} ${item.family}…`;
       let family = item;
       if (!family.faces.length || family.availability === 'remote') {
         const preferred = family.variants.includes('regular') ? ['regular'] : family.variants.slice(0, 1);
-        family = await assetCatalog.cacheFont(family.id, preferred);
+        if (!resourceProvider.cacheFont) throw new Error(`${resourceProvider.displayName} cannot cache remote fonts.`);
+        family = await resourceProvider.cacheFont(family.id, preferred);
       }
       const face = family.faces.find(candidate => candidate.variant === 'regular') ?? family.faces[0];
       if (!face) throw new Error(`${family.family} has no downloadable font face.`);
-      const blob = await assetCatalog.fetchBlob(face.fileUrl);
+      const blob = await resourceProvider.fetchBlob(face.fileUrl);
       const extension = face.format === 'opentype' ? 'otf' : face.format === 'collection' ? 'ttc' : 'ttf';
       const mimeType = blob.type || (extension === 'ttc' ? 'font/collection' : `font/${extension}`);
       const imported = await importFont(new File([blob], `${family.family}.${extension}`, { type: mimeType }), {
@@ -202,19 +203,19 @@
 <section>
   <h2>Asset catalogue</h2>
   <div class="filters">
-    <select bind:value={source} aria-label="Asset source"><option value="browser">This browser</option><option value="service" disabled={!assetCatalog}>Asset service</option></select>
+    <select bind:value={source} aria-label="Asset source"><option value="browser">This browser</option><option value="service" disabled={!resourceProvider}>{resourceProvider?.displayName ?? 'External resources'}</option></select>
     {#if source === 'service'}<select bind:value={remoteKind} aria-label="Remote asset kind"><option value="assets">Graphics</option><option value="fonts">Fonts</option></select>{/if}
     <input type="search" bind:value={query} on:input={() => page = 0} placeholder="Search catalogue">
     {#if source === 'browser'}<select bind:value={category} on:change={() => page = 0} aria-label="Asset category"><option value="">All categories</option>{#each catalogue.categories as item}<option>{item}</option>{/each}</select>{:else}<input type="text" bind:value={category} placeholder="Category (optional)" aria-label="Asset category">{/if}
   </div>
   <div class="actions"><label>Image/SVG/PDF<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif,image/svg+xml,.svg,.webp,application/pdf" on:change={asset}></label><label>Font<input type="file" accept=".woff,.woff2,.ttf,.otf,.ttc" on:change={font}></label><label>Private .mb-assets<input type="file" accept=".mb-assets,application/json" on:change={collection}></label><button on:click={exportCollection} disabled={!privateAssets.length}>Export private collection</button></div>
   <label class="render-profile">Image rendering<select bind:value={imageProfile}><option value="photo">Photo · smooth tones</option><option value="logo">Logo · crisp ordered dots</option><option value="line-art">Line art · solid black/white</option></select><small>The original stays intact. Rendering happens at the selected printer's {$editor.document.media.dpi} dpi and can be changed later in Properties.</small></label>
-  <p aria-live="polite">{remoteLoading ? 'Searching asset service…' : status}</p>
+  <p aria-live="polite">{remoteLoading ? `Searching ${resourceProvider?.displayName ?? 'external resources'}…` : status}</p>
 
-  {#if source === 'service' && assetCatalog}
+  {#if source === 'service' && resourceProvider}
     <ul class:busy={remoteLoading}>
-      {#each remoteAssets as item (item.id)}<li><RemoteAssetPreview client={assetCatalog} path={item.previewUrl} alt=""/><button on:click={() => useRemoteAsset(item)}>{item.title}</button><small>{item.provider} · {item.category} · {item.kinds.join(', ')}</small></li>{/each}
-      {#each remoteFonts as item (item.id)}<li><RemoteAssetPreview client={assetCatalog} path={item.previewUrl} alt=""/><button on:click={() => useRemoteFont(item)}>{item.family}</button><small>{item.provider} · {item.category} · {item.availability} · {item.license}</small></li>{/each}
+      {#each remoteAssets as item (item.id)}<li><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/><button on:click={() => useRemoteAsset(item)}>{item.title}</button><small>{item.provider} · {item.category} · {item.kinds.join(', ')}</small></li>{/each}
+      {#each remoteFonts as item (item.id)}<li><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/><button on:click={() => useRemoteFont(item)}>{item.family}</button><small>{item.provider} · {item.category} · {item.availability} · {item.license}</small></li>{/each}
     </ul>
     {#if !remoteLoading && remoteTotal === 0}<p>No matching remote {remoteKind}.</p>{/if}
     <nav><button on:click={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>{remotePage}/{remotePages}</span><button on:click={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>

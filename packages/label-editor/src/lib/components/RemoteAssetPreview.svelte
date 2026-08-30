@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { AssetCatalogClient } from '../asset-catalog/client.js';
-  export let client: AssetCatalogClient;
+  import type { ExternalResourceProvider } from '../external-resources/types.js';
+  export let provider: ExternalResourceProvider;
   export let path: string;
   export let alt = '';
   let source = '';
@@ -10,7 +10,7 @@
   onMount(() => {
     let active = true;
     let objectUrl = '';
-    void client.fetchBlob(path).then(blob => {
+    void provider.fetchBlob(path).then(blob => {
       if (!active) return;
       objectUrl = URL.createObjectURL(blob);
       source = objectUrl;

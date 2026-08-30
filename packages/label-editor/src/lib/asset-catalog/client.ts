@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import createClient from 'openapi-fetch';
 import type { components, paths } from './schema.js';
+import type { ExternalResourceProvider } from '../external-resources/types.js';
 
 export type RemoteAsset = components['schemas']['AssetResponse'];
 export type RemoteAssetPage = components['schemas']['SearchResponse'];
@@ -13,6 +14,8 @@ export type FontFacets = components['schemas']['FontFacetsResponse'];
 type TokenSource = string | (() => string | undefined);
 export interface AssetCatalogClientOptions {
   baseUrl: string;
+  connectionId?: string;
+  displayName?: string;
   token?: TokenSource;
   fetch?: typeof globalThis.fetch;
 }
@@ -36,7 +39,10 @@ export interface FontSearchOptions {
 }
 
 /** Typed browser client generated from the mbprint-asset-catalog OpenAPI contract. */
-export class AssetCatalogClient {
+export class AssetCatalogClient implements ExternalResourceProvider {
+  readonly kind = 'mbprint-asset-catalog';
+  readonly connectionId: string;
+  readonly displayName: string;
   readonly baseUrl: string;
   readonly #token?: TokenSource;
   readonly #fetch: typeof globalThis.fetch;
@@ -46,8 +52,10 @@ export class AssetCatalogClient {
     const baseUrl = options.baseUrl.trim().replace(/\/+$/, '');
     if (!baseUrl) throw new Error('Asset catalog URL is required.');
     this.baseUrl = baseUrl;
+    this.connectionId = options.connectionId ?? 'asset-catalog';
+    this.displayName = options.displayName?.trim() || 'MakersBrain asset catalog';
     this.#token = options.token;
-    this.#fetch = options.fetch ?? globalThis.fetch;
+    this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.#client = createClient<paths>({ baseUrl, fetch: request => this.#fetch(request) });
     this.#client.use({
       onRequest: ({ request }) => {

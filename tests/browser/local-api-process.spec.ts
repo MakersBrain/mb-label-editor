@@ -11,7 +11,8 @@ import { defaultDocument } from '../../packages/label-editor/src/lib/model.js';
 import { LocalApiPrintRoute } from '../../packages/label-editor/src/lib/print/local-api.js';
 
 const origin = 'http://127.0.0.1:4173';
-const cliRoot = resolve(import.meta.dirname, '../../../mb-printer-cli');
+const cliRoot = [resolve(import.meta.dirname, '../../../mb-printer-cli'), resolve(import.meta.dirname, '../../../../../mb-printer-cli')]
+  .find(path => existsSync(join(path, 'Cargo.toml'))) ?? resolve(import.meta.dirname, '../../../mb-printer-cli');
 const binary = join(cliRoot, 'target/debug/mb-printer');
 
 async function unusedPort() {
