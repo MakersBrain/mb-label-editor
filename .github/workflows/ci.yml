@@ -9,8 +9,23 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { path: mb-label-editor }
+      - id: sdk
+        # The editor builds against a merged SDK commit, never a moving branch,
+        # so a change that spans both repositories lands in the SDK first.
+        run: echo "ref=$(tr -d '[:space:]' < .github/sdk-ref)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with: { repository: MakersBrain/mb-printer-sdk, path: mb-printer-sdk }
+        with:
+          repository: MakersBrain/mb-printer-sdk
+          path: mb-printer-sdk
+          ref: '${{ steps.sdk.outputs.ref }}'
+      - name: The pinned SDK commit must be on the SDK's main
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          status=$(gh api "repos/MakersBrain/mb-printer-sdk/compare/main...${{ steps.sdk.outputs.ref }}" --jq .status)
+          case "$status" in
+            identical|behind) echo "SDK pin is on main ($status)." ;;
+            *) echo "::error::.github/sdk-ref names a commit that is not on mb-printer-sdk main ($status). Merge the SDK change first, then run npm run sdk:pin."; exit 1 ;;
+          esac
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with: { repository: MakersBrain/mb-printer-cli, path: mb-printer-cli }
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

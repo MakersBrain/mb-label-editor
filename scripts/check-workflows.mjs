@@ -20,6 +20,22 @@ for (const name of files) {
   }
 }
 
+const pin = (await readFile(new URL('.github/sdk-ref', root), 'utf8')).trim();
+if (!/^[0-9a-f]{40}$/.test(pin)) errors.push('.github/sdk-ref must be a full commit SHA of an mb-printer-sdk commit on main');
+
+for (const name of files) {
+  const workflow = await readFile(new URL(name, directory), 'utf8');
+  if (!workflow.includes('MakersBrain/mb-printer-sdk')) continue;
+  // Building against the SDK's moving main makes an editor run fail whenever a
+  // change spans both repositories and the SDK half has not landed yet.
+  if (!workflow.includes("ref: '${{ steps.sdk.outputs.ref }}'")) {
+    errors.push(`${name}: the mb-printer-sdk checkout must use the commit pinned in .github/sdk-ref`);
+  }
+  if (!workflow.includes('compare/main...')) {
+    errors.push(`${name}: the pinned SDK commit must be checked against the SDK's main`);
+  }
+}
+
 const release = await readFile(new URL('release.yml', directory), 'utf8');
 for (const required of [
   'contents: write',
