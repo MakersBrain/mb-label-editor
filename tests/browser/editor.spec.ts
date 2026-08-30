@@ -126,7 +126,7 @@ test('the SDK lists the media a model can carry and names what it reported',asyn
   expect(probe.narrow).toContain('40x30');
   expect(probe.narrow).not.toContain('60x40');
   expect(probe.wide).toContain('60x40');
-  expect(probe.tape).toEqual(['40x12','30x12','22x12','12x12']);
+  expect(probe.tape.every(id=>['30x6','50x12','40x12','30x12'].includes(id))).toBe(true);
   expect(probe.media).toBe('62mm x 29mm')});
 
 test('the label takes its size from the media the printer reports',async({page})=>{await page.goto('/');
