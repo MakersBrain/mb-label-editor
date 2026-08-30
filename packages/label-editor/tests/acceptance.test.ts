@@ -20,4 +20,12 @@ it('writes optimistically over BLE and settles on what the link accepts',async()
   await transport.write(new Uint8Array(180));
   expect(writes).toEqual([90,90]);
   vi.unstubAllGlobals()});
+it('reports a port that will not open as nothing sent',async()=>{vi.stubGlobal('isSecureContext',true);
+  const transport=new WebSerialTransport({unfiltered:true},{requestPort:async()=>({open:async()=>{throw new DOMException('Failed to open serial port.','NetworkError')},close:async()=>{}})} as never);
+  const failure=await transport.connect().then(()=>undefined,error=>error as DeviceError);
+  if(!failure)throw new Error('expected the open to fail');
+  expect(failure.code).toBe('connect-failed');
+  expect(failure.message).toContain('Nothing was sent');
+  expect(failure.message).not.toContain('inspect the job');
+  vi.unstubAllGlobals()});
 
