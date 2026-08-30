@@ -48,4 +48,13 @@ export type PrintOutcome = 'completed' | 'cancelled-before-send' | 'cancelled-pa
 export interface PrintProgress { action: number; actions: number; bytesSent: number; totalBytes: number; phase: string }
 export interface PrintResult { outcome: PrintOutcome; lastCompletedAction: number; bytesSent: number; error?: string }
 export interface PrintRequest { document: LabelDocument; printer: PrinterDefinition; copies: number; density?: number; record?: number; /** Send the raster LZO-compressed, which Phomemo firmware accepts on the M110 family. */ compressRaster?: boolean; signal?: AbortSignal; onProgress?: (progress: PrintProgress) => void }
-export interface PrintRoute { readonly id: string; readonly label: string; isSupported(): boolean; print(request: PrintRequest): Promise<PrintResult>; queryStatus?(printer: PrinterDefinition, options?: { signal?: AbortSignal }): Promise<PrinterStatus> }
+export interface PrintRoute {
+  readonly id: string;
+  readonly label: string;
+  readonly connected?: boolean;
+  isSupported(): boolean;
+  connect?(options?: { signal?: AbortSignal }): Promise<void>;
+  disconnect?(): Promise<void>;
+  print(request: PrintRequest): Promise<PrintResult>;
+  queryStatus?(printer: PrinterDefinition, options?: { signal?: AbortSignal }): Promise<PrinterStatus>;
+}
