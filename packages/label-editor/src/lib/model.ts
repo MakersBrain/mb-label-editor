@@ -38,7 +38,7 @@ export interface TextElement extends ElementBase {
   type: 'text'; text: string; fontFamily: string; fontSize: number; fontWeight: number;
   horizontalAlign: 'left' | 'center' | 'right'; verticalAlign: 'top' | 'middle' | 'bottom'; overflow: OverflowMode;
 }
-export interface ImageElement extends ElementBase { type: 'image'; resourceId: Id; fit: 'contain' | 'cover' | 'stretch'; crop?: Bounds; dither?: DitherSettings }
+export interface ImageElement extends ElementBase { type: 'image'; resourceId: Id; fit: 'contain' | 'cover' | 'stretch'; crop?: Bounds; dither?: DitherSettings; invert?: boolean }
 export interface SvgElement extends ElementBase { type: 'svg'; resourceId: Id }
 export interface ShapeElement extends ElementBase { type: 'line' | 'rectangle' | 'ellipse' | 'triangle'; strokeWidth: number; filled: boolean }
 export interface BarcodeElement extends ElementBase { type: 'barcode'; value: string; symbology: 'code128' | 'ean13' | 'upca' | 'code39'; showText: boolean }
