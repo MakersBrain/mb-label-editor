@@ -93,12 +93,23 @@ test('the compiled SDK builds a Brother status plan and decodes the reply',async
   const probe=await page.evaluate(async()=>{const{loadPrinterSdk}=await import('/src/sdk.ts');const sdk=await loadPrinterSdk();const printers=await sdk.printerDefinitions();
     const brother=printers.find(item=>item.id==='ql-1110nwb')!;const plan=await sdk.statusPlan!(brother);
     const reply=new Uint8Array(32);reply.set([0x80,0x20,0x42]);reply[10]=62;reply[11]=0x0b;reply[17]=29;reply[8]=1;
-    const parsed=await sdk.parseStatus!(brother,reply);
-    let unsupported='';try{await sdk.statusPlan!(printers.find(item=>item.id==='m110')!)}catch(error){unsupported=(error as Error).message??String(error)}
+    const parsed=await sdk.parseStatus!(brother,[reply]);
+    let unsupported='';try{await sdk.statusPlan!(printers.find(item=>item.id==='pm241')!)}catch(error){unsupported=(error as Error).message??String(error)}
     return{request:[...(plan.actions.filter(action=>action.type==='write').at(-1) as {data:Uint8Array}).data],last:plan.actions.at(-1)?.type,validate:(plan.actions.at(-1) as {validate?:string}).validate,
       raster:plan.actions.some(action=>action.type==='write'&&action.chunkable),
       status:{width:parsed.mediaWidthMm,length:parsed.mediaLengthMm,type:parsed.mediaType,errors:parsed.errors},unsupported}});
   expect(probe.request).toEqual([0x1b,0x69,0x53]);expect(probe.last).toBe('wait-response');expect(probe.validate).toBe('brother-status32');expect(probe.raster).toBe(false);
   expect(probe.status).toEqual({width:62,length:29,type:'die-cut',errors:['no media']});
   expect(probe.unsupported).toMatch(/does not support/)});
+
+test('the compiled SDK queries Phomemo status and decodes notification frames',async({page})=>{await page.goto('/');
+  const probe=await page.evaluate(async()=>{const{loadPrinterSdk}=await import('/src/sdk.ts');const sdk=await loadPrinterSdk();const printers=await sdk.printerDefinitions();
+    const phomemo=printers.find(item=>item.id==='m110')!;const plan=await sdk.statusPlan!(phomemo);
+    const parsed=await sdk.parseStatus!(phomemo,[Uint8Array.from([0x1a,0x04,0xa2]),Uint8Array.from([0x1a,0x05,0x99]),Uint8Array.from([0x1a,0x06,0x88]),Uint8Array.from([0x1a,0x08,0x4d,0x42,0x31])]);
+    return{subscribes:plan.actions[0]?.type,queries:plan.actions.filter(action=>action.type==='write').map(action=>[...(action as {data:Uint8Array}).data]),
+      status:{battery:parsed.battery,cover:parsed.cover,paper:parsed.paper,serial:parsed.serial,errors:parsed.errors}}});
+  expect(probe.subscribes).toBe('subscribe');
+  expect(probe.queries[0]).toEqual([0x1f,0x11,0x08]);
+  expect(probe.queries).toHaveLength(6);
+  expect(probe.status).toEqual({battery:5,cover:'closed',paper:'out',serial:'MB1',errors:['no media']})});
 

@@ -18,7 +18,7 @@ export type SdkPlanAction =
   | { action:'wait-for-response';timeout_ms:number;fallback_delay_ms:number;validation:string };
 export function adaptSdkProtocolPlan(protocol:string,actions:SdkPlanAction[]):ProtocolPlan { let totalBytes=0;const normalized:ProtocolAction[]=actions.map((item)=>{switch(item.action){case'job-boundary':return{type:'job-boundary',phase:item.kind,id:`${protocol}-${item.kind}`};case'subscribe-notifications':return{type:'subscribe',channel:'printer'};case'command-write':{const data=Uint8Array.from(item.bytes);totalBytes+=data.length;return{type:'write',data,chunkable:false,atomic:item.atomic,logicalChunkSize:data.length,delayAfterMs:0}}case'raster-write':{const data=Uint8Array.from(item.bytes);totalBytes+=data.length;return{type:'write',data,chunkable:true,atomic:false,logicalChunkSize:item.logical_chunk,delayAfterMs:item.delay_after_each_physical_write_ms}}case'delay':return{type:'delay',milliseconds:item.milliseconds};case'wait-for-response':return{type:'wait-response',channel:'printer',timeoutMs:item.timeout_ms,fallbackDelayMs:item.fallback_delay_ms,validate:item.validation}}});return{protocol,actions:normalized,totalBytes} }
 export interface PrinterDefinition { id: string; displayName: string; dpi: number; protocols: string[]; media: { minWidth: number; maxWidth: number; minHeight: number; maxHeight: number } }
-export interface PrinterStatus { protocol: string; mediaWidthMm?: number; mediaLengthMm?: number; mediaType?: string; statusType?: string; phase?: string; errors: string[]; raw: Uint8Array }
+export interface PrinterStatus { protocol: string; mediaWidthMm?: number; mediaLengthMm?: number; mediaType?: string; statusType?: string; phase?: string; battery?: number; paper?: string; cover?: string; label?: string; heating?: string; firmware?: string; version?: string; serial?: string; errors: string[]; raw: Uint8Array[] }
 export interface RasterPreview { width: number; height: number; rgba: Uint8Array }
 export interface LaPosteSlot { id: string; sourcePage: number; slot: number; occupied: boolean; widthMm: 63.5; heightMm: 33.9; preview: RasterPreview }
 export interface PrinterSdk {
@@ -33,8 +33,8 @@ export interface PrinterSdk {
   printerDefinitions(): Promise<PrinterDefinition[]>;
   /** Document-free plan that only asks the printer for its status. Absent when the protocol cannot answer. */
   statusPlan?(printer: PrinterDefinition): Promise<ProtocolPlan>;
-  /** Decodes a captured status reply for the printer's protocol. */
-  parseStatus?(printer: PrinterDefinition, data: Uint8Array): Promise<PrinterStatus>;
+  /** Decodes the captured status replies for the printer's protocol. Brother answers once; Phomemo answers per query. */
+  parseStatus?(printer: PrinterDefinition, frames: Uint8Array[]): Promise<PrinterStatus>;
   importFirstPdfPage(data: Uint8Array, dpi: number): Promise<{ mimeType: 'image/png'; data: Uint8Array; widthMm: number; heightMm: number }>;
   inspectLaPoste(data: Uint8Array, format: LaPosteFormat, options?: { pages?: number[]; dpi?: number }): Promise<LaPosteSlot[]>;
   laPosteSlotDocument(data: Uint8Array, format: LaPosteFormat, slot: LaPosteSlot): Promise<LabelDocument>;

@@ -54,13 +54,22 @@ export class DirectPrintRoute implements PrintRoute {
     try {
       preflightPlan(plan, transport);
       await abortable(transport.connect(), options?.signal);
-      let captured: Uint8Array | undefined;
+      const captured: Uint8Array[] = [];
+      let notificationsAvailable = true;
       for (const action of plan.actions) {
-        if (action.type === 'subscribe') { await abortable(transport.subscribe(action.channel, options?.signal), options?.signal); continue; }
-        const response = await executeAction(action, transport, options?.signal, async (chunk) => { await abortable(transport.write(chunk, options?.signal), options?.signal); }, { requireResponse: true });
-        if (response) captured = response;
+        if (action.type === 'subscribe') {
+          try { await abortable(transport.subscribe(action.channel, options?.signal), options?.signal); }
+          catch (error) { if (isNotificationUnavailable(error)) notificationsAvailable = false; else throw error; }
+          continue;
+        }
+        // One unanswered query must not hide the answers already collected.
+        const tolerate = action.type === 'wait-response' && (!notificationsAvailable || action.fallbackDelayMs !== undefined);
+        try {
+          const response = await executeAction(action, transport, options?.signal, async (chunk) => { await abortable(transport.write(chunk, options?.signal), options?.signal); }, { requireResponse: true });
+          if (response) captured.push(response);
+        } catch (error) { if (!tolerate) throw error; }
       }
-      if (!captured) throw new Error('The printer did not return a status reply.');
+      if (!captured.length) throw new Error('The printer did not return a status reply.');
       return await this.sdk.parseStatus(printer, captured);
     } finally { try { await transport.disconnect(); } catch { /* connection may already be gone */ } }
   }
