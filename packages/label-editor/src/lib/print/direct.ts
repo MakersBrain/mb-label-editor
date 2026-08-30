@@ -106,6 +106,7 @@ async function executeAction(action: ProtocolAction, transport: DirectTransport,
 }
 function validateResponse(response: Uint8Array, validation?: string) {
   if (!response.length) throw new Error('Printer returned an empty response.');
+  if (validation === 'phomemo-notification' && (response.length < 3 || response[0] !== 0x1a)) throw new Error('Printer response failed Phomemo notification validation.');
   if (validation === 'brother-status32' && (response.length !== 32 || response[0] !== 0x80 || response[1] !== 0x20 || response[2] !== 0x42)) throw new Error('Printer response failed Brother status validation.');
 }
 const isNotificationUnavailable = (error: unknown) => error instanceof Error && ('code' in error ? (error as Error & { code?: string }).code === 'notification-unavailable' : /notification.*unavailable/i.test(error.message));

@@ -20,7 +20,7 @@ it('reports a missing status reply instead of silently succeeding',async()=>{con
   await expect(route.queryStatus(printer)).rejects.toThrow(/no status/)});
 it('collects one frame per Phomemo query and tolerates the ones that go unanswered',async()=>{const answers=new Map([[0x08,[0x1a,0x04,0xa2]],[0x11,[0x1a,0x06,0x88]]]);let pending:number[]|undefined;
   const transport:DirectTransport={kind:'bluetooth',physicalWriteLimit:20,connect:async()=>{},disconnect:async()=>{},write:async data=>{pending=answers.get(data[2])},subscribe:async()=>{},waitResponse:async()=>{const reply=pending;pending=undefined;if(!reply)throw new DeviceError('response-timeout','no notification');return Uint8Array.from(reply)}};
-  const fake=sdk();fake.statusPlan=async()=>({protocol:'m110',totalBytes:9,actions:[{type:'subscribe',channel:'printer'},...[0x08,0x12,0x11].flatMap(code=>[{type:'write',data:new Uint8Array([0x1f,0x11,code]),chunkable:false,atomic:true,logicalChunkSize:3,delayAfterMs:0},{type:'wait-response',channel:'printer',timeoutMs:800,fallbackDelayMs:100,validate:'any-notification'}] as const)]});
+  const fake=sdk();fake.statusPlan=async()=>({protocol:'m110',totalBytes:9,actions:[{type:'subscribe',channel:'printer'},...[0x08,0x12,0x11].flatMap(code=>[{type:'write',data:new Uint8Array([0x1f,0x11,code]),chunkable:false,atomic:true,logicalChunkSize:3,delayAfterMs:0},{type:'wait-response',channel:'printer',timeoutMs:800,fallbackDelayMs:100,validate:'phomemo-notification'}] as const)]});
   fake.parseStatus=async(_,frames)=>({protocol:'m110',battery:frames.length,errors:[],raw:frames});
   const route=new DirectPrintRoute(fake,async()=>transport,'bluetooth');
   expect((await route.queryStatus(printer)).battery).toBe(2)});
@@ -39,4 +39,3 @@ it('asks for a streamed plan on serial and a paced one on bluetooth',async()=>{c
   await new DirectPrintRoute(fake,async()=>transport('bluetooth'),'bluetooth').print({document:defaultDocument(),printer,copies:1,compressRaster:true});
   expect(asked[0]).toMatchObject({streaming:true,lzo:undefined});
   expect(asked[1]).toMatchObject({streaming:false,lzo:true})});
-
