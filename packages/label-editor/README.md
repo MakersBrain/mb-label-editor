@@ -35,6 +35,34 @@ Host applications extend the shell through four slots:
 </LabelEditor>
 ```
 
+To add the remote asset and font catalogue, construct the exported typed client
+and pass it to the editor:
+
+```svelte
+<script lang="ts">
+  import { AssetCatalogClient, LabelEditor } from '@makersbrain/label-editor';
+  const assetCatalog = new AssetCatalogClient({
+    baseUrl: 'http://127.0.0.1:8766',
+    token: () => sessionStorage.getItem('asset-catalog-token') ?? undefined
+  });
+</script>
+
+<LabelEditor {editor} {sdk} {assetCatalog}/>
+```
+
+`AssetCatalogClient` follows the bundled `mbprint-asset-catalog` OpenAPI
+contract. Regenerate its schema after updating the pinned contract with
+`npm run generate:asset-catalog`.
+
+For cloud printing, configure the exported `CloudPrintClient` with a tenant and
+a token callback, then share one `CloudPrintRoute` between the current-label,
+batch, and La Poste workflows. `CloudPrintJobController` publishes job state
+and performs explicit cancellation/recovery without adding cloud methods to
+the generic `PrintRoute` interface. Tokens are evaluated for each request and
+are never persisted by the package. Regenerate its bundled schema with
+`npm run generate:cloud-print` after updating the pinned `mb-print-cloud`
+contract.
+
 `Menu` and `Modal` are exported so host menus and dialogs match the editor's,
 and `insertElement(editor, type)` adds a default element of any insert type.
 

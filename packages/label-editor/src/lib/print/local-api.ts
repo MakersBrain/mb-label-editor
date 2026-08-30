@@ -3,8 +3,9 @@ import type { PrintProgress, PrintRequest, PrintResult, PrintRoute } from './typ
 import { toSdkDocument } from '../sdk-document.js';
 import type { JobJournal } from '../jobs.js';
 
-export type LocalApiTransport = { kind: 'file'; path: string } | { kind: 'tcp'; address: string } | { kind: 'serial' | 'rfcomm'; path: string; baud?: number };
+export type LocalApiTransport = { kind: 'file'; path: string } | { kind: 'tcp'; address: string } | { kind: 'serial' | 'rfcomm'; path: string; baud?: number } | { kind: 'ipp'; uri: string; certificatePem?: string };
 export interface LocalApiConnection { id: string; model: string; transport: LocalApiTransport; status: string; media?: unknown }
+export interface LocalApiConnectionStatus { connection: LocalApiConnection; connected: boolean; status: string; media?: unknown }
 export interface LocalApiOptions { baseUrl?: string; token: () => string | undefined; origin?: string; connection?: () => LocalApiConnection | undefined; journal?: JobJournal }
 export interface LocalApiJob {
   id: string; state: string; terminal: boolean; outcome?: PrintResult['outcome'] | null;
@@ -45,12 +46,19 @@ export class LocalApiPrintRoute implements PrintRoute {
     return await response.json() as LocalApiConnection;
   }
 
+  async connectionStatus(id: string): Promise<LocalApiConnectionStatus> {
+    const response = await fetch(`${this.baseUrl}/status?connection=${encodeURIComponent(id)}`, { headers: this.headers(false, true) });
+    if (!response.ok) throw new Error(await actionableResponse(response));
+    return await response.json() as LocalApiConnectionStatus;
+  }
+
   async submit(request: PrintRequest): Promise<LocalApiJob> {
     const connection = this.options.connection?.();
     if (!connection) throw new Error('Select a persisted, probed local-service printer connection before printing. Capture is never a printing destination.');
-    if (connection.status !== 'ready' || !['file', 'tcp', 'serial', 'rfcomm'].includes(connection.transport.kind)) throw new Error('The selected local-service connection is not a ready physical transport.');
+    if (['unavailable', 'error'].includes(connection.status) || !['file', 'tcp', 'serial', 'rfcomm', 'ipp'].includes(connection.transport.kind)) throw new Error('The selected local-service connection is not a ready physical transport.');
+    const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? `mb-editor-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const response = await fetch(`${this.baseUrl}/jobs`, {
-      method: 'POST', signal: request.signal, headers: this.headers(true, true),
+      method: 'POST', signal: request.signal, headers: { ...this.headers(true, true), 'idempotency-key': idempotencyKey },
       body: JSON.stringify({ document: toSdkDocument(request.document), printerId: request.printer.id, connectionId: connection.id, copies: request.copies, ...(request.density === undefined ? {} : { density: request.density }) })
     });
     if (!response.ok) throw new Error(await actionableResponse(response));

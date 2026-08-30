@@ -31,6 +31,8 @@
   "scripts": {
     "build": "svelte-package -i src -o dist",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "generate:asset-catalog": "node scripts/generate-asset-catalog-client.mjs",
+    "generate:cloud-print": "node scripts/generate-cloud-print-client.mjs",
     "test": "vitest run"
   },
   "peerDependencies": {
@@ -41,10 +43,14 @@
     "@sveltejs/vite-plugin-svelte": "^6.2.0",
     "ajv": "^8.20.0",
     "fake-indexeddb": "^6.2.4",
+    "openapi-typescript": "^7.13.0",
     "svelte": "^5.56.1",
     "svelte-check": "^4.6.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.3",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
   }
 }
