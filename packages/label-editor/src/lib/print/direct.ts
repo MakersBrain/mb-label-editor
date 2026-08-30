@@ -93,7 +93,14 @@ async function executeAction(action: ProtocolAction, transport: DirectTransport,
   if (action.type !== 'write') return;
   const physicalLimit = Math.min(action.logicalChunkSize, transport.physicalWriteLimit!, transport.negotiatedAttMtu === undefined ? Infinity : transport.negotiatedAttMtu - 3);
   if (!action.chunkable) { await write(action.data); if (action.delayAfterMs) await monotonicDelay(action.delayAfterMs, signal); return; }
-  for (let offset = 0; offset < action.data.length; offset += physicalLimit) { if (signal?.aborted) throw abortError(); await write(action.data.slice(offset, offset + physicalLimit)); if (action.delayAfterMs) await monotonicDelay(action.delayAfterMs, signal); }
+  // The pacing delay belongs to the protocol's logical chunk. Transports whose
+  // physical write is smaller, notably BLE, must not multiply it by the number
+  // of fragments they need to carry that chunk.
+  for (let start = 0; start < action.data.length; start += action.logicalChunkSize) {
+    const chunk = action.data.subarray(start, start + action.logicalChunkSize);
+    for (let offset = 0; offset < chunk.length; offset += physicalLimit) { if (signal?.aborted) throw abortError(); await write(chunk.slice(offset, offset + physicalLimit)); }
+    if (action.delayAfterMs) await monotonicDelay(action.delayAfterMs, signal);
+  }
 }
 function validateResponse(response: Uint8Array, validation?: string) {
   if (!response.length) throw new Error('Printer returned an empty response.');
