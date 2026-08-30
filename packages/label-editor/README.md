@@ -35,6 +35,41 @@ Host applications extend the shell through four slots:
 </LabelEditor>
 ```
 
+External assets use a provider boundary. A host may pass a client directly:
+
+```svelte
+<script lang="ts">
+  import { AssetCatalogClient, LabelEditor } from '@makersbrain/label-editor';
+  const resourceProvider = new AssetCatalogClient({
+    baseUrl: 'http://127.0.0.1:8766',
+    token: () => sessionStorage.getItem('asset-catalog-token') ?? undefined
+  });
+</script>
+
+<LabelEditor {editor} {sdk} {resourceProvider}/>
+```
+
+`AssetCatalogClient` follows the bundled `mbprint-asset-catalog` OpenAPI
+contract. Regenerate its schema after updating the pinned contract with
+`npm run generate:asset-catalog`.
+
+Applications that need multiple named endpoints can use
+`ExternalResourceConnectionManager`, `assetCatalogProviderFactory`, and
+`ExternalResourceConnectionsPanel`. Persist `manager.connections()` and the
+selected connection ID, but keep credentials in the manager's session token
+store. A future service integrates by implementing `ExternalResourceProvider`
+and registering an `ExternalResourceProviderFactory`; the Assets panel and
+connection manager do not need provider-specific changes.
+
+For cloud printing, configure the exported `CloudPrintClient` with a tenant and
+a token callback, then share one `CloudPrintRoute` between the current-label,
+batch, and La Poste workflows. `CloudPrintJobController` publishes job state
+and performs explicit cancellation/recovery without adding cloud methods to
+the generic `PrintRoute` interface. Tokens are evaluated for each request and
+are never persisted by the package. Regenerate its bundled schema with
+`npm run generate:cloud-print` after updating the pinned `mb-print-cloud`
+contract.
+
 `Menu` and `Modal` are exported so host menus and dialogs match the editor's,
 and `insertElement(editor, type)` adds a default element of any insert type.
 

@@ -1,0 +1,1497 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MakersBrain Asset Catalog API",
+    "summary": "Search PrintMaster and Brother fonts, glyphs, icons, and label assets.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Health",
+        "operationId": "health_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/catalog": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Catalog Summary",
+        "operationId": "catalog_summary_v1_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Catalog Summary V1 Catalog Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/v1/facets": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Facets",
+        "operationId": "facets_v1_facets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 250,
+              "default": "",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FacetsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Search Assets",
+        "operationId": "search_assets_v1_assets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 250,
+              "description": "Free-text semantic search",
+              "default": "",
+              "title": "Q"
+            },
+            "description": "Free-text semantic search"
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "name": "style",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Style"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 240,
+              "minimum": 1,
+              "default": 60,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets/{asset_id}": {
+      "get": {
+        "tags": [
+          "assets"
+        ],
+        "summary": "Get Asset",
+        "operationId": "get_asset_v1_assets__asset_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets/{asset_id}/content": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Asset Content",
+        "operationId": "asset_content_v1_assets__asset_id__content_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/assets/{asset_id}/preview": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Asset Preview",
+        "operationId": "asset_preview_v1_assets__asset_id__preview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Asset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/font-facets": {
+      "get": {
+        "tags": [
+          "fonts"
+        ],
+        "summary": "Font Facets",
+        "operationId": "font_facets_v1_font_facets_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 250,
+              "default": "",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FontFacetsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fonts": {
+      "get": {
+        "tags": [
+          "fonts"
+        ],
+        "summary": "Search Fonts",
+        "operationId": "search_fonts_v1_fonts_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 250,
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "name": "availability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Availability"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 240,
+              "minimum": 1,
+              "default": 60,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FontSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fonts/{family_id}": {
+      "get": {
+        "tags": [
+          "fonts"
+        ],
+        "summary": "Get Font",
+        "operationId": "get_font_v1_fonts__family_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "family_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Family Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FontFamilyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fonts/{family_id}/cache": {
+      "post": {
+        "tags": [
+          "fonts"
+        ],
+        "summary": "Cache Font",
+        "operationId": "cache_font_v1_fonts__family_id__cache_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "family_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Family Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/FontCacheRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FontFamilyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "fonts"
+        ],
+        "summary": "Remove Cached Font",
+        "operationId": "remove_cached_font_v1_fonts__family_id__cache_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "family_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Family Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FontFamilyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fonts/{family_id}/files/{face_id}": {
+      "get": {
+        "tags": [
+          "fonts",
+          "files"
+        ],
+        "summary": "Font File",
+        "operationId": "font_file_v1_fonts__family_id__files__face_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "family_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Family Id"
+            }
+          },
+          {
+            "name": "face_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Face Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fonts/{family_id}/css": {
+      "get": {
+        "tags": [
+          "fonts"
+        ],
+        "summary": "Font Css",
+        "operationId": "font_css_v1_fonts__family_id__css_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "family_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Family Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fonts/{family_id}/preview": {
+      "get": {
+        "tags": [
+          "fonts"
+        ],
+        "summary": "Font Preview",
+        "operationId": "font_preview_v1_fonts__family_id__preview_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "family_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Family Id"
+            }
+          },
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "default": "The quick brown fox 0123",
+              "title": "Text"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 144,
+              "minimum": 12,
+              "default": 48,
+              "title": "Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssetResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "kinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Kinds"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "objects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Objects"
+          },
+          "visibleText": {
+            "type": "string",
+            "title": "Visibletext"
+          },
+          "style": {
+            "type": "string",
+            "title": "Style"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "sourceIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sourceids"
+          },
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Codes"
+          },
+          "contentUrl": {
+            "type": "string",
+            "title": "Contenturl"
+          },
+          "previewUrl": {
+            "type": "string",
+            "title": "Previewurl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "category",
+          "kinds",
+          "title",
+          "description",
+          "tags",
+          "aliases",
+          "objects",
+          "visibleText",
+          "style",
+          "confidence",
+          "sourceIds",
+          "groups",
+          "codes",
+          "contentUrl",
+          "previewUrl"
+        ],
+        "title": "AssetResponse"
+      },
+      "FacetValue": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "count"
+        ],
+        "title": "FacetValue"
+      },
+      "FacetsResponse": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "kinds": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Kinds"
+          },
+          "styles": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Styles"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providers",
+          "categories",
+          "kinds",
+          "styles",
+          "tags",
+          "revision"
+        ],
+        "title": "FacetsResponse"
+      },
+      "FontCacheRequest": {
+        "properties": {
+          "variants": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Variants"
+          }
+        },
+        "type": "object",
+        "title": "FontCacheRequest"
+      },
+      "FontFaceResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "style": {
+            "type": "string",
+            "title": "Style"
+          },
+          "weight": {
+            "type": "integer",
+            "title": "Weight"
+          },
+          "familyName": {
+            "type": "string",
+            "title": "Familyname"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "cached": {
+            "type": "boolean",
+            "title": "Cached"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "fileUrl": {
+            "type": "string",
+            "title": "Fileurl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "variant",
+          "style",
+          "weight",
+          "familyName",
+          "format",
+          "cached",
+          "sha256",
+          "fileUrl"
+        ],
+        "title": "FontFaceResponse"
+      },
+      "FontFacetsResponse": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "availability": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Availability"
+          },
+          "subsets": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Subsets"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/FacetValue"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providers",
+          "categories",
+          "availability",
+          "subsets",
+          "tags",
+          "revision"
+        ],
+        "title": "FontFacetsResponse"
+      },
+      "FontFamilyResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "variants": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Variants"
+          },
+          "subsets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Subsets"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          },
+          "license": {
+            "type": "string",
+            "title": "License"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "lastModified": {
+            "type": "string",
+            "title": "Lastmodified"
+          },
+          "availability": {
+            "type": "string",
+            "title": "Availability"
+          },
+          "archiveBytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archivebytes"
+          },
+          "faces": {
+            "items": {
+              "$ref": "#/components/schemas/FontFaceResponse"
+            },
+            "type": "array",
+            "title": "Faces"
+          },
+          "cssUrl": {
+            "type": "string",
+            "title": "Cssurl"
+          },
+          "previewUrl": {
+            "type": "string",
+            "title": "Previewurl"
+          },
+          "cacheUrl": {
+            "type": "string",
+            "title": "Cacheurl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "family",
+          "provider",
+          "category",
+          "variants",
+          "subsets",
+          "tags",
+          "aliases",
+          "license",
+          "version",
+          "lastModified",
+          "availability",
+          "archiveBytes",
+          "faces",
+          "cssUrl",
+          "previewUrl",
+          "cacheUrl"
+        ],
+        "title": "FontFamilyResponse"
+      },
+      "FontSearchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FontFamilyResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "pages",
+          "revision"
+        ],
+        "title": "FontSearchResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "SearchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AssetResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "Pagesize"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "pages",
+          "revision"
+        ],
+        "title": "SearchResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

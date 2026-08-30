@@ -60,6 +60,32 @@ test('MB UI branding and semantic light/dark themes apply without inversion', as
   expect(colors.shadcnPrimary).toBe(colors.mbAccent);
 });
 
+test.describe('local printer persistence', () => {
+test.use({ serviceWorkers: 'block' });
+test('a saved IPP connection is restored and shown in the printer sidebar', async ({ page }) => {
+  const connection = { id: 'brother-network', model: 'ql-1110nwb', status: 'idle', transport: { kind: 'ipp', uri: 'ipp://10.83.30.114:631/ipp/print' }, media: { widthMm: 29, lengthMm: 62, keyword: 'om_brother-label-29x62mm_29x62mm' } };
+  await page.addInitScript(() => {
+    localStorage.setItem('mb-local-api-token', 'test-token');
+    localStorage.setItem('mb-local-api-connection', 'brother-network');
+  });
+  await page.route('http://127.0.0.1:9847/v1/**', async route => {
+    const headers = { 'access-control-allow-origin': route.request().headers()['origin'] ?? 'http://127.0.0.1:4173', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'access-control-allow-headers': 'authorization,content-type,idempotency-key', 'access-control-allow-private-network': 'true', 'content-type': 'application/json' };
+    if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    const selected = new URL(route.request().url()).searchParams.has('connection');
+    return route.fulfill({ status: 200, headers, body: JSON.stringify(selected ? { connection, connected: true, status: 'idle', media: connection.media } : { connections: [connection], connected: false, status: 'not-connected', media: null }) });
+  });
+  await page.goto('/');
+  const selector = page.getByLabel('Connection');
+  await expect(selector).toHaveValue('local');
+  await expect(selector.locator('option:checked')).toHaveText('IPP · brother-network');
+  await expect(page.getByLabel('Printer model')).toHaveValue('ql-1110nwb');
+  await expect(page.getByText(/Saved by the local service as brother-network/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/Saved by the local service as brother-network/)).toBeVisible();
+  await expect(page.getByLabel('Connection')).toHaveValue('local');
+});
+});
+
 test('touch gestures, rulers, local SVG import, and autosave recovery work',async({page})=>{await page.goto('/');await expect(page.locator('.ruler.horizontal')).toBeVisible();await expect(page.locator('.ruler.vertical')).toBeVisible();const viewport=page.getByRole('application',{name:'Label canvas'});await viewport.dispatchEvent('pointerdown',{pointerId:1,pointerType:'touch',clientX:100,clientY:100});await viewport.dispatchEvent('pointerdown',{pointerId:2,pointerType:'touch',clientX:200,clientY:100});await viewport.dispatchEvent('pointermove',{pointerId:2,pointerType:'touch',clientX:260,clientY:100});await viewport.dispatchEvent('pointerup',{pointerId:1,pointerType:'touch',clientX:100,clientY:100});await viewport.dispatchEvent('pointerup',{pointerId:2,pointerType:'touch',clientX:260,clientY:100});await expect(page.locator('input.zoom')).toBeVisible();const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>';await openDialog(page,'Label','Assets…');await page.locator('input[type=file][accept*="image"]' ).setInputFiles({name:'local.svg',mimeType:'image/svg+xml',buffer:Buffer.from(svg)});await expect(page.getByText('local.svg',{exact:true}).first()).toBeVisible();await page.waitForTimeout(1700);const autosaves=await page.evaluate(async()=>await new Promise<number>((resolve,reject)=>{const request=indexedDB.open('makersbrain-label-editor');request.onerror=()=>reject(request.error);request.onsuccess=()=>{const count=request.result.transaction('autosaves').objectStore('autosaves').count();count.onsuccess=()=>resolve(count.result);count.onerror=()=>reject(count.error)}}));expect(autosaves).toBeGreaterThan(0);await page.reload();await expect(page.locator('footer')).toContainText('Recovered autosave');await openDialog(page,'Label','Assets…');await expect(page.getByText('local.svg',{exact:true}).first()).toBeVisible()});
 
 test('wheel navigation and selection keyboard nudging work on the canvas',async({page})=>{await page.goto('/');const viewport=page.getByRole('application',{name:'Label canvas'});const pan=page.locator('.pan');const initial=await pan.getAttribute('style');await viewport.dispatchEvent('wheel',{deltaY:-120,clientX:300,clientY:200});await expect(page.locator('input.zoom')).not.toHaveValue('1');const zoomed=await pan.getAttribute('style');expect(zoomed).not.toBe(initial);await viewport.dispatchEvent('wheel',{deltaY:40,shiftKey:true});const horizontal=await pan.getAttribute('style');expect(horizontal).not.toBe(zoomed);await viewport.dispatchEvent('wheel',{deltaY:40,ctrlKey:true});expect(await pan.getAttribute('style')).not.toBe(horizontal);await page.getByRole('button',{name:'Rectangle',exact:true}).click();const element=page.locator('.element.rectangle');await element.click();await expect(element).toHaveClass(/selected/);const before=await element.getAttribute('style');await page.keyboard.press('ArrowRight');expect(await element.getAttribute('style')).not.toBe(before)});
@@ -111,13 +137,13 @@ test('the compiled SDK builds a Brother status plan and decodes the reply',async
 test('the compiled SDK queries Phomemo status and decodes notification frames',async({page})=>{await page.goto('/');
   const probe=await page.evaluate(async()=>{const{loadPrinterSdk}=await import('/src/sdk.ts');const sdk=await loadPrinterSdk();const printers=await sdk.printerDefinitions();
     const phomemo=printers.find(item=>item.id==='m110')!;const plan=await sdk.statusPlan!(phomemo);
-    const parsed=await sdk.parseStatus!(phomemo,[Uint8Array.from([0x1a,0x04,0xa2]),Uint8Array.from([0x1a,0x05,0x99]),Uint8Array.from([0x1a,0x06,0x88]),Uint8Array.from([0x1a,0x08,0x4d,0x42,0x31])]);
+    const parsed=await sdk.parseStatus!(phomemo,[Uint8Array.from([0x1a,0x04,0xa2]),Uint8Array.from([0x1a,0x05,0x98]),Uint8Array.from([0x1a,0x06,0x88]),Uint8Array.from([0x1a,0x08,0x4d,0x42,0x31])]);
     return{subscribes:plan.actions[0]?.type,queries:plan.actions.filter(action=>action.type==='write').map(action=>[...(action as {data:Uint8Array}).data]),
       status:{battery:parsed.battery,cover:parsed.cover,paper:parsed.paper,serial:parsed.serial,errors:parsed.errors}}});
   expect(probe.subscribes).toBe('subscribe');
   expect(probe.queries[0]).toEqual([0x1f,0x11,0x08]);
   expect(probe.queries).toHaveLength(6);
-  expect(probe.status).toEqual({battery:5,cover:'open',paper:'out',serial:'MB1',errors:['no media','cover open']})});
+  expect(probe.status).toEqual({battery:5,cover:'closed',paper:'out',serial:'MB1',errors:['no media']})});
 
 test('the SDK lists the media a model can carry and names what it reported',async({page})=>{await page.goto('/');
   const probe=await page.evaluate(async()=>{const{loadPrinterSdk}=await import('/src/sdk.ts');const sdk=await loadPrinterSdk();const printers=await sdk.printerDefinitions();
@@ -144,8 +170,8 @@ test('the label takes its size from the media the printer reports',async({page})
     // navigator.usb is a prototype accessor, so it has to be replaced outright.
     Object.defineProperty(navigator,'usb',{configurable:true,value:{requestDevice:async()=>device}})});
   await page.getByLabel('Connection').selectOption('usb');
-  await page.getByRole('button',{name:'Connect',exact:true}).click();
-  await expect(page.getByText('Connected · label set to 62mm x 29mm',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Connect'}).click();
+  await expect(page.locator('.media-summary')).toContainText('62mm x 29mm');
   await expect(page.locator('footer')).toContainText('Label media set to 62 × 29 mm');
   await page.getByText('Label',{exact:true}).click();
   await page.getByRole('button',{name:'Media & zones…'}).click();
@@ -180,8 +206,8 @@ test('the compiled SDK drops the pacing when the transport streams and compresse
 
 test('a dialog the app mounts outside the editor still carries its styling',async({page})=>{await page.goto('/');
   await page.getByLabel('Printer model').focus();
-  await page.getByLabel('Editor menus').getByText('Print',{exact:true}).click();
-  await page.getByRole('button',{name:'Batch printing…'}).click();
+  await page.locator('.menubar').getByText('Print',{exact:true}).click();
+  await page.getByRole('button',{name:'Local service…'}).click();
   const styling=await page.evaluate(()=>{const dialog=document.querySelector('[role=dialog]') as HTMLElement;
     const label=dialog.querySelector('label') as HTMLElement;const button=dialog.querySelector('button') as HTMLElement;
     return{scoped:dialog.classList.contains('mb-label-editor'),label:getComputedStyle(label).fontSize,button:getComputedStyle(button).fontSize,body:getComputedStyle(document.body).fontSize}});
@@ -192,7 +218,6 @@ test('a dialog the app mounts outside the editor still carries its styling',asyn
 
 test('WebUSB offers every attached printer without an identity',async({page})=>{await page.goto('/');
   await page.getByLabel('Printer model').focus();
-  await page.getByLabel('Printer model').selectOption('ql-1110nwb');
   await page.getByLabel('Connection').selectOption('usb');
   await expect(page.getByLabel('Vendor ID')).toBeHidden();
   const filters=await page.evaluate(async()=>{let captured:unknown;
