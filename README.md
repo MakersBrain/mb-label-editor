@@ -45,3 +45,19 @@ Licensed under AGPL-3.0-or-later. See [LICENSE](LICENSE).
 The reusable package is released publicly through npmjs. `release:candidate`
 performs the local, non-publishing release build and writes reproducible npm,
 PWA, source, SBOM, notice, and checksum evidence to `release-artifacts/`.
+
+## Building against the printer SDK
+
+CI builds the WASM printer SDK from a sibling checkout of
+`MakersBrain/mb-printer-sdk`, pinned to the commit in `.github/sdk-ref` rather
+than to its moving `main`. A change that spans both repositories therefore
+lands in the SDK first:
+
+```sh
+npm run sdk:pin            # record ../mb-printer-sdk's main
+npm run sdk:pin -- <sha>   # or an explicit commit
+```
+
+The workflows refuse a pin that is not on the SDK's `main`, so the editor never
+builds from an unmerged branch.
+

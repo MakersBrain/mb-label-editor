@@ -14,6 +14,7 @@
     "test:package": "node scripts/test-package.mjs",
     "test:pwa-release": "node scripts/test-pwa-release.mjs",
     "check:workflows": "node scripts/check-workflows.mjs",
+    "sdk:pin": "node scripts/pin-sdk.mjs",
     "release:candidate": "sh scripts/release-candidate.sh"
   },
   "engines": { "node": ">=20" }
