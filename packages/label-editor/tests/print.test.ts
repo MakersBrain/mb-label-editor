@@ -24,4 +24,3 @@ it('collects one frame per Phomemo query and tolerates the ones that go unanswer
   fake.parseStatus=async(_,frames)=>({protocol:'m110',battery:frames.length,errors:[],raw:frames});
   const route=new DirectPrintRoute(fake,async()=>transport,'bluetooth');
   expect((await route.queryStatus(printer)).battery).toBe(2)});
-
