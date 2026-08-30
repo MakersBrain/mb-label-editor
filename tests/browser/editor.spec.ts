@@ -73,3 +73,18 @@ test('offline WASM exports PNG/PDF and imports the first PDF page',async({page})
 test('File System Access open picker validates and opens v4',async({page})=>{const fixture=await readFile(new URL('../../packages/label-editor/tests/fixtures/sdk-v4-text.mb-label.json',import.meta.url),'utf8');await page.addInitScript(source=>Object.defineProperty(window,'showOpenFilePicker',{value:async()=>[{getFile:async()=>new File([source],'picker.mb-label.json',{type:'application/json'})}]}),fixture);await page.goto('/');await page.getByText('File',{exact:true}).click();await page.getByRole('button',{name:'Open picker'}).click();await expect(page.locator('footer')).toContainText('Opened SDK compatibility')});
 
 test('canvas elements stay unfilled on hover and the grid survives the thermal preview',async({page})=>{await page.goto('/');await page.getByRole('button',{name:'Text',exact:true}).click();const element=page.locator('.element').first();await element.hover();expect(await element.evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgba(0, 0, 0, 0)');await page.getByLabel('Printer model').focus();const raster=page.locator('.media canvas');await expect(raster).toBeAttached({timeout:10000});expect(await raster.evaluate(node=>getComputedStyle(node).mixBlendMode)).toBe('multiply');expect(await page.locator('.media').evaluate(node=>getComputedStyle(node).backgroundImage)).toContain('linear-gradient')});
+
+test('webp imports transcode to a printable halftone png',async({page})=>{await page.goto('/');
+  const webp=await page.evaluate(async()=>{const canvas=new OffscreenCanvas(48,48);const context=canvas.getContext('2d')!;const gradient=context.createLinearGradient(0,0,48,48);gradient.addColorStop(0,'#000');gradient.addColorStop(1,'#fff');context.fillStyle=gradient;context.fillRect(0,0,48,48);return [...new Uint8Array(await (await canvas.convertToBlob({type:'image/webp'})).arrayBuffer())]});
+  await openDialog(page,'Label','Assets…');
+  await page.locator('input[type=file][accept*="webp"]').setInputFiles({name:'photo.webp',mimeType:'image/webp',buffer:Buffer.from(webp)});
+  await expect(page.getByText('Imported and placed photo.webp')).toBeVisible();
+  await page.getByRole('button',{name:'Close Assets'}).click();
+  const asset=page.locator('img.asset').first();
+  await expect(asset).toBeVisible();
+  expect(await asset.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
+  const tones=await asset.evaluate(async(node:HTMLImageElement)=>{await node.decode();const canvas=document.createElement('canvas');canvas.width=node.naturalWidth;canvas.height=node.naturalHeight;const context=canvas.getContext('2d')!;context.drawImage(node,0,0);const{data}=context.getImageData(0,0,canvas.width,canvas.height);let black=0,white=0;for(let index=0;index<data.length;index+=4)data[index]<128?black++:white++;return{black,white}});
+  expect(tones.black).toBeGreaterThan(0);expect(tones.white).toBeGreaterThan(0);
+  await page.getByLabel('Printer model').focus();
+  await expect(page.locator('.media canvas')).toBeAttached({timeout:10000});
+  await expect(page.locator('.media ~ .error, .error')).toHaveCount(0)});
