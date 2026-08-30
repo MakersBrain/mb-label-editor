@@ -24,3 +24,12 @@ it('collects one frame per Phomemo query and tolerates the ones that go unanswer
   fake.parseStatus=async(_,frames)=>({protocol:'m110',battery:frames.length,errors:[],raw:frames});
   const route=new DirectPrintRoute(fake,async()=>transport,'bluetooth');
   expect((await route.queryStatus(printer)).battery).toBe(2)});
+it('paces a raster by protocol chunk, not by transport fragment',async()=>{const writes:number[]=[];const transport:DirectTransport={kind:'bluetooth',physicalWriteLimit:20,connect:async()=>{},disconnect:async()=>{},write:async data=>{writes.push(data.length)},subscribe:async()=>{},waitResponse:async()=>new Uint8Array()};
+  const route=new DirectPrintRoute(sdk({protocol:'m110',totalBytes:256,actions:[{type:'write',data:new Uint8Array(256),chunkable:true,atomic:false,logicalChunkSize:128,delayAfterMs:40}]}),async()=>transport,'bluetooth');
+  const started=performance.now();
+  expect((await route.print({document:defaultDocument(),printer,copies:1})).outcome).toBe('completed');
+  const elapsed=performance.now()-started;
+  // 256 bytes is two 128-byte chunks: 13 fragments but only two delays.
+  expect(writes.length).toBe(14);
+  expect(elapsed).toBeLessThan(300)});
+

@@ -8,12 +8,24 @@ interface BleServer {getPrimaryService(id:string):Promise<{getCharacteristic(id:
 interface BleDevice {gatt?:{connected:boolean;connect():Promise<BleServer>;disconnect():void}}
 interface BluetoothApi {requestDevice(options:unknown):Promise<BleDevice>}
 export interface BluetoothOptions {service:string;writeCharacteristic:string;notifyCharacteristic?:string;filters?:unknown[];physicalWriteLimit?:number}
+/** Optimistic BLE payload. Chrome negotiates a larger MTU than the 23-byte floor, and the 20-byte floor costs a delay per fragment. */
+export const BLE_WRITE_LIMIT=180;
+const BLE_WRITE_FLOOR=20;
+const isPayloadTooLarge=(error:unknown)=>error instanceof Error&&/too long|exceed|maximum|not supported|unknown reason/i.test(error.message);
 export class WebBluetoothTransport implements DirectTransport {
   readonly kind='bluetooth' as const;readonly physicalWriteLimit:number;private device?:BleDevice;private server?:BleServer;private writer?:BleCharacteristic;private notifier?:BleCharacteristic;private replies:Uint8Array[]=[];private waiters:((value:Uint8Array)=>void)[]=[];
-  constructor(private options:BluetoothOptions,private bluetooth:BluetoothApi|undefined=(navigator as Navigator&{bluetooth?:BluetoothApi}).bluetooth){this.physicalWriteLimit=options.physicalWriteLimit??20}
+  private fragment:number;
+  constructor(private options:BluetoothOptions,private bluetooth:BluetoothApi|undefined=(navigator as Navigator&{bluetooth?:BluetoothApi}).bluetooth){this.physicalWriteLimit=options.physicalWriteLimit??BLE_WRITE_LIMIT;this.fragment=this.physicalWriteLimit}
   async connect(){if(!isSecureContext)throw new DeviceError('insecure-context','Web Bluetooth requires HTTPS or localhost.');if(!this.bluetooth)throw new DeviceError('unsupported','Web Bluetooth is unavailable in this browser.');try{this.device=await this.bluetooth.requestDevice({filters:this.options.filters??[{services:[this.options.service]}],optionalServices:[this.options.service]});if(!this.device.gatt)throw new Error('Selected device has no GATT server');this.server=await this.device.gatt.connect();const service=await this.server.getPrimaryService(this.options.service);this.writer=await service.getCharacteristic(this.options.writeCharacteristic);if(this.options.notifyCharacteristic)this.notifier=await service.getCharacteristic(this.options.notifyCharacteristic)}catch(error){throw classify(error,'Bluetooth connection')}}
   async subscribe(_channel:string){if(!this.notifier)throw new DeviceError('notification-unavailable','This printer definition has no notification characteristic.');await this.notifier.startNotifications();this.notifier.addEventListener('characteristicvaluechanged',(event)=>{const view=(event.target as EventTarget&{value?:DataView}).value;if(!view)return;const data=new Uint8Array(view.buffer.slice(view.byteOffset,view.byteOffset+view.byteLength));const waiter=this.waiters.shift();waiter?waiter(data):this.replies.push(data)})}
-  async write(data:Uint8Array){if(!this.writer)throw new DeviceError('device-disconnected','Bluetooth printer is not connected.');const buffer=new Uint8Array(data).buffer;try{if(this.writer.writeValueWithoutResponse)await this.writer.writeValueWithoutResponse(buffer);else if(this.writer.writeValue)await this.writer.writeValue(buffer);else throw new Error('Characteristic is not writable')}catch(error){throw classify(error,'Bluetooth write')}}
+  async write(data:Uint8Array){if(!this.writer)throw new DeviceError('device-disconnected','Bluetooth printer is not connected.');
+    // The browser never reports the negotiated ATT MTU, so write optimistically
+    // and halve on rejection, retrying the same bytes and remembering the size
+    // the link accepted. A 20-byte floor costs a fragment per 20 bytes.
+    for(let offset=0;offset<data.length;){const size=Math.min(this.fragment,data.length-offset);
+      try{await this.send(data.subarray(offset,offset+size));offset+=size}
+      catch(error){if(size<=BLE_WRITE_FLOOR||!isPayloadTooLarge(error))throw classify(error,'Bluetooth write');this.fragment=Math.max(BLE_WRITE_FLOOR,size>>1)}}}
+  private async send(data:Uint8Array){const buffer=new Uint8Array(data).buffer;if(this.writer!.writeValueWithoutResponse)return await this.writer!.writeValueWithoutResponse(buffer);if(this.writer!.writeValue)return await this.writer!.writeValue(buffer);throw new Error('Characteristic is not writable')}
   async waitResponse(_channel:string,timeoutMs:number,_validation?:string,signal?:AbortSignal){const queued=this.replies.shift();if(queued)return queued;return await new Promise<Uint8Array>((resolve,reject)=>{const waiter=(value:Uint8Array)=>{cleanup();resolve(value)};const abort=()=>{cleanup();reject(new DOMException('Print cancelled.','AbortError'))};const cleanup=()=>{clearTimeout(timer);this.waiters=this.waiters.filter(item=>item!==waiter);signal?.removeEventListener('abort',abort)};const timer=setTimeout(()=>{cleanup();reject(new DeviceError('response-timeout',`Printer response timed out after ${timeoutMs} ms.`))},timeoutMs);signal?.addEventListener('abort',abort,{once:true});this.waiters.push(waiter)})}
   async disconnect(){this.device?.gatt?.disconnect();this.device=undefined;this.writer=undefined;this.notifier=undefined}
 }
