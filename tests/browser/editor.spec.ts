@@ -178,3 +178,27 @@ test('the compiled SDK drops the pacing when the transport streams and compresse
   // An empty label is almost entirely one repeated byte, so LZO shrinks it hard.
   expect(probe.compressed.length).toBeLessThan(probe.streamed.length/4)});
 
+test('a dialog the app mounts outside the editor still carries its styling',async({page})=>{await page.goto('/');
+  await page.getByLabel('Printer model').focus();
+  await page.getByText('Print',{exact:true}).click();
+  await page.getByRole('button',{name:'Direct browser print…'}).click();
+  const styling=await page.evaluate(()=>{const dialog=document.querySelector('[role=dialog]') as HTMLElement;
+    const label=dialog.querySelector('label') as HTMLElement;const button=dialog.querySelector('button') as HTMLElement;
+    return{scoped:dialog.classList.contains('mb-label-editor'),label:getComputedStyle(label).fontSize,button:getComputedStyle(button).fontSize,body:getComputedStyle(document.body).fontSize}});
+  expect(styling.scoped).toBe(true);
+  // The host's own body type is larger; the dialog must not inherit it.
+  expect(styling.button).toBe('13px');
+  expect(styling.body).not.toBe('13px')});
+
+test('WebUSB offers every attached printer without an identity',async({page})=>{await page.goto('/');
+  await page.getByLabel('Printer model').focus();
+  await page.getByText('Print',{exact:true}).click();
+  await page.getByRole('button',{name:'Direct browser print…'}).click();
+  await page.getByLabel('Route').selectOption('usb');
+  await expect(page.getByLabel('Vendor ID')).toBeHidden();
+  const filters=await page.evaluate(async()=>{let captured:unknown;
+    Object.defineProperty(navigator,'usb',{configurable:true,value:{requestDevice:async(options:{filters:unknown})=>{captured=options.filters;throw new DOMException('cancelled','NotFoundError')}}});
+    document.querySelectorAll('button').forEach(button=>{if(button.textContent?.includes('Read printer status'))button.click()});
+    await new Promise(resolve=>setTimeout(resolve,400));return captured});
+  expect(filters).toEqual([{classCode:7}])});
+
