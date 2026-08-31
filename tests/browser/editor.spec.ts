@@ -203,6 +203,7 @@ test('configures Brother Wi-Fi only through an explicit admin review and does no
   await dialog.getByRole('button', { name: 'Close Local service' }).click();
   await openDialog(page, 'Print', 'Local service…');
   const reopened = page.getByRole('dialog', { name: 'Local service' });
+  await reopened.getByRole('button', { name: 'Refresh' }).click();
   await expect(reopened.getByLabel('One-time administrator pairing secret')).toHaveValue('');
   await expect(reopened.getByLabel('Wi-Fi password')).toHaveValue('');
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('admin-token');
