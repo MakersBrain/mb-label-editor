@@ -10,3 +10,9 @@ Include the `@makersbrain/printer-sdk` WASM package. The local route expects
 `mb-printer api` at `127.0.0.1:9847` with the deployed origin allowlisted.
 Public deployments may contain only publication-policy output; private
 collections stay in browser IndexedDB.
+
+For the Access-protected development Docker deployment, serve the asset API at
+same-origin `/v1/` with `Cache-Control: no-store`, keep the service worker away
+from `/v1/` and all cross-origin requests, and preserve the printer service's
+loopback bind. Cloudflare Access protects network delivery but does not erase
+an already installed offline shell or browser-local documents.
