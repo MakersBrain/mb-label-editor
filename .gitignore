@@ -8,3 +8,4 @@ playwright-report/
 *.tgz
 release-artifacts/
 .package-consumer-*/
+.worktrees/
