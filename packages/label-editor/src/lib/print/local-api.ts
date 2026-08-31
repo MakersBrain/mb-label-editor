@@ -5,8 +5,34 @@ import type { JobJournal } from '../jobs.js';
 import type { PersistedJob } from '../persistence/database.js';
 
 export type LocalApiTransport = { kind: 'file'; path: string } | { kind: 'tcp'; address: string } | { kind: 'serial' | 'rfcomm'; path: string; baud?: number } | { kind: 'ipp'; uri: string; certificatePem?: string };
-export interface LocalApiConnection { id: string; model: string; transport: LocalApiTransport; status: string; media?: unknown }
+export type LocalApiPrinterOperation = 'status' | 'system-report' | 'wifi-status' | 'wifi-scan' | 'wifi-configure' | 'ipp-status';
+export interface LocalApiConnection { id: string; model: string; transport: LocalApiTransport; status: string; media?: unknown; operations?: LocalApiPrinterOperation[] }
 export interface LocalApiConnectionStatus { connection: LocalApiConnection; connected: boolean; status: string; media?: unknown }
+export interface LocalApiDiscoveryCandidate {
+  transport: string;
+  address: string;
+  name?: string | null;
+  vendor_id?: number;
+  product_id?: number;
+  serial_number?: string;
+  ieee1284_device_id?: string;
+  matchedModel?: string | null;
+  operations?: LocalApiPrinterOperation[];
+}
+export interface LocalApiDiscoveryResponse { devices: LocalApiDiscoveryCandidate[]; supportedTransports: string[] }
+export interface BrotherWifiStatus {
+  connected: boolean;
+  ipAddress?: string | null;
+  ssid?: string | null;
+  encryption?: string | null;
+  authentication?: string | null;
+  infrastructure?: boolean | null;
+  wirelessDirect?: boolean | null;
+}
+export interface LocalApiBrotherWifiStatus { connectionId: string; status: BrotherWifiStatus }
+export interface BrotherWifiAccessPoint { ssid: string; channel?: number | null; power?: number | null; encrypted: boolean; enterprise: boolean }
+export interface LocalApiBrotherWifiScan { connectionId: string; accessPoints: BrotherWifiAccessPoint[] }
+export interface LocalApiBrotherReport { connectionId: string; redacted: true; sections: Record<string, Record<string, string>> }
 export interface LocalApiOptions { baseUrl?: string; token: () => string | undefined; origin?: string; connection?: () => LocalApiConnection | undefined; journal?: JobJournal }
 export interface LocalApiJob {
   id: string; state: string; terminal: boolean; outcome?: PrintResult['outcome'] | null;
@@ -29,35 +55,66 @@ export class LocalApiPrintRoute implements PrintRoute {
   constructor(private options: LocalApiOptions) { this.baseUrl = options.baseUrl ?? 'http://127.0.0.1:9847/v1'; }
   isSupported() { return typeof fetch === 'function'; }
 
+  private request(path: string, init: RequestInit = {}) {
+    return fetch(`${this.baseUrl}${path}`, { ...init, cache: 'no-store' });
+  }
+
   async pair(secret: string) {
-    const response = await fetch(`${this.baseUrl}/pair`, { method: 'POST', headers: this.headers(true), body: JSON.stringify({ secret }) });
+    const response = await this.request('/pair', { method: 'POST', headers: this.headers(true), body: JSON.stringify({ secret }) });
     if (!response.ok) throw new Error(await actionableResponse(response));
     return await response.json() as { grantId: string; token: string; expiresAt: string };
   }
 
   async validate(document: PrintRequest['document']) {
-    const response = await fetch(`${this.baseUrl}/documents/validate`, { method: 'POST', headers: this.headers(true, true), body: JSON.stringify(toSdkDocument(document)) });
+    const response = await this.request('/documents/validate', { method: 'POST', headers: this.headers(true, true), body: JSON.stringify(toSdkDocument(document)) });
     if (!response.ok) throw new Error(await actionableResponse(response));
     return await response.json() as { valid: boolean; errors: string[] };
   }
 
   async connections(): Promise<LocalApiConnection[]> {
-    const response = await fetch(`${this.baseUrl}/status`, { headers: this.headers(false, true) });
+    const response = await this.request('/status', { headers: this.headers(false, true) });
     if (!response.ok) throw new Error(await actionableResponse(response));
     const body = await response.json() as { connections?: LocalApiConnection[] };
     return body.connections ?? [];
   }
 
   async configureConnection(connection: Pick<LocalApiConnection, 'id' | 'model' | 'transport'>): Promise<LocalApiConnection> {
-    const response = await fetch(`${this.baseUrl}/connection`, { method: 'POST', headers: this.headers(true, true), body: JSON.stringify(connection) });
+    const response = await this.request('/connection', { method: 'POST', headers: this.headers(true, true), body: JSON.stringify(connection) });
     if (!response.ok) throw new Error(await actionableResponse(response));
     return await response.json() as LocalApiConnection;
   }
 
   async connectionStatus(id: string): Promise<LocalApiConnectionStatus> {
-    const response = await fetch(`${this.baseUrl}/status?connection=${encodeURIComponent(id)}`, { headers: this.headers(false, true) });
+    const response = await this.request(`/status?connection=${encodeURIComponent(id)}`, { headers: this.headers(false, true) });
     if (!response.ok) throw new Error(await actionableResponse(response));
     return await response.json() as LocalApiConnectionStatus;
+  }
+
+  async discover(): Promise<LocalApiDiscoveryResponse> {
+    const response = await this.request('/discovery', { method: 'POST', headers: this.headers(false, true) });
+    if (!response.ok) throw new Error(await actionableResponse(response));
+    return await response.json() as LocalApiDiscoveryResponse;
+  }
+
+  async brotherWifiStatus(connectionId: string): Promise<LocalApiBrotherWifiStatus> {
+    const id = encodeURIComponent(connectionId);
+    const response = await this.request(`/printers/${id}/brother/wifi/status`, { headers: this.headers(false, true) });
+    if (!response.ok) throw new Error(await actionableResponse(response));
+    return await response.json() as LocalApiBrotherWifiStatus;
+  }
+
+  async brotherWifiScan(connectionId: string): Promise<LocalApiBrotherWifiScan> {
+    const id = encodeURIComponent(connectionId);
+    const response = await this.request(`/printers/${id}/brother/wifi/scan`, { method: 'POST', headers: this.headers(false, true) });
+    if (!response.ok) throw new Error(await actionableResponse(response));
+    return await response.json() as LocalApiBrotherWifiScan;
+  }
+
+  async brotherReport(connectionId: string): Promise<LocalApiBrotherReport> {
+    const id = encodeURIComponent(connectionId);
+    const response = await this.request(`/printers/${id}/brother/report`, { headers: this.headers(false, true) });
+    if (!response.ok) throw new Error(await actionableResponse(response));
+    return await response.json() as LocalApiBrotherReport;
   }
 
   private prepare(request: PrintRequest) {
@@ -70,7 +127,7 @@ export class LocalApiPrintRoute implements PrintRoute {
   }
 
   private async submitPrepared(idempotencyKey: string, requestBody: string, signal?: AbortSignal): Promise<LocalApiJob> {
-    const response = await fetch(`${this.baseUrl}/jobs`, {
+    const response = await this.request('/jobs', {
       method: 'POST', signal, headers: { ...this.headers(true, true), 'idempotency-key': idempotencyKey }, body: requestBody
     });
     if (!response.ok) throw new LocalApiResponseError(await actionableResponse(response));
@@ -83,19 +140,19 @@ export class LocalApiPrintRoute implements PrintRoute {
   }
 
   async job(id: string, signal?: AbortSignal): Promise<LocalApiJob> {
-    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(id)}`, { signal, headers: this.headers(false, true) });
+    const response = await this.request(`/jobs/${encodeURIComponent(id)}`, { signal, headers: this.headers(false, true) });
     if (!response.ok) throw new LocalApiResponseError(await actionableResponse(response));
     return await response.json() as LocalApiJob;
   }
 
   async cancel(id: string, signal?: AbortSignal) {
-    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST', signal, headers: this.headers(false, true) });
+    const response = await this.request(`/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST', signal, headers: this.headers(false, true) });
     if (!response.ok) throw new LocalApiResponseError(await actionableResponse(response));
     return normalizeJob(await response.json() as LocalApiJob);
   }
 
   async events(id: string, onProgress: (progress: PrintProgress) => void, signal?: AbortSignal) {
-    const response = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(id)}/events`, { signal, headers: { ...this.headers(false, true), accept: 'text/event-stream' } });
+    const response = await this.request(`/jobs/${encodeURIComponent(id)}/events`, { signal, headers: { ...this.headers(false, true), accept: 'text/event-stream' } });
     if (!response.ok) throw new Error(await actionableResponse(response));
     if (!response.body) throw new Error('The local service returned no event stream.');
     const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffered = ''; let terminal: PrintResult | undefined;

@@ -25,6 +25,50 @@ it('keeps the default API on literal loopback and explains origin and grant fail
   ]);
 });
 
+it('bypasses the browser HTTP cache for every loopback API request', async () => {
+  const completed = { id: 'job-1', state: 'completed', terminal: true, outcome: 'completed', lastCompletedAction: 0, bytesSent: 1, action: 1, actions: 1, totalBytes: 1, phase: 'completed', error: null };
+  const fetch = vi.fn(async (url: string, _init?: RequestInit) => {
+    if (url.endsWith('/pair')) return new Response(JSON.stringify({ grantId: 'grant-1', token: 'token-1', expiresAt: '2026-09-01T00:00:00Z' }));
+    if (url.endsWith('/documents/validate')) return new Response(JSON.stringify({ valid: true, errors: [] }));
+    if (url.endsWith('/discovery')) return new Response(JSON.stringify({ devices: [{ transport: 'usb', address: 'usb:04f9:209b', name: 'QL-1110NWB', vendor_id: 0x04f9, product_id: 0x209b, serial_number: 'SERIAL' }], supportedTransports: ['usb', 'ipp'] }));
+    if (url.endsWith('/brother/wifi/status')) return new Response(JSON.stringify({ connectionId: 'desk one', status: { connected: true, ipAddress: '192.0.2.4', ssid: 'Workshop', encryption: 'aes', authentication: 'wpa2-psk', infrastructure: true, wirelessDirect: false } }));
+    if (url.endsWith('/brother/wifi/scan')) return new Response(JSON.stringify({ connectionId: 'desk one', accessPoints: [{ ssid: 'Workshop', channel: 6, power: -42, encrypted: true, enterprise: false }] }));
+    if (url.endsWith('/brother/report')) return new Response(JSON.stringify({ connectionId: 'desk one', redacted: true, sections: { General: { Model: 'QL-1110NWB' } } }));
+    if (url.endsWith('/status')) return new Response(JSON.stringify({ connections: [connection] }));
+    if (url.includes('/status?connection=')) return new Response(JSON.stringify({ connection, connected: true, status: 'ready' }));
+    if (url.endsWith('/connection')) return new Response(JSON.stringify(connection));
+    if (url.endsWith('/events')) return new Response(`data: ${JSON.stringify(completed)}\n\n`, { headers: { 'content-type': 'text/event-stream' } });
+    return new Response(JSON.stringify(completed));
+  });
+  vi.stubGlobal('fetch', fetch);
+  const route = new LocalApiPrintRoute({ token: () => 'token-1', connection: () => connection });
+  await route.pair('once');
+  await route.validate(defaultDocument());
+  await route.connections();
+  await route.configureConnection(connection);
+  await route.connectionStatus(connection.id);
+  const discovery = await route.discover();
+  const wifi = await route.brotherWifiStatus('desk one');
+  const scan = await route.brotherWifiScan('desk one');
+  const report = await route.brotherReport('desk one');
+  await route.submit({ document: defaultDocument(), printer, copies: 1 });
+  await route.job('job-1');
+  await route.cancel('job-1');
+  await route.events('job-1', () => {});
+  expect(discovery.devices[0]).toMatchObject({ transport: 'usb', vendor_id: 0x04f9, serial_number: 'SERIAL' });
+  expect(wifi.status).toMatchObject({ connected: true, ssid: 'Workshop', wirelessDirect: false });
+  expect(scan.accessPoints[0]).toEqual({ ssid: 'Workshop', channel: 6, power: -42, encrypted: true, enterprise: false });
+  expect(report).toMatchObject({ connectionId: 'desk one', redacted: true, sections: { General: { Model: 'QL-1110NWB' } } });
+  expect(fetch.mock.calls.slice(6, 9).map(([url, init]) => [url, init?.method ?? 'GET'])).toEqual([
+    ['http://127.0.0.1:9847/v1/printers/desk%20one/brother/wifi/status', 'GET'],
+    ['http://127.0.0.1:9847/v1/printers/desk%20one/brother/wifi/scan', 'POST'],
+    ['http://127.0.0.1:9847/v1/printers/desk%20one/brother/report', 'GET']
+  ]);
+  for (const [, init] of fetch.mock.calls.slice(5, 9)) expect(new Headers(init?.headers).get('authorization')).toBe('Bearer token-1');
+  expect(fetch).toHaveBeenCalledTimes(13);
+  for (const [, init] of fetch.mock.calls) expect(init).toMatchObject({ cache: 'no-store' });
+});
+
 it('persists and reuses the exact local submission after an ambiguous POST', async () => {
   const database = new EditorDatabase();
   const journal = new JobJournal(database);
