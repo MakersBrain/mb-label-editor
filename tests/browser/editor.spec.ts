@@ -151,6 +151,63 @@ test('runs discovery and capability-gated Brother diagnostics only after explici
   await expect(dialog.getByRole('button', { name: 'Scan Wi-Fi' })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: 'Redacted report' })).toHaveCount(0);
 });
+
+test('configures Brother Wi-Fi only through an explicit admin review and does not persist secrets', async ({ page }) => {
+  const brother = { id: 'brother-usb', model: 'ql-1110nwb', status: 'idle', transport: { kind: 'usb', device: 'usb:04f9:209b:serial=E123' }, operations: ['wifi-configure'] };
+  const requests: { url: string; body: Record<string, unknown>; authorization: string | undefined }[] = [];
+  await page.addInitScript(() => {
+    localStorage.setItem('mb-local-api-token', 'print-token');
+    localStorage.setItem('mb-local-api-connection', 'brother-usb');
+  });
+  await page.route('http://127.0.0.1:9847/v1/**', async route => {
+    const request = route.request();
+    const headers = { 'access-control-allow-origin': request.headers().origin ?? 'http://127.0.0.1:4173', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'access-control-allow-headers': 'authorization,content-type,idempotency-key', 'access-control-allow-private-network': 'true', 'content-type': 'application/json', 'cache-control': 'no-store' };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (request.url().endsWith('/admin/pair')) {
+      expect(request.postDataJSON()).toEqual({ secret: 'admin-once' });
+      expect(request.headers().authorization).toBeUndefined();
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ token: 'admin-token', expiresAt: '2030-01-01T00:10:00Z' }) });
+    }
+    if (request.url().includes('/brother/wifi/') && (request.url().endsWith('/prepare') || request.url().endsWith('/configure'))) {
+      requests.push({ url: request.url(), body: request.postDataJSON() as Record<string, unknown>, authorization: request.headers().authorization });
+      if (request.url().endsWith('/prepare')) return route.fulfill({ status: 200, headers, body: JSON.stringify({ approvalId: 'approval-1', expiresAt: 1893456000, connection: brother.id, device: brother.transport.device, ssid: 'Workshop', encryption: 'aes', authentication: 'wpa2-psk', infrastructure: true, wirelessDirect: false, reboot: true, recovery: 'Keep USB connected.' }) });
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ connection: brother.id, device: brother.transport.device, applied: true, reboot: true }) });
+    }
+    return route.fulfill({ status: 200, headers, body: JSON.stringify({ connections: [brother], connected: true, status: 'idle', media: null }) });
+  });
+  await page.goto('/');
+  await openDialog(page, 'Print', 'Local service…');
+  const dialog = page.getByRole('dialog', { name: 'Local service' });
+  await dialog.getByRole('button', { name: 'Refresh' }).click();
+  await expect(dialog.getByRole('button', { name: 'Review Wi-Fi configuration' })).toBeVisible();
+  await expect(dialog.getByText('Review before applying')).toHaveCount(0);
+  await dialog.getByLabel('One-time administrator pairing secret').fill('admin-once');
+  await dialog.getByRole('button', { name: 'Authorize Wi-Fi administration' }).click();
+  await expect(dialog.getByText(/Wi-Fi administration authorized until/)).toBeVisible();
+  await dialog.getByLabel('Wi-Fi network name').fill('Workshop');
+  await dialog.getByLabel('Wi-Fi password').fill('password-that-must-not-persist');
+  await dialog.getByRole('button', { name: 'Review Wi-Fi configuration' }).click();
+  await expect(dialog.getByLabel('Wi-Fi configuration review')).toContainText('Workshop');
+  expect(requests).toHaveLength(1);
+  expect(requests[0].authorization).toBe('Bearer admin-token');
+  expect(requests[0].body.password).toBe('password-that-must-not-persist');
+  await dialog.getByRole('button', { name: 'Apply Wi-Fi configuration' }).click();
+  await expect(dialog.getByText(/Wi-Fi configuration sent; printer reboot requested/)).toBeVisible();
+  expect(requests).toHaveLength(2);
+  expect(requests[1].body.approvalId).toBe('approval-1');
+  expect(requests[1].authorization).toBe('Bearer admin-token');
+  await expect(dialog.getByLabel('One-time administrator pairing secret')).toHaveValue('');
+  await expect(dialog.getByLabel('Wi-Fi password')).toHaveValue('');
+  await dialog.getByLabel('One-time administrator pairing secret').fill('secret-cleared-on-close');
+  await dialog.getByLabel('Wi-Fi password').fill('password-cleared-on-close');
+  await dialog.getByRole('button', { name: 'Close Local service' }).click();
+  await openDialog(page, 'Print', 'Local service…');
+  const reopened = page.getByRole('dialog', { name: 'Local service' });
+  await expect(reopened.getByLabel('One-time administrator pairing secret')).toHaveValue('');
+  await expect(reopened.getByLabel('Wi-Fi password')).toHaveValue('');
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('admin-token');
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('password-that-must-not-persist');
+});
 });
 
 test.describe('local printer pairing', () => {
