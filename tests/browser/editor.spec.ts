@@ -62,8 +62,9 @@ test('MB UI branding and semantic light/dark themes apply without inversion', as
 
 test.describe('local printer persistence', () => {
 test.use({ serviceWorkers: 'block' });
-test('a saved IPP connection is restored and shown in the printer sidebar', async ({ page }) => {
+test('a saved IPP connection waits for an explicit refresh before probing localhost', async ({ page }) => {
   const connection = { id: 'brother-network', model: 'ql-1110nwb', status: 'idle', transport: { kind: 'ipp', uri: 'ipp://10.83.30.114:631/ipp/print' }, media: { widthMm: 29, lengthMm: 62, keyword: 'om_brother-label-29x62mm_29x62mm' } };
+  let applicationRequests = 0;
   await page.addInitScript(() => {
     localStorage.setItem('mb-local-api-token', 'test-token');
     localStorage.setItem('mb-local-api-connection', 'brother-network');
@@ -71,18 +72,84 @@ test('a saved IPP connection is restored and shown in the printer sidebar', asyn
   await page.route('http://127.0.0.1:9847/v1/**', async route => {
     const headers = { 'access-control-allow-origin': route.request().headers()['origin'] ?? 'http://127.0.0.1:4173', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'access-control-allow-headers': 'authorization,content-type,idempotency-key', 'access-control-allow-private-network': 'true', 'content-type': 'application/json' };
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    applicationRequests++;
     const selected = new URL(route.request().url()).searchParams.has('connection');
     return route.fulfill({ status: 200, headers, body: JSON.stringify(selected ? { connection, connected: true, status: 'idle', media: connection.media } : { connections: [connection], connected: false, status: 'not-connected', media: null }) });
   });
   await page.goto('/');
+  await expect(page.getByLabel('Printer model')).toBeVisible();
+  expect(applicationRequests).toBe(0);
+  expect(await page.evaluate(() => localStorage.getItem('mb-local-api-connection'))).toBe('brother-network');
+  await openDialog(page, 'Print', 'Local service…');
+  expect(applicationRequests).toBe(0);
+  await page.getByRole('dialog', { name: 'Local service' }).getByRole('button', { name: 'Refresh' }).click();
+  await expect.poll(() => applicationRequests).toBe(1);
+  await page.getByRole('button', { name: 'Close Local service' }).click();
   const selector = page.getByLabel('Connection');
   await expect(selector).toHaveValue('local');
   await expect(selector.locator('option:checked')).toHaveText('IPP · brother-network');
   await expect(page.getByLabel('Printer model')).toHaveValue('ql-1110nwb');
   await expect(page.getByText(/Saved by the local service as brother-network/)).toBeVisible();
   await page.reload();
-  await expect(page.getByText(/Saved by the local service as brother-network/)).toBeVisible();
-  await expect(page.getByLabel('Connection')).toHaveValue('local');
+  await expect(page.getByLabel('Printer model')).toBeVisible();
+  expect(applicationRequests).toBe(1);
+  expect(await page.evaluate(() => localStorage.getItem('mb-local-api-connection'))).toBe('brother-network');
+});
+});
+
+test.describe('local printer discovery and diagnostics', () => {
+test.use({ serviceWorkers: 'block' });
+test('runs discovery and capability-gated Brother diagnostics only after explicit actions', async ({ page }) => {
+  const brother = { id: 'brother-network', model: 'ql-1110nwb', status: 'idle', transport: { kind: 'ipp', uri: 'ipp://brother.local:631/ipp/print' }, operations: ['status', 'wifi-status', 'wifi-scan', 'system-report'] };
+  const generic = { id: 'generic-network', model: 'pm241', status: 'ready', transport: { kind: 'tcp', address: 'printer.local:9100' }, operations: ['status'] };
+  const calls: string[] = [];
+  let wifiStatusAttempts = 0;
+  await page.addInitScript(() => {
+    localStorage.setItem('mb-local-api-token', 'paired-token');
+    localStorage.setItem('mb-local-api-connection', 'brother-network');
+  });
+  await page.route('http://127.0.0.1:9847/v1/**', async route => {
+    const request = route.request();
+    const headers = { 'access-control-allow-origin': request.headers()['origin'] ?? 'http://127.0.0.1:4173', 'access-control-allow-methods': 'GET,POST,OPTIONS', 'access-control-allow-headers': 'authorization,content-type,idempotency-key', 'access-control-allow-private-network': 'true', 'content-type': 'application/json', 'cache-control': 'no-store' };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    calls.push(`${request.method()} ${request.url()}`);
+    if (request.url().endsWith('/discovery')) return route.fulfill({ status: 200, headers, body: JSON.stringify({ devices: [{ transport: 'usb', address: 'usb:04f9:209b', name: 'Brother QL-1110NWB', matchedModel: 'ql-1110nwb', operations: brother.operations }], supportedTransports: ['usb', 'ipp'] }) });
+    if (request.url().endsWith('/brother/wifi/status')) {
+      wifiStatusAttempts++;
+      if (wifiStatusAttempts === 1) return route.fulfill({ status: 503, headers, body: 'printer temporarily unavailable' });
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ connectionId: brother.id, status: { connected: true, ipAddress: '192.0.2.4', ssid: 'Workshop', encryption: 'aes', authentication: 'wpa2-psk', infrastructure: true, wirelessDirect: false } }) });
+    }
+    if (request.url().endsWith('/brother/wifi/scan')) return route.fulfill({ status: 200, headers, body: JSON.stringify({ connectionId: brother.id, accessPoints: [{ ssid: 'Workshop', channel: 6, power: -42, encrypted: true, enterprise: false }] }) });
+    if (request.url().endsWith('/brother/report')) return route.fulfill({ status: 200, headers, body: JSON.stringify({ connectionId: brother.id, redacted: true, sections: { General: { Model: 'QL-1110NWB' } } }) });
+    return route.fulfill({ status: 200, headers, body: JSON.stringify({ connections: [brother, generic], connected: false, status: 'not-connected', media: null }) });
+  });
+  await page.goto('/');
+  await expect(page.getByLabel('Printer model')).toBeVisible();
+  await openDialog(page, 'Print', 'Local service…');
+  const dialog = page.getByRole('dialog', { name: 'Local service' });
+  expect(calls).toEqual([]);
+  await dialog.getByRole('button', { name: 'Discover', exact: true }).click();
+  await expect(dialog.getByText('Brother QL-1110NWB', { exact: true })).toBeVisible();
+  expect(calls).toHaveLength(1);
+  await dialog.getByRole('button', { name: 'Refresh' }).click();
+  await expect(dialog.getByRole('button', { name: 'Wi-Fi status' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Scan Wi-Fi' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Redacted report' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: /configure wi-fi/i })).toHaveCount(0);
+
+  await dialog.getByRole('button', { name: 'Wi-Fi status' }).click();
+  await expect(dialog.getByText(/503 Service Unavailable: printer temporarily unavailable/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Wi-Fi status' }).click();
+  await expect(dialog.getByLabel('Brother Wi-Fi status')).toContainText('Workshop');
+  await dialog.getByRole('button', { name: 'Scan Wi-Fi' }).click();
+  await expect(dialog.getByRole('list', { name: 'Brother Wi-Fi networks' })).toContainText('channel 6');
+  await dialog.getByRole('button', { name: 'Redacted report' }).click();
+  await expect(dialog.getByLabel('Redacted Brother system report')).toContainText('QL-1110NWB');
+
+  await dialog.getByLabel('Printer connection').selectOption('generic-network');
+  await expect(dialog.getByRole('button', { name: 'Wi-Fi status' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Scan Wi-Fi' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Redacted report' })).toHaveCount(0);
 });
 });
 
@@ -121,6 +188,7 @@ test('an unreachable daemon or denied Local Network Access has actionable recove
   await page.route('http://127.0.0.1:9847/v1/**', route => route.abort('connectionrefused'));
   await page.goto('/');
   await openDialog(page, 'Print', 'Local service…');
+  await expect(page.getByRole('dialog', { name: 'Local service' }).getByRole('button', { name: 'Discover', exact: true })).toBeDisabled();
   await page.getByLabel('One-time pairing secret').fill('one-time');
   await page.getByRole('button', { name: 'Pair on localhost' }).dispatchEvent('click');
   await expect(page.getByText(/Local service unavailable or Local Network Access was denied/)).toBeVisible();
