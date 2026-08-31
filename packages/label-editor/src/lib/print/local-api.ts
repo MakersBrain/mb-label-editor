@@ -33,6 +33,41 @@ export interface LocalApiBrotherWifiStatus { connectionId: string; status: Broth
 export interface BrotherWifiAccessPoint { ssid: string; channel?: number | null; power?: number | null; encrypted: boolean; enterprise: boolean }
 export interface LocalApiBrotherWifiScan { connectionId: string; accessPoints: BrotherWifiAccessPoint[] }
 export interface LocalApiBrotherReport { connectionId: string; redacted: true; sections: Record<string, Record<string, string>> }
+/** Credentials are intentionally supplied by the caller and never retained by this route. */
+export interface BrotherWifiConfigureRequest {
+  ssid: string;
+  password: string;
+  encryption: string;
+  authentication: string;
+  infrastructure: boolean;
+  wirelessDirect: boolean;
+  reboot: boolean;
+}
+export interface BrotherWifiConfigureSummary {
+  connection: string;
+  device: string;
+  ssid: string;
+  encryption: string;
+  authentication: string;
+  infrastructure: boolean;
+  wirelessDirect: boolean;
+  reboot: boolean;
+}
+export interface LocalApiBrotherWifiConfigurePreparation {
+  approvalId: string;
+  /** Unix seconds, as returned by the loopback API. */
+  expiresAt: number;
+  recovery: string;
+  summary: BrotherWifiConfigureSummary;
+}
+export interface LocalApiBrotherWifiConfigureResult {
+  connection: string;
+  device: string;
+  applied: boolean;
+  reboot: boolean;
+}
+/** A short-lived, in-memory-only grant for administrator operations. */
+export interface LocalApiAdminGrant { token: string; expiresAt: string }
 export interface LocalApiOptions { baseUrl?: string; token: () => string | undefined; origin?: string; connection?: () => LocalApiConnection | undefined; journal?: JobJournal }
 export interface LocalApiJob {
   id: string; state: string; terminal: boolean; outcome?: PrintResult['outcome'] | null;
@@ -63,6 +98,16 @@ export class LocalApiPrintRoute implements PrintRoute {
     const response = await this.request('/pair', { method: 'POST', headers: this.headers(true), body: JSON.stringify({ secret }) });
     if (!response.ok) throw new Error(await actionableResponse(response));
     return await response.json() as { grantId: string; token: string; expiresAt: string };
+  }
+
+  /**
+   * Exchanges an administrator pairing secret.  The resulting token must stay
+   * in component/session memory; it is intentionally not part of LocalApiOptions.
+   */
+  async pairAdmin(secret: string): Promise<LocalApiAdminGrant> {
+    const response = await this.request('/admin/pair', { method: 'POST', headers: this.headers(true), body: JSON.stringify({ secret }) });
+    if (!response.ok) throw new Error(await actionableResponse(response));
+    return await response.json() as LocalApiAdminGrant;
   }
 
   async validate(document: PrintRequest['document']) {
@@ -115,6 +160,35 @@ export class LocalApiPrintRoute implements PrintRoute {
     const response = await this.request(`/printers/${id}/brother/report`, { headers: this.headers(false, true) });
     if (!response.ok) throw new Error(await actionableResponse(response));
     return await response.json() as LocalApiBrotherReport;
+  }
+
+  /**
+   * Creates a short-lived review record. `adminToken` is deliberately an
+   * argument: callers must keep it in component/session memory, never in the
+   * persisted print-route token or browser storage.
+   */
+  async prepareBrotherWifiConfigure(connectionId: string, request: BrotherWifiConfigureRequest, adminToken: string): Promise<LocalApiBrotherWifiConfigurePreparation> {
+    const id = encodeURIComponent(connectionId);
+    const response = await this.request(`/printers/${id}/brother/wifi/prepare`, {
+      method: 'POST', headers: this.adminHeaders(adminToken), body: JSON.stringify(request)
+    });
+    if (!response.ok) throw new Error(await actionableResponse(response));
+    const wire = await response.json() as Omit<LocalApiBrotherWifiConfigurePreparation, 'summary'> & BrotherWifiConfigureSummary;
+    const { connection, device, ssid, encryption, authentication, infrastructure, wirelessDirect, reboot, ...preparation } = wire;
+    return {
+      ...preparation,
+      summary: { connection, device, ssid, encryption, authentication, infrastructure, wirelessDirect, reboot }
+    };
+  }
+
+  /** Applies exactly the settings which were reviewed by the administrator. */
+  async configureBrotherWifi(connectionId: string, approvalId: string, request: BrotherWifiConfigureRequest, adminToken: string): Promise<LocalApiBrotherWifiConfigureResult> {
+    const id = encodeURIComponent(connectionId);
+    const response = await this.request(`/printers/${id}/brother/wifi/configure`, {
+      method: 'POST', headers: this.adminHeaders(adminToken), body: JSON.stringify({ approvalId, ...request })
+    });
+    if (!response.ok) throw new Error(await actionableResponse(response));
+    return await response.json() as LocalApiBrotherWifiConfigureResult;
   }
 
   private prepare(request: PrintRequest) {
@@ -233,6 +307,12 @@ export class LocalApiPrintRoute implements PrintRoute {
     if (json) headers['content-type'] = 'application/json';
     if (this.options.origin) headers.origin = this.options.origin;
     if (authenticated) headers.authorization = `Bearer ${this.requireToken()}`;
+    return headers;
+  }
+  private adminHeaders(adminToken: string): Record<string, string> {
+    if (!adminToken.trim()) throw new Error('Enter a fresh local administrator token to configure Wi-Fi.');
+    const headers = this.headers(true, false);
+    headers.authorization = `Bearer ${adminToken}`;
     return headers;
   }
   private requireToken() { const token = this.options.token(); if (!token) throw new Error('Pair with the local printer service first.'); return token; }
