@@ -6,6 +6,7 @@ const alignments:[Alignment,string][]=[['left','Left'],['center-x','Center'],['r
 const orders:['front'|'forward'|'backward'|'back',string][]=[['front','Bring to front'],['forward','Bring forward'],['backward','Send backward'],['back','Send to back']];
 const align=(value:Alignment)=>editor.execute(alignElements($editor.selection,value));
 function reorder(value:'front'|'forward'|'backward'|'back'){const id=[...$editor.selection][0];if(id)editor.execute(reorderElement(id,value))}
+function group(){if($editor.selection.size<2)return;const command=groupElements($editor.selection);editor.execute(command);editor.select([command.createdId])}
 function paste(){const items=pasteElements();for(const item of items)editor.execute(addElement(item));editor.select(items.map(item=>item.id))}
 </script>
 <Menu label="Edit">
@@ -16,7 +17,7 @@ function paste(){const items=pasteElements();for(const item of items)editor.exec
   <button on:click={()=>copyElements($editor.document.elements,$editor.selection)} disabled={!$editor.selection.size}>Copy</button>
   <button on:click={paste}>Paste</button>
   <hr>
-  <button on:click={()=>editor.execute(groupElements($editor.selection))} disabled={$editor.selection.size<2}><Icon name="group"/>Group</button>
+  <button on:click={group} disabled={$editor.selection.size<2}><Icon name="group"/>Group</button>
   <button on:click={()=>{for(const id of $editor.selection)editor.execute(ungroup(id));editor.clearSelection()}} disabled={!$editor.selectedElements.some(item=>item.type==='group')}><Icon name="ungroup"/>Ungroup</button>
   <button on:click={()=>{editor.execute(removeElements($editor.selection));editor.clearSelection()}} disabled={!$editor.selection.size}><Icon name="delete"/>Delete</button>
 </Menu>

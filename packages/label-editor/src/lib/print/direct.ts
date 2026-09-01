@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { PrinterDefinition, PrinterSdk, PrinterStatus, PrintRequest, PrintResult, PrintRoute, ProtocolExecutionProgress, ProtocolExecutionTransport, ProtocolPlan } from './types.js';
+import { validateContinuousPrintOptions, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type PrintRequest, type PrintResult, type PrintRoute, type ProtocolExecutionProgress, type ProtocolExecutionTransport, type ProtocolPlan } from './types.js';
 import type { JobJournal } from '../jobs.js';
 import type { PersistedJob } from '../persistence/database.js';
+import { assertDocumentReadyForOutput } from '../continuous-media.js';
+import { toSdkDocument } from '../sdk-document.js';
 
 export interface DirectTransport {
   readonly kind: 'bluetooth' | 'usb' | 'serial'; readonly physicalWriteLimit?: number; readonly commandWriteLimit?: number; readonly negotiatedAttMtu?: number;
@@ -9,6 +11,7 @@ export interface DirectTransport {
   subscribe(channel: string, signal?: AbortSignal): Promise<void>; waitResponse(channel: string, timeoutMs: number, validation?: string, signal?: AbortSignal): Promise<Uint8Array>;
 }
 export class DirectPrintRoute implements PrintRoute {
+  readonly supportsNativeBatch = true;
   readonly id: string; readonly label: string; private retryProhibited = false; private transport?: DirectTransport;
   constructor(private sdk: PrinterSdk, private transportFactory: () => Promise<DirectTransport>, private kind: 'bluetooth' | 'usb' | 'serial', private supported: () => boolean = () => true, private journal?: JobJournal) { this.id = `web-${kind}`; this.label = kind === 'serial' ? 'Bluetooth SPP (Web Serial)' : `Web ${kind === 'bluetooth' ? 'Bluetooth' : 'USB'}`; }
   get connected() { return this.transport !== undefined; }
@@ -30,14 +33,16 @@ export class DirectPrintRoute implements PrintRoute {
     if (transport) await transport.disconnect();
   }
   async print(request: PrintRequest): Promise<PrintResult> {
+    assertDocumentReadyForOutput(request.document);
+    validateContinuousPrintOptions(request.document,request.printer,request.continuous);
     if (this.retryProhibited) return { outcome: 'failed', bytesSent: 0, lastCompletedAction: -1, error: 'Automatic retry is prohibited after an ambiguous direct-print outcome. Inspect the printer and start a new explicit job.' };
-    const persisted = await this.journal?.begin(request.document, this.id);
+    const persisted = await this.journal?.begin(request.document, this.id, undefined, { kind:'direct-print', request:{ document:toSdkDocument(request.document), printerId:request.printer.id, copies:request.copies, density:request.density, continuous:request.continuous } });
     let transport: DirectTransport | undefined; let transient = false; let bytesSent = 0; let lastCompletedAction = -1; let potentiallyAccepted = false;
     const finish = async (result: PrintResult) => { if (persisted) await this.journal?.finish(persisted, result); if (result.outcome === 'outcome-unknown' || result.outcome === 'cancelled-partial') this.retryProhibited = true; return result; };
     try {
       // Only GATT needs reference pacing; a serial port or a bulk endpoint
       // streams the job the way the vendor drivers do.
-      const plan = await this.sdk.plan(request.document, request.printer, { copies: request.copies, density: request.density, record: request.record, streaming: this.kind !== 'bluetooth', lzo: request.compressRaster });
+      const plan = await this.sdk.plan(request.document, request.printer, { copies: request.copies, density: request.density, record: request.record, streaming: this.kind !== 'bluetooth', lzo: request.compressRaster, continuous: request.continuous });
       if (!this.sdk.executePlan) throw new Error('The installed printer SDK cannot execute browser print plans.');
       transport = this.transport;
       if (!transport) { transport = await this.transportFactory(); transient = true; }
@@ -60,6 +65,37 @@ export class DirectPrintRoute implements PrintRoute {
       const aborted = request.signal?.aborted; const result: PrintResult = { outcome: potentiallyAccepted ? (aborted ? 'cancelled-partial' : 'outcome-unknown') : (aborted ? 'cancelled-before-send' : 'failed'), bytesSent, lastCompletedAction, error: error instanceof Error ? error.message : String(error) };
       return await finish(result);
     } finally { if (transient) try { await transport?.disconnect(); } catch { /* connection may already be gone */ } }
+  }
+  async printBatch(request: Parameters<NonNullable<PrintRoute['printBatch']>>[0]): Promise<PrintResult> {
+    if (!request.documents.length) return { outcome:'failed',bytesSent:0,lastCompletedAction:-1,error:'Batch printing requires at least one document.' };
+    request.documents.forEach((document) => { assertDocumentReadyForOutput(document); validateContinuousPrintOptions(document,request.printer,request.continuous); });
+    if (!this.sdk.planBatch) return { outcome:'failed',bytesSent:0,lastCompletedAction:-1,error:'The installed printer SDK does not support native batch jobs.' };
+    if (this.retryProhibited) return { outcome: 'failed', bytesSent: 0, lastCompletedAction: -1, error: 'Automatic retry is prohibited after an ambiguous direct-print outcome. Inspect the printer and start a new explicit job.' };
+    const persisted = await this.journal?.begin(request.documents[0], this.id, undefined, { kind:'direct-print-batch', request:{ documents:request.documents.map(toSdkDocument), printerId:request.printer.id, copies:request.copies, continuous:request.continuous } });
+    let transport: DirectTransport | undefined; let transient = false; let bytesSent = 0; let lastCompletedAction = -1; let potentiallyAccepted = false;
+    const finish = async (result: PrintResult) => { if (persisted) await this.journal?.finish(persisted, result); if (result.outcome === 'outcome-unknown' || result.outcome === 'cancelled-partial') this.retryProhibited = true; return result; };
+    try {
+      const plan = await this.sdk.planBatch(request.documents, request.printer, { copies:request.copies, streaming:this.kind !== 'bluetooth', continuous:request.continuous });
+      if (!this.sdk.executePlan) throw new Error('The installed printer SDK cannot execute browser print plans.');
+      transport=this.transport;if(!transport){transport=await this.transportFactory();transient=true;}
+      preflightPlan(plan,transport);
+      if(request.signal?.aborted)return await finish({outcome:'cancelled-before-send',bytesSent,lastCompletedAction});
+      if(transient)await abortable(transport.connect(),request.signal);
+      const report=(state:ProtocolExecutionProgress)=>{
+        bytesSent=state.bytesWritten;lastCompletedAction=state.lastCompletedAction;potentiallyAccepted=state.potentiallyAcceptedWrite;
+        const action=plan.actions[state.lastCompletedAction];
+        const current={action:state.lastCompletedAction+1,actions:plan.actions.length,bytesSent,totalBytes:plan.totalBytes,phase:action?.type??'unknown'};
+        const startedPages=(plan.sdkActions??[]).slice(0,state.lastCompletedAction+1).filter(item=>item.action==='command-write'&&item.name==='ESC i z print information').length;
+        const page=Math.max(0,startedPages-1);const copies=Math.max(1,request.copies);
+        const item=Math.min(request.documents.length-1,Math.floor(page/copies));const copy=page%copies;
+        request.onProgress?.({item,items:request.documents.length,copy,copies:request.copies,current});if(persisted)void this.journal?.progress(persisted,current);
+      };
+      const execution=await this.sdk.executePlan(plan,adaptTransport(transport,plan),report,request.signal);
+      bytesSent=execution.bytesWritten;lastCompletedAction=execution.lastCompletedAction;potentiallyAccepted=execution.potentiallyAcceptedWrite;
+      const outcome=execution.status==='outcome-unknown'&&request.signal?.aborted?'cancelled-partial':execution.status==='cancelled-before-send'&&execution.error&&!request.signal?.aborted?'failed':execution.status;
+      return await finish({outcome,bytesSent,lastCompletedAction,...(execution.error?{error:execution.error}:{})});
+    }catch(error){const aborted=request.signal?.aborted;return await finish({outcome:potentiallyAccepted?(aborted?'cancelled-partial':'outcome-unknown'):(aborted?'cancelled-before-send':'failed'),bytesSent,lastCompletedAction,error:error instanceof Error?error.message:String(error)});}
+    finally{if(transient)try{await transport?.disconnect();}catch{/* connection may already be gone */}}
   }
   /** Runs the SDK's status-only plan and decodes the reply. Brother printers report media width, type, and errors. */
   async queryStatus(printer: PrinterDefinition, options?: { signal?: AbortSignal }): Promise<PrinterStatus> {

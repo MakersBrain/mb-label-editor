@@ -1,10 +1,14 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import{groupElements,removeElements,ungroup}from'../commands.js';import type{EditorStore}from'../store.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import Icon from'./Icon.svelte';
+import{alignElementsToBounds,groupElements,removeElements,ungroup,type Alignment}from'../commands.js';import type{Bounds}from'../model.js';import type{EditorStore}from'../store.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import Icon from'./Icon.svelte';
 export let editor:EditorStore;
+let alignmentTarget='root';
 function del(){editor.execute(removeElements($editor.selection));editor.clearSelection()}
-function group(){editor.execute(groupElements($editor.selection))}
+function group(){if($editor.selection.size<2)return;const command=groupElements($editor.selection);editor.execute(command);editor.select([command.createdId])}
 function ungroupSelected(){for(const id of $editor.selection)editor.execute(ungroup(id));editor.clearSelection()}
+function targetBounds():Bounds{const zone=$editor.document.media.zones?.find(item=>item.id===alignmentTarget);return zone??{x:0,y:0,width:$editor.document.media.width,height:$editor.document.media.height}}
+function align(alignment:Alignment){editor.execute(alignElementsToBounds($editor.selection,alignment,targetBounds()))}
+const alignments:[Alignment,string][]=[['left','Left'],['center-x','Horizontal center'],['right','Right'],['top','Top'],['center-y','Vertical center'],['bottom','Bottom']];
 </script>
 <nav aria-label="Drawing tools">
   <div class="group">{#each insertTypes as type}<button class="tool" on:click={()=>insertElement(editor,type)} title={`Insert ${insertLabels[type].toLowerCase()}`}><Icon name={type}/>{insertLabels[type]}</button>{/each}</div>
@@ -18,6 +22,10 @@ function ungroupSelected(){for(const id of $editor.selection)editor.execute(ungr
     <button class="tool" on:click={ungroupSelected} disabled={!$editor.selectedElements.some(e=>e.type==='group')}><Icon name="ungroup"/>Ungroup</button>
     <button class="tool" on:click={del} disabled={!$editor.selection.size}><Icon name="delete"/>Delete</button>
   </div>
+  <div class="group align-tools" aria-label="Align selection inside">
+    <label>Align to<select bind:value={alignmentTarget}><option value="root">Label</option>{#each $editor.document.media.zones??[] as zone}<option value={zone.id}>{zone.name}</option>{/each}</select></label>
+    {#each alignments as item}<button class="align" title={`Align ${item[1].toLowerCase()} inside ${alignmentTarget==='root'?'label':'zone'}`} aria-label={`Align ${item[1].toLowerCase()}`} on:click={()=>align(item[0])} disabled={!$editor.selection.size}>{item[1]==='Horizontal center'?'↔':item[1]==='Vertical center'?'↕':item[1]}</button>{/each}
+  </div>
   <div class="group"><label class="zoom-field">Zoom<input class="zoom" type="range" min=".25" max="4" step=".25" value={$editor.view.zoom} on:input={(e)=>editor.setView({zoom:+e.currentTarget.value})}><output>{Math.round($editor.view.zoom*100)}%</output></label></div>
 </nav>
 <style>
@@ -26,6 +34,7 @@ function ungroupSelected(){for(const id of $editor.selection)editor.execute(ungr
   .group+.group{margin-left:.35rem;padding-left:.45rem;border-left:1px solid var(--mble-border,#d8d0c3)}
   .spacer{flex:1;min-width:.5rem}
   .tool{display:flex;gap:.35rem;align-items:center;white-space:nowrap}
+  .align-tools label{display:flex;gap:.25rem;align-items:center;font-size:.75rem;white-space:nowrap}.align-tools select{max-width:7rem}.align{min-width:1.8rem;padding-inline:.3rem;font-size:.7rem}
   .zoom-field{display:flex;gap:.35rem;align-items:center;font-size:.75rem;white-space:nowrap}
   .zoom{width:6rem}
   .zoom-field output{min-width:2.5rem;color:var(--mble-text-muted,#59635e);font-variant-numeric:tabular-nums}

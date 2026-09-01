@@ -4,7 +4,7 @@ import type { components, paths } from './schema.js';
 
 export type CloudPrinter = components['schemas']['PrinterView'];
 export type CloudPrintJob = components['schemas']['JobView'];
-export type CloudPrintRequest = Omit<components['schemas']['ValidatedPrintRequest'], 'document'> & { document: unknown };
+export type CloudPrintRequest = Omit<components['schemas']['ValidatedPrintRequest'], 'document' | 'documents'> & ({ document: unknown; documents?: never } | { document?: never; documents: unknown[] });
 export type CloudPrintSubmission = Omit<components['schemas']['SubmitJob'], 'request'> & { request: CloudPrintRequest };
 export type CloudTokenSource = () => string | undefined | Promise<string | undefined>;
 
@@ -29,6 +29,7 @@ export class CloudPrintClient {
   readonly #token?: CloudTokenSource;
   readonly #fetch: typeof globalThis.fetch;
   readonly #client: ReturnType<typeof createClient<paths>>;
+  supportsNativeBatch=false;
 
   constructor(options: CloudPrintClientOptions) {
     this.baseUrl = options.baseUrl.trim().replace(/\/+$/, '');
@@ -51,6 +52,14 @@ export class CloudPrintClient {
     });
     if (!data) throw cloudResponseError(response, error);
     return data;
+  }
+
+  async negotiateCapabilities(signal?:AbortSignal):Promise<{nativeBatch:boolean;continuousOptions:boolean}>{
+    const headers=new Headers();const token=await this.token();if(token)headers.set('authorization',`Bearer ${token}`);
+    const response=await this.#fetch(`${this.baseUrl}/openapi.json`,{headers,signal,cache:'no-store'});if(!response.ok)throw cloudResponseError(response,await safeJson(response));
+    const document=await response.json() as {components?:{schemas?:Record<string,{properties?:Record<string,unknown>}>}};
+    const properties=document.components?.schemas?.ValidatedPrintRequest?.properties??{};const nativeBatch='documents'in properties;const continuousOptions='continuous'in properties;
+    this.supportsNativeBatch=nativeBatch&&continuousOptions;return{nativeBatch,continuousOptions};
   }
 
   serializeSubmission(submission: CloudPrintSubmission): string {

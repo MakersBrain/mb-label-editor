@@ -6,9 +6,12 @@
   import type { LocalApiConnection, LocalApiPrintRoute } from '../print/local-api.js';
   import type { EditorDatabase } from '../persistence/database.js';
   import type { LabelDocument } from '../model.js';
-  import type { PrinterDefinition, PrinterSdk, PrinterStatus, PrintRoute } from '../print/types.js';
+  import type { DocumentMaterializer } from '../materialization.js';
+  import { prepareDocumentForOutput } from '../output-preparation.js';
+  import type { ContinuousCutMode, ContinuousPrintOptions, PrinterDefinition, PrinterSdk, PrinterStatus, PrintRoute } from '../print/types.js';
 
   export let sdk: PrinterSdk;
+  export let materializer: Pick<DocumentMaterializer, 'materializeRecord'> | undefined = undefined;
   export let document: LabelDocument;
   export let printer: PrinterDefinition | undefined;
   export let database: EditorDatabase;
@@ -19,6 +22,8 @@
   export let onSelectLocal: () => void = () => {};
   export let onRoute: (route: PrintRoute) => void = () => {};
   export let onMedia: (media: { width: number; height: number; shape: 'rectangle' | 'round' | 'continuous' }) => void = () => {};
+  export let initialContinuous: ContinuousPrintOptions = { cutMode:'after-each',extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:false };
+  export let onContinuous: (options:ContinuousPrintOptions)=>void=()=>{};
 
   type RouteKind = 'local' | 'bluetooth' | 'spp' | 'usb';
   let route: RouteKind = 'bluetooth';
@@ -35,12 +40,25 @@
   let cancellation: AbortController | undefined;
   let printerStatus: PrinterStatus | undefined;
   let querying = false;
+  let cutMode: ContinuousCutMode = initialContinuous.cutMode;
+  let extraFeedBeforeMm = initialContinuous.extraFeedBeforeMm;
+  let extraFeedAfterMm = initialContinuous.extraFeedAfterMm;
+  let chainCopies = initialContinuous.chainCopies;
+  let continuousPreferenceKey='';
+  $: syncContinuousPreference(printer?.id??'',initialContinuous);
+  const continuousChanged=()=>onContinuous({cutMode,extraFeedBeforeMm,extraFeedAfterMm,chainCopies});
+  function syncContinuousPreference(printerId:string,value:ContinuousPrintOptions){const key=`${printerId}:${value.cutMode}:${value.extraFeedBeforeMm}:${value.extraFeedAfterMm}:${value.chainCopies}`;if(key===continuousPreferenceKey)return;continuousPreferenceKey=key;cutMode=value.cutMode;extraFeedBeforeMm=value.extraFeedBeforeMm;extraFeedAfterMm=value.extraFeedAfterMm;chainCopies=value.chainCopies}
 
   const preferredRoute = (definition: PrinterDefinition | undefined, saved: LocalApiConnection | undefined): RouteKind => saved && (!definition || saved.model === definition.id) ? 'local' : definition?.protocols[0] === 'brother' ? 'usb' : 'bluetooth';
   $: if (!routePinned && connection === 'disconnected') route = preferredRoute(printer, localConnection);
   $: if (connectedPrinterId && printer?.id !== connectedPrinterId) void disconnect('Printer changed. Connect the new printer.');
   $: displayConnection = route === 'local' ? localConnection ? 'connected' : 'disconnected' : connection;
   $: reportedMedia = route === 'local' ? localMediaDescription(localConnection, document) : mediaDescription(printerStatus, document);
+  $: rollCapabilities = document.media.shape === 'continuous' ? printer?.continuousMedia : undefined;
+  $: continuousPrinterUnsupported=document.media.shape==='continuous'&&!printer?.continuousMedia?.supported;
+  $: activeRoute=route==='local'?localRoute:active;
+  $: availableCutModes=rollCapabilities?.cutModes.filter(mode=>mode!=='after-job'||activeRoute?.supportsNativeBatch!==false)??[];
+  $: if (rollCapabilities && !availableCutModes.includes(cutMode)) cutMode = availableCutModes[0] ?? 'none';
 
   function usbFilters() {
     const vendor = Number(vendorId || 0);
@@ -104,11 +122,14 @@
     if (!selected || (route === 'local' ? !localConnection || localConnection.model !== printer.id : !active?.connected)) { message = 'Connect the selected printer before printing.'; return; }
     cancellation = new AbortController();
     message = 'Preparing print…';
-    const result = await selected.print({ document, printer, copies: 1, signal: cancellation.signal, onProgress: progress => message = `${progress.phase}: ${progress.bytesSent}/${progress.totalBytes} bytes` });
-    cancellation = undefined;
-    message = result.outcome === 'completed' ? `Printed ${result.bytesSent} bytes.` : `${result.outcome}: ${result.error ?? 'Check the physical printer before retrying.'}`;
-    if (result.outcome === 'failed') connection = 'error';
-    if (result.outcome === 'completed') await refreshStatus(false);
+    try {
+      const prepared=await prepareDocumentForOutput(document,{materializer,measurer:sdk.measure?sdk as import('../continuous-media.js').DocumentMeasurer:undefined},{limits:{minimumLengthMm:printer.continuousMedia?.minimumLengthMm??printer.media.minHeight,maximumLengthMm:printer.continuousMedia?.maximumLengthMm??printer.media.maxHeight,source:'printer',printerModel:printer.id}});
+      const result = await selected.print({ document:prepared.document, printer, copies: 1, ...(rollCapabilities?{continuous:{cutMode,extraFeedBeforeMm,extraFeedAfterMm,chainCopies}}:{}), signal: cancellation.signal, onProgress: progress => message = `${progress.phase}: ${progress.bytesSent}/${progress.totalBytes} bytes` });
+      message = result.outcome === 'completed' ? `Printed ${result.bytesSent} bytes.` : `${result.outcome}: ${result.error ?? 'Check the physical printer before retrying.'}`;
+      if (result.outcome === 'failed') connection = 'error';
+      if (result.outcome === 'completed') await refreshStatus(false);
+    } catch(error) { message=error instanceof Error?error.message:String(error); }
+    finally { cancellation = undefined; }
   }
   async function refreshStatus(apply = false) {
     if (route === 'local') {
@@ -177,6 +198,7 @@
     <small>{reportedMedia.name ?? reportedMedia.kind} · {printer?.dpi ?? document.media.dpi} dpi</small>
   </div>
   <label>Connection<select bind:value={route} on:change={changeRoute} disabled={connection === 'connecting'}>{#if localRoute}<option value="local">{localConnection ? `${localConnection.transport.kind.toUpperCase()} · ${localConnection.id}` : 'IPP/IPPS · Local service'}</option>{/if}<option value="bluetooth">Bluetooth LE</option><option value="spp">Bluetooth Serial</option><option value="usb">USB</option></select></label>
+  {#if rollCapabilities}<fieldset><legend>Continuous roll</legend>{#if rollCapabilities.automaticCutter}<label>Cut<select bind:value={cutMode} on:change={continuousChanged}>{#each availableCutModes as mode}<option value={mode}>{mode==='after-each'?'After each label':mode==='after-job'?'After complete job':'Do not cut'}</option>{/each}</select></label>{/if}{#if rollCapabilities.maximumExtraFeedMm>0}<label>Extra feed before (mm)<input type="number" min={rollCapabilities.minimumExtraFeedMm} max={rollCapabilities.maximumExtraFeedMm} step="0.1" bind:value={extraFeedBeforeMm} on:change={continuousChanged}></label><label>Extra feed after (mm)<input type="number" min={rollCapabilities.minimumExtraFeedMm} max={rollCapabilities.maximumExtraFeedMm} step="0.1" bind:value={extraFeedAfterMm} on:change={continuousChanged}></label>{/if}{#if rollCapabilities.supportsChainedRaster}<label class="check"><input type="checkbox" bind:checked={chainCopies} on:change={continuousChanged}> Chain copies without intermediate cuts</label>{/if}<small>Required firmware feed: {rollCapabilities.requiredFeedBeforeMm??0} mm before / {rollCapabilities.requiredFeedAfterMm??0} mm after. Artwork margins and extra operator feed are separate. This printer currently allows {rollCapabilities.minimumLengthMm}–{rollCapabilities.maximumLengthMm} mm labels.</small></fieldset>{/if}
   {#if route === 'local'}
     <p class="hint">{localConnection ? `Saved by the local service as ${localConnection.id}. It will be restored after reload.` : 'Pair with the local service and configure an IPP/IPPS printer.'}</p>
   {:else if route === 'bluetooth'}
@@ -191,7 +213,7 @@
   <div class="actions">
     {#if route === 'local'}<button on:click={onConfigureLocal}>{localConnection ? 'Manage' : 'Configure'}</button>{:else if connection === 'connected'}<button on:click={() => disconnect()}>Disconnect</button>{:else}<button class="primary" on:click={connect} disabled={!printer || connection === 'connecting'}>{connection === 'connecting' ? 'Connecting…' : 'Connect'}</button>{/if}
     <button on:click={() => refreshStatus(false)} disabled={(route === 'local' ? !localConnection : connection !== 'connected') || querying}>{querying ? 'Checking…' : 'Refresh status'}</button>
-    <button class="primary print" on:click={print} disabled={(route === 'local' ? !localConnection : connection !== 'connected') || !!cancellation}>{cancellation ? 'Printing…' : 'Print label'}</button>
+    <button class="primary print" on:click={print} disabled={continuousPrinterUnsupported||(route === 'local' ? !localConnection : connection !== 'connected') || !!cancellation} title={continuousPrinterUnsupported?'The selected printer is not qualified for continuous media.':undefined}>{cancellation ? 'Printing…' : 'Print label'}</button>
   </div>
   {#if cancellation}<button class="cancel" on:click={() => cancellation?.abort()}>Cancel current job</button>{/if}
   <p class="message" aria-live="polite">{message}</p>
@@ -200,6 +222,6 @@
 
 <style>
   .printer-card{padding:.75rem;border-top:1px solid var(--mble-border,#e5dfd5)}.heading{display:flex;justify-content:space-between;gap:.6rem;align-items:flex-start;margin-bottom:.65rem}.heading h2{margin:0 0 .12rem;color:var(--mble-text-muted,#59635e);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}.heading strong{font-size:.86rem}.connection{display:flex;gap:.32rem;align-items:center;text-transform:capitalize;font-size:.68rem;color:var(--mble-text-muted,#59635e)}.connection i{width:.48rem;height:.48rem;border-radius:50%;background:#999}.printer-card[data-state='connected'] .connection i{background:#2e9b62}.printer-card[data-state='connecting'] .connection i{background:#d49331}.printer-card[data-state='error'] .connection i{background:var(--mble-danger,#a21)}
-  .media-summary{display:grid;grid-template-columns:auto 1fr;gap:.08rem .5rem;padding:.55rem .6rem;margin-bottom:.65rem;border:1px solid var(--mble-border,#e5dfd5);border-radius:var(--mble-radius-sm,6px);background:var(--mble-surface-muted,#f4f1ea)}.media-summary span{grid-row:span 2;color:var(--mble-text-muted,#59635e);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em}.media-summary strong{font-size:.9rem}.media-summary small{color:var(--mble-text-muted,#59635e)}
+  .media-summary{display:grid;grid-template-columns:auto 1fr;gap:.08rem .5rem;padding:.55rem .6rem;margin-bottom:.65rem;border:1px solid var(--mble-border,#e5dfd5);border-radius:var(--mble-radius-sm,6px);background:var(--mble-surface-muted,#f4f1ea)}.media-summary span{grid-row:span 2;color:var(--mble-text-muted,#59635e);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em}.media-summary strong{font-size:.9rem}.media-summary small{color:var(--mble-text-muted,#59635e)}fieldset{margin:.55rem 0;padding:.5rem;border:1px solid var(--mble-border,#e5dfd5);border-radius:var(--mble-radius-sm,6px)}legend{font-size:.72rem;font-weight:600}fieldset small{display:block;color:var(--mble-text-muted,#59635e);font-size:.68rem}.check{flex-direction:row;align-items:center}
   label{display:flex;flex-direction:column;gap:.2rem;margin-bottom:.45rem;font-size:.72rem}.hint,.message{margin:.45rem 0;color:var(--mble-text-muted,#59635e);font-size:.72rem;line-height:1.35}.actions{display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin-top:.6rem}.actions .print{grid-column:1/-1;padding:.48rem}.primary{background:var(--mble-primary,#1c6647);color:var(--mble-primary-text,#fff);border-color:var(--mble-primary,#1c6647)}button:disabled{opacity:.45}.cancel{width:100%;margin-top:.35rem}.message{min-height:1.9em}details{margin:.4rem 0}details label{margin-top:.35rem}dl{display:grid;grid-template-columns:auto 1fr;gap:.18rem .55rem;margin:.55rem 0 0;padding-top:.5rem;border-top:1px solid var(--mble-border,#e5dfd5);font-size:.72rem}dt{color:var(--mble-text-muted,#59635e)}dd{margin:0}.fault{color:var(--mble-danger,#a21)}code{font-size:.68rem}
 </style>

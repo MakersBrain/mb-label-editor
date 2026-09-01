@@ -9,6 +9,8 @@ import { once } from 'node:events';
 import { expect, test } from '@playwright/test';
 import { defaultDocument } from '../../packages/label-editor/src/lib/model.js';
 import { LocalApiPrintRoute } from '../../packages/label-editor/src/lib/print/local-api.js';
+import { resolveContinuousDocument } from '../../packages/label-editor/src/lib/continuous-media.js';
+import type { PrinterDefinition } from '../../packages/label-editor/src/lib/print/types.js';
 
 const origin = 'http://127.0.0.1:4173';
 const cliRoot = [resolve(import.meta.dirname, '../../../mb-printer-cli'), resolve(import.meta.dirname, '../../../../../mb-printer-cli')]
@@ -44,10 +46,10 @@ test('real CLI process supports pairing, preflight, jobs, restart, and revocatio
   const port = await unusedPort();
   const base = `http://127.0.0.1:${port}/v1`;
   await writeFile(config, JSON.stringify({ api_port: port, allowed_origins: [origin], max_request_bytes: 8_388_608, max_document_bytes: 6_291_456, max_recent_jobs: 100, printer_defaults: {} }));
-  const pairOutput = execFileSync(binary, ['--config', config, 'api', 'pair', '--expires-seconds', '120'], { encoding: 'utf8' });
-  const secret = pairOutput.match(/:\s*([^\s]+)\s*$/)?.[1]; expect(secret).toBeTruthy();
+  const pairOutput = execFileSync(binary, ['--config', config, 'service', 'pair', '--expires-seconds', '120'], { encoding: 'utf8' });
+  const secret = pairOutput.trim().split(/\s+/).at(-1); expect(secret).toBeTruthy();
   let service: ChildProcess | undefined;
-  const start = async () => { service = spawn(binary, ['--config', config, 'api', 'serve', '--bind', '127.0.0.1', '--port', String(port)], { stdio: 'pipe' }); await waitUntilReady(base, service); };
+  const start = async () => { service = spawn(binary, ['--config', config, 'service', 'run', '--bind', '127.0.0.1', '--port', String(port)], { stdio: 'pipe' }); await waitUntilReady(base, service); };
   try {
     await start();
     const preflight = await fetch(`${base}/jobs`, { method: 'OPTIONS', headers: {
@@ -75,6 +77,26 @@ test('real CLI process supports pairing, preflight, jobs, restart, and revocatio
     expect(progress.length).toBeGreaterThan(0);
     expect((await route.print(request)).outcome).toBe('completed');
 
+    const negotiated=await route.negotiateCapabilities();expect(negotiated.features).toContain('native-document-batch');
+    connection=await route.configureConnection({id:'continuous-file',model:'ql-1110nwb',transport:{kind:'file',path:join(directory,'continuous.capture')}});
+    const source=defaultDocument();source.media.shape='continuous';source.media.width=62;source.media.height=30;source.media.printableBounds={x:0,y:0,width:62,height:30};
+    const limits={minimumLengthMm:25.4,maximumLengthMm:3000,source:'printer' as const,printerModel:'ql-1110nwb'};
+    const first=resolveContinuousDocument(source,undefined,limits).document;
+    source.media.height=45;source.media.printableBounds.height=45;
+    const second=resolveContinuousDocument(source,undefined,limits).document;
+    const ql:PrinterDefinition={id:'ql-1110nwb',displayName:'Brother QL-1110NWB',dpi:300,protocols:['brother'],media:{minWidth:1,maxWidth:103.6,minHeight:25.4,maxHeight:3000},continuousMedia:{supported:true,minimumLengthMm:25.4,maximumLengthMm:3000,minimumExtraFeedMm:0,maximumExtraFeedMm:0,cutModes:['after-each','after-job','none'],automaticCutter:true,supportsChainedRaster:true,requiredFeedBeforeMm:0,requiredFeedAfterMm:0}};
+    const batchProgress:{item:number;items:number;copy:number;copies:number;current:{action:number;bytesSent:number}}[]=[];
+    expect((await route.printBatch!({documents:[first,second],printer:ql,copies:1,continuous:{cutMode:'after-job',extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:true},onProgress:value=>batchProgress.push(value)})).outcome).toBe('completed');
+    // File transport may complete the full batch between the service's 250 ms
+    // status polls. The terminal snapshot must still identify the final item;
+    // action-by-action transitions are covered deterministically in the CLI.
+    expect(batchProgress.at(-1)?.item).toBe(1);
+    expect(batchProgress.at(-1)?.items).toBe(2);
+    expect(batchProgress.at(-1)?.copy).toBe(0);
+    expect(batchProgress.at(-1)?.copies).toBe(1);
+    expect(batchProgress.at(-1)?.current.bytesSent).toBeGreaterThan(0);
+    connection=await route.configureConnection({id:'acceptance-file',model:'m200',transport:{kind:'file',path:join(directory,'printer.capture')}});
+
     const cancellable = await route.submit({ ...request, copies: 8 });
     const cancelResult = await route.cancel(cancellable.id);
     expect(['cancelled-before-send', 'cancelled-partial', 'outcome-unknown', 'completed']).toContain(cancelResult.outcome);
@@ -86,7 +108,7 @@ test('real CLI process supports pairing, preflight, jobs, restart, and revocatio
     expect(recovered.status).toBe(200); expect((await recovered.json() as { terminal: boolean }).terminal).toBe(true);
 
     await stop(service); service = undefined;
-    execFileSync(binary, ['--config', config, 'api', 'revoke', grant.grantId], { stdio: 'pipe' });
+    execFileSync(binary, ['--config', config, 'service', 'grant', 'revoke', grant.grantId], { stdio: 'pipe' });
     await start();
     await expect(route.validate(defaultDocument())).rejects.toThrow('revoked');
   } finally {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import 'fake-indexeddb/auto';
-import{afterEach,describe,expect,it,vi}from'vitest';import wire from'./fixtures/local-api-v1-wire.json';import{defaultDocument,LocalApiPrintRoute,type PrinterDefinition}from'../src/index.js';
+import{afterEach,describe,expect,it,vi}from'vitest';import wire from'./fixtures/local-api-v1-wire.json';import{defaultDocument,LocalApiPrintRoute,resolveContinuousDocument,type PrinterDefinition}from'../src/index.js';
 import { EditorDatabase, isLocalApiJobDetails, JobJournal } from '../src/index.js';
 const printer:PrinterDefinition={id:'m110',displayName:'M110',dpi:203,protocols:['m110'],media:{minWidth:1,maxWidth:100,minHeight:1,maxHeight:100}};const connection={id:'desk',model:'m110',status:'ready',transport:{kind:'tcp' as const,address:'printer.local:9100'}};afterEach(()=>vi.unstubAllGlobals());
 it('locks the shared v1 wire fixture to hosted-PWA preflight and camelCase fields',()=>{expect(Object.keys(wire.pairResponse)).toEqual(['grantId','token','expiresAt']);expect(wire.jobRequest).toHaveProperty('printerId','m110');expect(wire.completedJob).toMatchObject({terminal:true,outcome:'completed',lastCompletedAction:4,bytesSent:128});expect(wire.preflight).toMatchObject({requestHeaders:'authorization,content-type,idempotency-key',privateNetwork:true})});
@@ -91,4 +91,25 @@ it('persists and reuses the exact local submission after an ambiguous POST', asy
   vi.stubGlobal('fetch', resumed);
   expect(await route.recover(persisted)).toMatchObject({ outcome: 'completed', bytesSent: 20 });
   expect(resumed).toHaveBeenCalledOnce();
+});
+
+it('preserves capability-checked continuous options in the local-service wire snapshot',async()=>{
+  const definition:PrinterDefinition={id:'ql',displayName:'QL',dpi:300,protocols:['brother'],media:{minWidth:1,maxWidth:100,minHeight:25.4,maxHeight:1000},continuousMedia:{supported:true,minimumLengthMm:25.4,maximumLengthMm:1000,minimumExtraFeedMm:0,maximumExtraFeedMm:0,cutModes:['after-each','none'],automaticCutter:true,supportsChainedRaster:false}};
+  const source=defaultDocument();source.media.shape='continuous';const document=resolveContinuousDocument(source,undefined,{minimumLengthMm:25.4,maximumLengthMm:1000,source:'printer',printerModel:'ql'}).document;
+  let body:Record<string,unknown>={};vi.stubGlobal('fetch',vi.fn(async(_url:string,init?:RequestInit)=>{body=JSON.parse(String(init?.body));return new Response(JSON.stringify({id:'job',state:'queued',terminal:false,lastCompletedAction:-1,bytesSent:0,action:0,actions:1,totalBytes:1,phase:'queued'}),{status:202})}));
+  await new LocalApiPrintRoute({token:()=> 'token',connection:()=>({...connection,model:'ql'})}).submit({document,printer:definition,copies:1,continuous:{cutMode:'none',extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:false}});
+  expect(body.continuous).toEqual({cutMode:'none',extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:false});
+});
+
+it('submits a continuous document array as one native local-service batch',async()=>{
+  const definition:PrinterDefinition={id:'ql-1110nwb',displayName:'QL-1110NWB',dpi:300,protocols:['brother'],media:{minWidth:1,maxWidth:103.6,minHeight:25.4,maxHeight:3000},continuousMedia:{supported:true,minimumLengthMm:25.4,maximumLengthMm:3000,minimumExtraFeedMm:0,maximumExtraFeedMm:0,cutModes:['after-each','after-job','none'],automaticCutter:true,supportsChainedRaster:true}};
+  const source=defaultDocument();source.media.shape='continuous';source.media.width=62;source.media.height=30;source.media.printableBounds={x:0,y:0,width:62,height:30};
+  const first=resolveContinuousDocument(source,undefined,{minimumLengthMm:25.4,maximumLengthMm:3000,source:'printer',printerModel:definition.id}).document;
+  const second=resolveContinuousDocument({...source,media:{...source.media,height:45,printableBounds:{...source.media.printableBounds,height:45}}},undefined,{minimumLengthMm:25.4,maximumLengthMm:3000,source:'printer',printerModel:definition.id}).document;
+  let body:Record<string,unknown>={};
+  vi.stubGlobal('fetch',vi.fn(async(url:string,init?:RequestInit)=>{if(url.endsWith('/capabilities'))return new Response(JSON.stringify({service:'mb-printer',version:'1',api:'v1',features:['continuous-options','native-document-batch']}));body=JSON.parse(String(init?.body));return new Response(JSON.stringify({id:'batch',state:'completed',terminal:true,outcome:'completed',lastCompletedAction:9,bytesSent:200,action:10,actions:10,totalBytes:200,phase:'completed'}),{status:202})}));
+  const route=new LocalApiPrintRoute({token:()=> 'token',connection:()=>({...connection,model:definition.id})});
+  expect((await route.negotiateCapabilities()).features).toContain('native-document-batch');
+  const result=await route.printBatch!({documents:[first,second],printer:definition,copies:1,continuous:{cutMode:'after-job',extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:true}});
+  expect(result.outcome).toBe('completed');expect(body).not.toHaveProperty('document');expect((body.documents as Array<{media:{height:number}}>).map(document=>document.media.height)).toEqual([30_000,45_000]);expect(body.continuous).toMatchObject({cutMode:'after-job',chainCopies:true});
 });
