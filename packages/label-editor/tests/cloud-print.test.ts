@@ -14,6 +14,7 @@ const job = (state: string, terminalOutcome: string | null = null): CloudPrintJo
   id: 'b5e352b9-bab4-436f-bf81-da069cc164c0', printerId: printer.id, agentId: printer.agentId,
   state, terminalOutcome, progress: null, action: state, bytesSent: state === 'completed' ? 42 : 0,
   totalBytes: 42, lastCompletedAction: state === 'completed' ? 3 : -1, actionCount: 4,
+  item:0,items:1,copy:0,copies:1,
   writeMayHaveOccurred: state === 'completed', cancellationRequestedAt: null, errorCode: null,
   createdAt: 1, deliveredAt: null, startedAt: null, terminalAt: state === 'completed' ? 2 : null
 });
@@ -98,5 +99,16 @@ describe('cloud print OpenAPI client and route', () => {
     const terminal = await controller.cancel(job('running').id);
     expect(terminal.terminalOutcome).toBe('cancelled-partial');
     expect(published).toEqual(['running', 'running', 'cancelled-partial']);
+  });
+
+  it('submits multiple documents in one cloud job snapshot',async()=>{
+    const bodies:string[]=[];
+    const fetcher=vi.fn(async(input:RequestInfo|URL,init?:RequestInit)=>{const request=input instanceof Request?input:new Request(input,init);if(request.url.endsWith('/openapi.json'))return response({components:{schemas:{ValidatedPrintRequest:{properties:{documents:{},continuous:{}}}}}});if(request.method==='POST'){bodies.push(await request.text());return response(job('completed'),202)}return response(job('completed'))});
+    const client=new CloudPrintClient({baseUrl:'https://print.example.test',tenantId:'tenant-1',getAccessToken:()=> 'token',fetch:fetcher});
+    expect(await client.negotiateCapabilities()).toEqual({nativeBatch:true,continuousOptions:true});
+    const route=new CloudPrintRoute({client,printer:()=>printer,journal:new JobJournal(new EditorDatabase()),controller:new CloudPrintJobController(client,0)});
+    const second=defaultDocument();second.media.height=45;second.media.printableBounds.height=45;
+    const result=await route.printBatch!({documents:[defaultDocument(),second],printer:definition,copies:1});
+    expect(result.outcome).toBe('completed');const wire=JSON.parse(bodies[0]);expect(wire.request).not.toHaveProperty('document');expect(wire.request.documents.map((document:{media:{height:number}})=>document.media.height)).toEqual([30_000,45_000]);
   });
 });

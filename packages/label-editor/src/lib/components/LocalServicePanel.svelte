@@ -75,6 +75,7 @@
 
   async function refresh() {
     try {
+      await route.negotiateCapabilities().catch(() => undefined);
       connections = await route.connections();
       const selected = connections.find((item) => item.id === selectedId);
       onConnection(selected);

@@ -3,6 +3,8 @@
   import type { LabelDocument } from '../model.js';
   import { downloadBytes, openPdfInNewWindow } from '../browser-files.js';
   import type { DocumentMaterializer } from '../materialization.js';
+  import type { DocumentMeasurer } from '../continuous-media.js';
+  import { prepareDocumentForOutput } from '../output-preparation.js';
   import { sheetLayoutPresets } from '../sheets/catalogue.js';
   import { materializeSheetJob } from '../sheets/job.js';
   import { presetToDefinition, sheetPlanInput } from '../sheets/normalize.js';
@@ -11,6 +13,7 @@
   export let document: LabelDocument;
   export let exporter: SheetExporter;
   export let materializer: DocumentMaterializer;
+  export let measurer: DocumentMeasurer;
   export let initialLayoutId = '';
   export let initialPreferences: SheetPreferencesV1 | undefined = undefined;
   export let onLayout: (layoutId: string, fillOrder: SheetFillOrder, custom?: NonNullable<SheetLayoutPreset['grid']>) => void = () => {};
@@ -71,7 +74,8 @@
       const capacity = layout.kind === 'grid' ? layout.rows * layout.columns : layout.slots.length;
       if (firstSlot >= capacity) { firstSlot = 0; return; }
       const options = { firstSlot, dpi: 300 };
-      const input = sheetPlanInput(document, itemCount);
+      const prepared=await prepareDocumentForOutput(document,{materializer,measurer});
+      const input = sheetPlanInput(prepared.document, itemCount);
       const selected = selectedPreset();
       const next = await exporter.planSheet(input, layout, options);
       if (!isSheetPlanForRequest(next, input, layout, options)) throw new Error('The sheet exporter returned an invalid placement plan.');
@@ -90,9 +94,10 @@
     const pageCount = plan.pageCount;
     const layout = definition();
     const options = { firstSlot, dpi: 300 };
-    const documents = mode === 'copies'
+    const sources = mode === 'copies'
       ? materializeSheetJob(document, { mode, copies })
       : await Promise.all((document.template?.records ?? []).map((record) => materializer.materializeRecord(document, record)));
+    const documents=await Promise.all(sources.map(async source=>(await prepareDocumentForOutput(source,{materializer,measurer})).document));
     if (!documents.length) throw new Error('Import or select at least one CSV record.');
     return { data: await exporter.exportSheetPdf(documents, layout, options), pageCount };
   }

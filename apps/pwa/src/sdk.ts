@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import init, * as wasm from '@makersbrain/printer-sdk/web';
 import { executePlan as executeBrowserPlan } from '@makersbrain/printer-sdk/adapters';
-import { DocumentMaterializationError, adaptSdkProtocolPlan, defaultDocument, fromSdkDocument, isSheetPlan, isZoneBatchPlanForRequest, structuredMaterializationError, toSdkDocument, toSdkPlanActions, uuid, type DocumentMaterializer, type LabelDocument, type MaterializeOptions, type MediaPreset, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type RasterPreview, type SdkPlanAction, type SheetDiagnostic, type SheetExporter, type ZoneBatchOptions } from '@makersbrain/label-editor';
+import { DocumentMaterializationError, adaptSdkProtocolPlan, assertDocumentReadyForOutput, defaultDocument, fromSdkDocument, isSheetPlan, isZoneBatchPlanForRequest, structuredMaterializationError, toSdkDocument, toSdkPlanActions, uuid, type DocumentMaterializer, type DocumentMeasurement, type DocumentMeasurer, type LabelDocument, type MaterializeOptions, type MediaPreset, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type RasterPreview, type SdkPlanAction, type SheetDiagnostic, type SheetExporter, type ZoneBatchOptions } from '@makersbrain/label-editor';
 
 interface NormalizedPage { page: number; widthUm: number; heightUm: number; rasterWidth: number; rasterHeight: number; pixels: number[] }
 interface Stamp extends NormalizedPage { slot: number }
-type BrowserSdk = PrinterSdk & SheetExporter & DocumentMaterializer;
+type BrowserSdk = PrinterSdk & SheetExporter & DocumentMaterializer & DocumentMeasurer;
 let instance: Promise<BrowserSdk> | undefined;
 
 export function loadPrinterSdk(diagnostics?: (event: SheetDiagnostic) => void): Promise<BrowserSdk> {
@@ -15,6 +15,9 @@ export function loadPrinterSdk(diagnostics?: (event: SheetDiagnostic) => void): 
 function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
   const stampCache = new Map<string, Stamp>();
   return {
+    async measure(document) {
+      return measurement(JSON.parse(wasm.measureDocument(JSON.stringify(toSdkDocument(document)))) as unknown);
+    },
     async materializeRecord(document, record, options) {
       try { return materializedDocument(JSON.parse(wasm.materializeRecord(JSON.stringify(toSdkDocument(document)), JSON.stringify(record), JSON.stringify(materializeOptions(options)))) as unknown); }
       catch (error) { throw structuredMaterializationError(error); }
@@ -30,9 +33,9 @@ function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
     async validateCanonical(value) { const errors = JSON.parse(wasm.validateDocument(JSON.stringify(value))) as string[]; return { valid: !errors.length, errors }; },
     async importV3Canonical(value) { return JSON.parse(wasm.importV3(JSON.stringify(value))) as unknown; },
     async validate(document) { const errors = JSON.parse(wasm.validateDocument(JSON.stringify(toSdkDocument(document)))) as string[]; return { valid: !errors.length, errors }; },
-    async render(document) { return decodePng(wasm.renderPng(JSON.stringify(toSdkDocument(document)))); },
-    async exportPng(document) { return wasm.renderPng(JSON.stringify(toSdkDocument(document))); },
-    async exportPdf(documents) { return wasm.renderBatchPdf(JSON.stringify(documents.map(toSdkDocument))); },
+    async render(document) { assertDocumentReadyForOutput(document); return decodePng(wasm.renderPng(JSON.stringify(toSdkDocument(document)))); },
+    async exportPng(document) { assertDocumentReadyForOutput(document); return wasm.renderPng(JSON.stringify(toSdkDocument(document))); },
+    async exportPdf(documents) { documents.forEach(assertDocumentReadyForOutput); return wasm.renderBatchPdf(JSON.stringify(documents.map(toSdkDocument))); },
     async planSheet(input, layout, options) {
       const started = performance.now();
       try {
@@ -57,8 +60,15 @@ function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
       }
     },
     async plan(document, printer, options) {
-      const request = JSON.stringify({ copies: options.copies, ...(options.density === undefined ? {} : { density: options.density }), streaming: !!options.streaming, lzo: !!options.lzo });
+      assertDocumentReadyForOutput(document);
+      const request = JSON.stringify({ copies: options.copies, ...(options.density === undefined ? {} : { density: options.density }), streaming: !!options.streaming, lzo: !!options.lzo, ...(options.continuous ? { continuous: { cutMode: options.continuous.cutMode, extraFeedBeforeUm: Math.round(options.continuous.extraFeedBeforeMm * 1_000), extraFeedAfterUm: Math.round(options.continuous.extraFeedAfterMm * 1_000), chainCopies: options.continuous.chainCopies } } : {}) });
       const parsed = JSON.parse(wasm.renderProtocolPlanWithOptions(JSON.stringify(toSdkDocument(document)), printer.id, request)) as { protocol: string; actions: SdkPlanAction[] };
+      return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
+    },
+    async planBatch(documents, printer, options) {
+      documents.forEach(assertDocumentReadyForOutput);
+      const request = JSON.stringify({ copies: options.copies, ...(options.density === undefined ? {} : { density: options.density }), streaming: !!options.streaming, lzo: !!options.lzo, ...(options.continuous ? { continuous: { cutMode: options.continuous.cutMode, extraFeedBeforeUm: Math.round(options.continuous.extraFeedBeforeMm * 1_000), extraFeedAfterUm: Math.round(options.continuous.extraFeedAfterMm * 1_000), chainCopies: options.continuous.chainCopies } } : {}) });
+      const parsed = JSON.parse(wasm.renderProtocolBatchPlanWithOptions(JSON.stringify(documents.map(toSdkDocument)), printer.id, request)) as { protocol: string; actions: SdkPlanAction[] };
       return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
     },
     async executePlan(plan, transport, progress, signal) {
@@ -83,8 +93,13 @@ function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
       return { protocol, ...status, raw: frames };
     },
     async printerDefinitions() {
-      const definitions = JSON.parse(wasm.printerCapabilities()) as { id: string; name: string; dpi: number; protocol: string; min_width_mm?: number; max_width_mm?: number; min_height_mm?: number; max_height_mm?: number }[];
-      return definitions.map((item) => ({ id: item.id, displayName: item.name, dpi: item.dpi, protocols: [item.protocol], media: { minWidth: item.min_width_mm ?? 1, maxWidth: item.max_width_mm ?? 300, minHeight: item.min_height_mm ?? 1, maxHeight: item.max_height_mm ?? 1000 } }));
+      const definitions = JSON.parse(wasm.printerCapabilities()) as { id: string; name: string; dpi: number; protocol: string; minRows?: number; maxRows?: number; continuousMedia?: PrinterDefinition['continuousMedia'] }[];
+      return definitions.map((item) => {
+        const rowMm = (rows: number) => rows * 25.4 / item.dpi;
+        const minimumLength = item.continuousMedia?.minimumLengthMm ?? (item.minRows ? rowMm(item.minRows) : 1);
+        const maximumLength = item.continuousMedia?.maximumLengthMm ?? (item.maxRows ? rowMm(item.maxRows) : 1000);
+        return { id: item.id, displayName: item.name, dpi: item.dpi, protocols: [item.protocol], media: { minWidth: 1, maxWidth: 300, minHeight: minimumLength, maxHeight: maximumLength }, ...(item.continuousMedia ? { continuousMedia: item.continuousMedia } : {}) };
+      });
     },
     async importFirstPdfPage(data, dpi) {
       const [page] = JSON.parse(wasm.normalizePdf(data, dpi, true)) as NormalizedPage[];
@@ -104,6 +119,28 @@ function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
       if (!stamp) throw new Error('Selected La Poste slot is no longer available.');
       return imageDocument(await grayPng(stamp), `La Poste ${format} page ${stamp.page} slot ${stamp.slot}`);
     }
+  };
+}
+
+function measurement(value: unknown): DocumentMeasurement {
+  if (!value || typeof value !== 'object') throw new Error('The printer SDK returned an invalid document measurement.');
+  const raw = value as { elements?: unknown; contentBounds?: unknown; layoutVersion?: unknown };
+  if (!Array.isArray(raw.elements) || typeof raw.layoutVersion !== 'string') throw new Error('The printer SDK returned an invalid document measurement.');
+  const bounds = (input: unknown) => {
+    if (!input || typeof input !== 'object') throw new Error('The printer SDK returned invalid physical bounds.');
+    const item = input as { x?: unknown; y?: unknown; width?: unknown; height?: unknown };
+    if (![item.x, item.y, item.width, item.height].every(Number.isFinite)) throw new Error('The printer SDK returned invalid physical bounds.');
+    return { x: Number(item.x) / 1_000, y: Number(item.y) / 1_000, width: Number(item.width) / 1_000, height: Number(item.height) / 1_000 };
+  };
+  return {
+    layoutVersion: raw.layoutVersion,
+    elements: raw.elements.map((input) => {
+      if (!input || typeof input !== 'object') throw new Error('The printer SDK returned an invalid measured element.');
+      const item = input as { instanceId?: unknown; sourceElementId?: unknown; zoneId?: unknown; bounds?: unknown };
+      if (typeof item.instanceId !== 'string' || typeof item.sourceElementId !== 'string' || (item.zoneId !== undefined && typeof item.zoneId !== 'string')) throw new Error('The printer SDK returned an invalid measured element.');
+      return { instanceId: item.instanceId, sourceElementId: item.sourceElementId, ...(item.zoneId === undefined ? {} : { zoneId: item.zoneId }), bounds: bounds(item.bounds) };
+    }),
+    ...(raw.contentBounds === undefined ? {} : { contentBounds: bounds(raw.contentBounds) }),
   };
 }
 

@@ -10,6 +10,16 @@ export interface Size { width: Millimetres; height: Millimetres }
 export interface Bounds extends Point, Size {}
 export interface Transform extends Bounds { rotation: number }
 export interface Zone extends Bounds { id: Id; name: string; cloneOf?: Id }
+export interface ContinuousMediaSettingsV1 {
+  version: 1;
+  lengthMode: 'fixed' | 'fit-content';
+  fixedLengthMm: Millimetres;
+  leadingMarginMm: Millimetres;
+  trailingMarginMm: Millimetres;
+  preferredMinimumLengthMm?: Millimetres;
+  preferredMaximumLengthMm?: Millimetres;
+  batchLengthMode: 'per-record' | 'uniform-longest';
+}
 export interface Media {
   width: Millimetres;
   height: Millimetres;
@@ -19,6 +29,7 @@ export interface Media {
   printableBounds: Bounds;
   shape: LabelShape;
   zones?: Zone[];
+  continuousSettings?: ContinuousMediaSettingsV1;
 }
 
 export interface Resource { id: Id; name: string; mimeType: string; sha256: string; data: string }

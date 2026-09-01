@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 export * from './lib/model.js'; export * from './lib/commands.js'; export * from './lib/history.js'; export * from './lib/store.js'; export * from './lib/files.js';
 export * from './lib/snapping.js';
+export * from './lib/continuous-media.js';
+export * from './lib/output-preparation.js';
 export * from './lib/catalogue.js';
 export * from './lib/asset-catalog/client.js';
 export * from './lib/external-resources/types.js';

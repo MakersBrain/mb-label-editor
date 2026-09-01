@@ -37,6 +37,225 @@ test('open, edit, save, and reload the installed shell offline', async ({ page, 
   await expect(page.getByRole('button', { name: 'Text', exact: true })).toBeVisible();
 });
 
+test('exports the current label as canonical JSON from the File menu', async ({ page }) => {
+  await page.goto('/');
+  const download = page.waitForEvent('download');
+  await page.getByText('File', { exact: true }).click();
+  await page.getByRole('button', { name: 'Export JSON', exact: true }).click();
+  const exported = await download;
+  expect(exported.suggestedFilename()).toBe('Untitled label.mb-label.json');
+  const path = await exported.path();
+  expect(path).not.toBeNull();
+  const json = JSON.parse(await readFile(path!, 'utf8')) as { version: number; media: { unit: string } };
+  expect(json).toMatchObject({ version: 4, media: { unit: 'micrometre' } });
+  await expect(page.locator('footer')).toContainText('Exported JSON.');
+});
+
+test('fit-content continuous labels preview and export a finite resolved cut length',async({page})=>{
+  await page.goto('/');
+  await page.getByRole('button',{name:'Rectangle',exact:true}).click();
+  await openDialog(page,'Label','Media & zones…');
+  const dialog=page.getByRole('dialog',{name:'Media & zones'});
+  await dialog.getByLabel('Shape').selectOption('continuous');
+  await expect(dialog.getByLabel('Length mode')).toBeEnabled();
+  await dialog.getByLabel('Length mode').selectOption('fit-content');
+  await expect(dialog.getByText('Calculated length (mm)')).not.toContainText('Calculating…',{timeout:10000});
+  await dialog.getByRole('button',{name:'Close Media & zones'}).click();
+  await expect(page.locator('.media.continuous .cut-line')).toBeVisible();
+  const initialCut=Number((await page.locator('.cut-line').textContent())?.match(/[\d.]+/)?.[0]);
+  await page.getByLabel('Y (mm)').fill('40');
+  await page.getByLabel('Y (mm)').press('Tab');
+  await expect.poll(async()=>Number((await page.locator('.cut-line').textContent())?.match(/[\d.]+/)?.[0])).toBeGreaterThan(initialCut+30);
+  const download=page.waitForEvent('download');
+  await page.getByText('File',{exact:true}).click();
+  await page.getByRole('button',{name:'Export JSON',exact:true}).click();
+  const path=await(await download).path();
+  const canonical=JSON.parse(await readFile(path!,'utf8')) as {media:{height:number;continuous:boolean};elements:Array<{transform:{y:number}}>;extensions:Record<string,{continuousSettings?:{lengthMode?:string}}>};
+  expect(canonical.media.continuous).toBe(true);
+  expect(canonical.media.height).toBeGreaterThan(0);
+  expect(canonical.elements[0].transform.y).toBe(40_000);
+  expect(canonical.extensions['makersbrain.editor:state'].continuousSettings?.lengthMode).toBe('fit-content');
+  await openDialog(page,'Label','Media & zones…');
+  await page.getByRole('dialog',{name:'Media & zones'}).getByLabel('Shape').selectOption('rectangle');
+  await page.getByRole('button',{name:'Close Media & zones'}).click();
+  await page.getByText('File',{exact:true}).click();
+  await page.locator('input[type=file]').setInputFiles(path!);
+  await expect(page.locator('.media.continuous .cut-line')).toBeVisible();
+  await page.getByRole('listitem').getByRole('button',{name:'Rectangle',exact:true}).click();
+  await expect(page.getByLabel('Y (mm)')).toHaveValue('40');
+  await openDialog(page,'Label','Media & zones…');
+  const reopened=page.getByRole('dialog',{name:'Media & zones'});
+  await expect(reopened.getByLabel('Length mode')).toHaveValue('fit-content');
+  await reopened.getByLabel('Length mode').selectOption('fixed');
+  await reopened.getByLabel('Cut length (mm)').fill('20');
+  await reopened.getByLabel('Cut length (mm)').press('Tab');
+  await expect(reopened.getByRole('status')).toContainText('extends past the fixed cut line');
+  await reopened.getByRole('button',{name:'Close Media & zones'}).click();
+});
+
+test('continuous PNG and PDF exports use the resolved physical dimensions',async({page})=>{
+  await page.goto('/');
+  await openDialog(page,'Label','Media & zones…');
+  const dialog=page.getByRole('dialog',{name:'Media & zones'});
+  await dialog.getByLabel('Shape').selectOption('continuous');
+  await dialog.getByLabel('Cut length (mm)').fill('30');
+  await dialog.getByLabel('Cut length (mm)').press('Tab');
+  await dialog.getByRole('button',{name:'Close Media & zones'}).click();
+  const pngDownload=page.waitForEvent('download');
+  await page.getByText('File',{exact:true}).click();
+  await page.getByRole('button',{name:'Export PNG',exact:true}).click();
+  const pngPath=await(await pngDownload).path();
+  const png=await readFile(pngPath!);
+  expect(png.readUInt32BE(16)).toBe(400);
+  expect(png.readUInt32BE(20)).toBe(240);
+  const pdfDownload=page.waitForEvent('download');
+  await page.getByText('File',{exact:true}).click();
+  await page.getByRole('button',{name:'Export PDF',exact:true}).click();
+  const pdfPath=await(await pdfDownload).path();
+  const box=(await readFile(pdfPath!,'latin1')).match(/\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/);
+  expect(box).not.toBeNull();
+  expect(Number(box![1])).toBeCloseTo(50*72/25.4,2);
+  expect(Number(box![2])).toBeCloseTo(30*72/25.4,2);
+});
+
+test('invalid continuous settings disable output until printer limits make them valid',async({page})=>{
+  await page.goto('/');
+  await openDialog(page,'Label','Media & zones…');
+  const dialog=page.getByRole('dialog',{name:'Media & zones'});
+  await dialog.getByLabel('Shape').selectOption('continuous');
+  await dialog.getByLabel('Cut length (mm)').fill('2000');
+  await dialog.getByLabel('Cut length (mm)').press('Tab');
+  await dialog.getByRole('button',{name:'Close Media & zones'}).click();
+  await page.getByText('File',{exact:true}).click();
+  await expect(page.getByRole('button',{name:'Export JSON',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Export PNG',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Export PDF',exact:true})).toBeDisabled();
+  await page.getByText('File',{exact:true}).click();
+  await page.getByLabel('Printer model').selectOption('ql-1110nwb');
+  await page.getByText('File',{exact:true}).click();
+  await expect(page.getByRole('button',{name:'Export JSON',exact:true})).toBeEnabled();
+});
+
+test('an unqualified printer cannot send a continuous label',async({page})=>{
+  await page.goto('/');
+  await openDialog(page,'Label','Media & zones…');
+  const media=page.getByRole('dialog',{name:'Media & zones'});
+  await media.getByLabel('Shape').selectOption('continuous');
+  await media.getByRole('button',{name:'Close Media & zones'}).click();
+  await page.getByLabel('Printer model').selectOption('m200');
+  await expect(page.getByRole('button',{name:'Print label'})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Print label'})).toHaveAttribute('title','The selected printer is not qualified for continuous media.');
+});
+
+test('continuous CSV records resolve to variable lengths and gate batch cutting',async({page})=>{
+  await page.goto('/');
+  await page.getByRole('button',{name:'Text',exact:true}).click();
+  await page.getByRole('textbox',{name:'Text',exact:true}).fill('{{name}}');
+  await page.getByLabel('Overflow').selectOption('auto-height');
+  await page.getByLabel('Width').fill('20');
+  await page.getByLabel('Width').press('Tab');
+  await page.getByLabel('Printer model').selectOption('ql-1110nwb');
+  await openDialog(page,'Label','Media & zones…');
+  const media=page.getByRole('dialog',{name:'Media & zones'});
+  await media.getByLabel('Shape').selectOption('continuous');
+  await media.getByLabel('Length mode').selectOption('fit-content');
+  await media.getByRole('button',{name:'Close Media & zones'}).click();
+  await openDialog(page,'Label','Data…');
+  const data=page.getByRole('dialog',{name:'Data'});
+  await data.locator('input[type=file]').setInputFiles({name:'records.csv',mimeType:'text/csv',buffer:Buffer.from(`name\nShort\n${'A very long shipping description '.repeat(4)}\n`)});
+  await expect(data.getByText('2 records · name')).toBeVisible();
+  await data.getByRole('button',{name:'Close Data'}).click();
+  await openDialog(page,'Print','Batch printing…');
+  const batch=page.getByRole('dialog',{name:'Batch printing'});
+  const cutting=batch.getByLabel('Batch cutting');
+  await expect(cutting).toBeVisible();
+  expect(await cutting.locator('option').allTextContents()).toEqual(['After each label','Do not cut']);
+  await batch.getByRole('button',{name:'Calculate roll lengths'}).click();
+  await expect(batch.getByText('Calculated 2 batch label length(s).')).toBeVisible({timeout:10_000});
+  const lengths=await batch.locator('tbody tr td:nth-child(2)').allTextContents();
+  expect(lengths).toHaveLength(2);
+  expect(Number.parseFloat(lengths[1])).toBeGreaterThan(Number.parseFloat(lengths[0]));
+});
+
+test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await expect(page.locator('.selection-box .resize')).toHaveCount(8);
+  await page.getByLabel('Height').fill('6');
+  await page.getByLabel('Height').press('Tab');
+  let handle = await page.locator('.selection-box .resize.se').boundingBox();
+  expect(handle).not.toBeNull();
+  await page.keyboard.down('Shift');
+  await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle!.x + handle!.width / 2 + 38, handle!.y + handle!.height / 2);
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  const proportionalWidth = Number(await page.getByLabel('Width').inputValue());
+  const proportionalHeight = Number(await page.getByLabel('Height').inputValue());
+  expect(proportionalWidth / proportionalHeight).toBeCloseTo(2, 4);
+  handle = await page.locator('.selection-box .resize.se').boundingBox();
+  await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle!.x + handle!.width / 2 + 19, handle!.y + handle!.height / 2);
+  await page.mouse.up();
+  expect(Number(await page.getByLabel('Height').inputValue())).toBeCloseTo(proportionalHeight, 4);
+  const anchoredRight = Number(await page.getByLabel('X (mm)').inputValue()) + Number(await page.getByLabel('Width').inputValue());
+  const anchoredBottom = Number(await page.getByLabel('Y (mm)').inputValue()) + Number(await page.getByLabel('Height').inputValue());
+  handle = await page.locator('.selection-box .resize.nw').boundingBox();
+  await page.mouse.move(handle!.x + handle!.width / 2, handle!.y + handle!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle!.x + handle!.width / 2 + 12, handle!.y + handle!.height / 2 + 8);
+  await page.mouse.up();
+  expect(Number(await page.getByLabel('X (mm)').inputValue()) + Number(await page.getByLabel('Width').inputValue())).toBeCloseTo(anchoredRight, 4);
+  expect(Number(await page.getByLabel('Y (mm)').inputValue()) + Number(await page.getByLabel('Height').inputValue())).toBeCloseTo(anchoredBottom, 4);
+  await page.getByRole('button', { name: 'Align right', exact: true }).click();
+  expect(Number(await page.getByLabel('X (mm)').inputValue())).toBeCloseTo(50 - Number(await page.getByLabel('Width').inputValue()), 4);
+});
+
+test('grouping selects the new group for immediate alignment', async ({ page }) => {
+  await page.goto('/');
+  const tools = page.getByRole('navigation', { name: 'Drawing tools' });
+  await tools.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await tools.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await page.locator('aside section').first().locator('button.name').last().click({ modifiers: ['Shift'] });
+  await tools.getByRole('button', { name: 'Group', exact: true }).click();
+  await expect(page.getByText('2 child elements', { exact: true })).toBeVisible();
+  await expect(page.locator('li.selected')).toContainText('Group');
+  await page.getByRole('button', { name: 'Align right', exact: true }).click();
+  const width = Number(await page.getByLabel('Width').inputValue());
+  expect(Number(await page.getByLabel('X (mm)').inputValue())).toBeCloseTo(50 - width, 4);
+});
+
+test('assigned elements align and snap in zone root coordinates', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await openDialog(page, 'Label', 'Media & zones…');
+  const media = page.getByRole('dialog', { name: 'Media & zones' });
+  await media.getByRole('button', { name: 'Add independent zone' }).click();
+  const zone = media.getByRole('group', { name: 'Zone 1' });
+  for (const [name, value] of [['x', '20'], ['y', '5'], ['width', '20'], ['height', '15']] as const) {
+    await zone.getByLabel(name, { exact: true }).fill(value);
+    await zone.getByLabel(name, { exact: true }).press('Tab');
+  }
+  await media.getByRole('button', { name: 'Close Media & zones' }).click();
+  const assigned = page.getByLabel('Assigned zone');
+  await assigned.selectOption({ label: 'Zone 1' });
+  expect(await assigned.inputValue()).not.toBe('');
+  const download = page.waitForEvent('download');
+  await page.getByText('File', { exact: true }).click();
+  await page.getByRole('button', { name: 'Export JSON', exact: true }).click();
+  const saved = JSON.parse(await readFile((await (await download).path())!, 'utf8')) as { elements: Array<{ constraints?: { zone?: string } }> };
+  expect(saved.elements[0].constraints?.zone).toBe(await assigned.inputValue());
+  await page.locator('.align-tools select').selectOption({ label: 'Zone 1' });
+  await page.getByRole('button', { name: 'Align right', exact: true }).click();
+
+  const width = Number(await page.getByLabel('Width').inputValue());
+  expect(Number(await page.getByLabel('X (mm)').inputValue())).toBeCloseTo(20 - width, 4);
+  const left = Number.parseFloat(await page.locator('.element.rectangle').evaluate(element => (element as HTMLElement).style.left));
+  expect(left).toBeCloseTo((40 - width) * 3.7795275591, 3);
+});
+
 test('MB UI branding and semantic light/dark themes apply without inversion', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('[title="MakersBrain Label Editor"]')).toBeVisible();
@@ -83,7 +302,8 @@ test('a saved IPP connection waits for an explicit refresh before probing localh
   await openDialog(page, 'Print', 'Local service…');
   expect(applicationRequests).toBe(0);
   await page.getByRole('dialog', { name: 'Local service' }).getByRole('button', { name: 'Refresh' }).click();
-  await expect.poll(() => applicationRequests).toBe(1);
+  // The explicit refresh negotiates features before listing connections.
+  await expect.poll(() => applicationRequests).toBe(2);
   await page.getByRole('button', { name: 'Close Local service' }).click();
   const selector = page.getByLabel('Connection');
   await expect(selector).toHaveValue('local');
@@ -92,7 +312,7 @@ test('a saved IPP connection waits for an explicit refresh before probing localh
   await expect(page.getByText(/Saved by the local service as brother-network/)).toBeVisible();
   await page.reload();
   await expect(page.getByLabel('Printer model')).toBeVisible();
-  expect(applicationRequests).toBe(1);
+  expect(applicationRequests).toBe(2);
   expect(await page.evaluate(() => localStorage.getItem('mb-local-api-connection'))).toBe('brother-network');
 });
 });
@@ -238,7 +458,8 @@ test('pairing is user initiated and replaces the origin-bound browser grant', as
   expect(applicationRequests).toBe(0);
   await page.getByLabel('One-time pairing secret').fill('one-time');
   await page.getByRole('button', { name: 'Pair on localhost' }).dispatchEvent('click');
-  await expect.poll(() => applicationRequests).toBe(2);
+  // Pairing is followed by explicit feature negotiation and connection refresh.
+  await expect.poll(() => applicationRequests).toBe(3);
   expect(await page.evaluate(() => localStorage.getItem('mb-local-api-token'))).toBe('new-token');
 });
 
@@ -386,11 +607,27 @@ test('the label takes its size from the media the printer reports',async({page})
   await page.getByRole('button',{name:'Connect'}).click();
   await expect(page.locator('.media-summary')).toContainText('62mm x 29mm');
   await expect(page.locator('footer')).toContainText('Label media set to 62 × 29 mm');
-  await page.getByText('Label',{exact:true}).click();
+  await page.getByLabel('Editor menus').getByText('Label',{exact:true}).click();
   await page.getByRole('button',{name:'Media & zones…'}).click();
   const dialog=page.getByRole('dialog');
   await expect(dialog.getByLabel('width')).toHaveValue('62');
   await expect(dialog.getByLabel('height')).toHaveValue('29')});
+
+test('printer-reported continuous stock sets roll width without discarding authored length',async({page})=>{await page.goto('/');
+  await page.getByLabel('Printer model').selectOption('ql-1110nwb');
+  const authoredLength=30;
+  await page.evaluate(()=>{const reply=new Uint8Array(32);reply.set([0x80,0x20,0x42]);reply[10]=62;reply[11]=0x0a;reply[17]=0;
+    const device={opened:true,configuration:{interfaces:[{interfaceNumber:0,alternates:[{alternateSetting:0,endpoints:[{direction:'out',type:'bulk',endpointNumber:1,packetSize:64},{direction:'in',type:'bulk',endpointNumber:2,packetSize:64}]}]}]},open:async()=>{},close:async()=>{},selectConfiguration:async()=>{},claimInterface:async()=>{},selectAlternateInterface:async()=>{},transferOut:async(_endpoint:number,data:ArrayBuffer)=>({status:'ok',bytesWritten:data.byteLength}),transferIn:async()=>({status:'ok',data:new DataView(reply.buffer)})};
+    Object.defineProperty(navigator,'usb',{configurable:true,value:{requestDevice:async()=>device}})});
+  await page.getByLabel('Connection').selectOption('usb');
+  await page.getByRole('button',{name:'Connect'}).click();
+  await expect(page.locator('footer')).toContainText(`Label media set to 62 × ${authoredLength} mm`);
+  await openDialog(page,'Label','Media & zones…');
+  const dialog=page.getByRole('dialog',{name:'Media & zones'});
+  await expect(dialog.getByLabel('Shape')).toHaveValue('continuous');
+  await expect(dialog.getByLabel('Roll width (mm)')).toHaveValue('62');
+  await expect(dialog.getByLabel('Cut length (mm)')).toHaveValue(String(authoredLength));
+});
 
 test('the print route follows the selected printer and stays where it is put',async({page})=>{await page.goto('/');
   await page.getByLabel('Printer model').focus();
@@ -430,7 +667,7 @@ test('a dialog the app mounts outside the editor still carries its styling',asyn
   expect(styling.body).not.toBe('13px')});
 
 test('WebUSB offers every attached printer without an identity',async({page})=>{await page.goto('/');
-  await page.getByLabel('Printer model').focus();
+  await page.getByLabel('Printer model').selectOption('m200');
   await page.getByLabel('Connection').selectOption('usb');
   await expect(page.getByLabel('Vendor ID')).toBeHidden();
   const filters=await page.evaluate(async()=>{let captured:unknown;
@@ -438,3 +675,24 @@ test('WebUSB offers every attached printer without an identity',async({page})=>{
     document.querySelectorAll('button').forEach(button=>{if(button.textContent?.trim()==='Connect')button.click()});
     await new Promise(resolve=>setTimeout(resolve,400));return captured});
   expect(filters).toEqual([{classCode:7}])});
+
+test('continuous cutter preferences are isolated by printer model',async({page})=>{await page.goto('/');
+  await openDialog(page,'Label','Media & zones…');
+  const media=page.getByRole('dialog',{name:'Media & zones'});
+  await media.getByLabel('Shape').selectOption('continuous');
+  await media.getByRole('button',{name:'Close Media & zones'}).click();
+  const printer=page.getByLabel('Printer model');const cut=page.locator('fieldset').filter({hasText:'Continuous roll'}).locator('select');
+  await printer.selectOption('ql-1110nwb');
+  await cut.selectOption('none');
+  await printer.selectOption('ql-1115nwb');
+  await expect(cut).toHaveValue('after-each');
+  await printer.selectOption('ql-1110nwb');
+  await expect(cut).toHaveValue('none');
+  await page.waitForTimeout(100);
+  await page.reload();
+  await expect(printer).toHaveValue('ql-1110nwb');
+  await openDialog(page,'Label','Media & zones…');
+  const restoredMedia=page.getByRole('dialog',{name:'Media & zones'});
+  await restoredMedia.getByLabel('Shape').selectOption('continuous');
+  await restoredMedia.getByRole('button',{name:'Close Media & zones'}).click();
+  await expect(cut).toHaveValue('none')});

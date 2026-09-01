@@ -1,14 +1,26 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import { moveElements, resizeElement, rotateElements } from '../commands.js';
-  import { mediaBounds, snapMove } from '../snapping.js';
+  import { moveElements, resizeElements, rotateElements } from '../commands.js';
+  import { mediaBounds, snapModeForModifiers, snapMove } from '../snapping.js';
+  import { elementRootBounds, elementRootOffset } from '../zones.js';
+  import { continuousSettings } from '../continuous-media.js';
+  import { prepareDocumentForOutput } from '../output-preparation.js';
+  import type { DocumentMaterializer } from '../materialization.js';
   import {GestureTracker}from'../gestures.js';
   import type { EditorStore } from '../store.js';
-  import type{PrinterSdk}from'../print/types.js';import ThermalPreview from'./ThermalPreview.svelte';
-  import type { LabelElement, Point } from '../model.js';
+  import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import ThermalPreview from'./ThermalPreview.svelte';
+  import type { Bounds, LabelElement, Point } from '../model.js';
   export let editor: EditorStore;
   export let sdk:PrinterSdk|undefined=undefined;
-  let drag: { kind: 'move' | 'resize' | 'rotate'; at: Point; current: Point; ids: string[]; element?: LabelElement } | undefined;
+  export let printer:PrinterDefinition|undefined=undefined;
+  export let materializer:Pick<DocumentMaterializer,'materializeRecord'>|undefined=undefined;
+  let previewDocument:import('../model.js').LabelDocument|undefined;
+  let previewError='';
+  let previewWarning='';
+  let previewGeneration=0;
+  type ResizeHandle='nw'|'n'|'ne'|'e'|'se'|'s'|'sw'|'w';
+  const resizeHandles:ResizeHandle[]=['nw','n','ne','e','se','s','sw','w'];
+  let drag: { kind: 'move' | 'resize' | 'rotate'; at: Point; current: Point; ids: string[]; element?: LabelElement; bounds?: Bounds; handle?:ResizeHandle } | undefined;
   const pxPerMm = 3.7795275591;
   const gestures=new GestureTracker();
   function startDrag(event: PointerEvent, element: LabelElement) {
@@ -16,12 +28,13 @@
     let ids = [element.id]; editor.selection.subscribe((current) => { ids = current.has(element.id) ? [...current] : event.shiftKey ? [...current, element.id] : [element.id]; })();
     editor.select([element.id], event.shiftKey); drag = { kind: 'move', at: { x: event.clientX, y: event.clientY }, current: { x: event.clientX, y: event.clientY }, ids }; event.stopPropagation();
   }
-  function startHandle(event: PointerEvent, kind: 'resize' | 'rotate', element: LabelElement) { (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); drag = { kind, at: {x:event.clientX,y:event.clientY}, current:{x:event.clientX,y:event.clientY}, ids:[element.id], element:structuredClone(element) }; event.stopPropagation(); }
+  function startResize(event: PointerEvent,handle:ResizeHandle) { if (!selectionBounds) return; (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); drag = { kind:'resize', at:{x:event.clientX,y:event.clientY}, current:{x:event.clientX,y:event.clientY}, ids:[...$editor.selection], bounds:structuredClone(selectionBounds),handle }; event.stopPropagation(); }
+  function startRotate(event: PointerEvent, element: LabelElement) { (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); drag = { kind:'rotate', at:{x:event.clientX,y:event.clientY}, current:{x:event.clientX,y:event.clientY}, ids:[element.id], element:structuredClone(element) }; event.stopPropagation(); }
   function gestureStart(event:PointerEvent){if(event.target!==event.currentTarget&&!(event.target as HTMLElement).classList.contains('media'))return;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);gestures.start(event.pointerId,{x:event.clientX,y:event.clientY})}
-  function moveDrag(event: PointerEvent) { if (!drag){const update=gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});if(update)editor.setView({zoom:Math.max(.25,Math.min(4,$editor.view.zoom*update.zoomFactor)),pan:{x:$editor.view.pan.x+update.panDelta.x,y:$editor.view.pan.y+update.panDelta.y}});return} drag = {...drag,current:{x:event.clientX,y:event.clientY}}; if(drag.kind==='move'&&$editor.view.snapping){const raw={x:(event.clientX-drag.at.x)/pxPerMm/$editor.view.zoom,y:(event.clientY-drag.at.y)/pxPerMm/$editor.view.zoom};const result=snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),{grid:$editor.view.gridSize,gridEnabled:$editor.view.showGrid,threshold:1.25/$editor.view.zoom,guides:$editor.view.manualGuides});editor.setView({guides:result.guides})} }
+  function moveDrag(event: PointerEvent) { if (!drag){const update=gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});if(update)editor.setView({zoom:Math.max(.25,Math.min(4,$editor.view.zoom*update.zoomFactor)),pan:{x:$editor.view.pan.x+update.panDelta.x,y:$editor.view.pan.y+update.panDelta.y}});return} drag = {...drag,current:{x:event.clientX,y:event.clientY}}; if(drag.kind==='move'&&$editor.view.snapping){const raw=dragDelta(event);const result=snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),snapOptions(event),$editor.document);editor.setView({guides:result.guides})} }
   function gestureEnd(event:PointerEvent){gestures.end(event.pointerId)}
   function clearSelection(event: MouseEvent) {
-    if (!(event.target as Element).closest('.element')) editor.clearSelection();
+    if (!(event.target as Element).closest('.element,.selection-box')) editor.clearSelection();
   }
   function wheel(event: WheelEvent) {
     event.preventDefault();
@@ -51,25 +64,44 @@
       }
     });
   }
-  function finishDrag(event: PointerEvent) { if (!drag) return; let zoom = 1; editor.view.subscribe((value) => { zoom = value.zoom; })();
-    const raw = { x: (event.clientX - drag.at.x) / pxPerMm / zoom, y: (event.clientY - drag.at.y) / pxPerMm / zoom };
-    if (drag.kind === 'move') { const snapped = $editor.view.snapping ? snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),{grid:$editor.view.gridSize,gridEnabled:$editor.view.showGrid,threshold:1.25/$editor.view.zoom,guides:$editor.view.manualGuides}) : {delta:raw,guides:[]}; if(snapped.delta.x||snapped.delta.y)editor.execute(moveElements(drag.ids,snapped.delta)); editor.setView({guides:[]}); }
-    else if (drag.kind === 'resize' && drag.element) {const width=Math.max(.1,drag.element.transform.width+raw.x);const preserve=event.shiftKey||drag.element.constraints?.some(item=>item.kind==='aspect');editor.execute(resizeElement(drag.element.id,{width,height:preserve?width/(drag.element.transform.width/drag.element.transform.height):drag.element.transform.height+raw.y}));}
-    else if (drag.kind === 'rotate' && drag.element) { const center={x:drag.element.transform.x+drag.element.transform.width/2,y:drag.element.transform.y+drag.element.transform.height/2}; const page=(event.currentTarget as HTMLElement).closest('.media')!.getBoundingClientRect(); const degrees=Math.atan2(event.clientY-page.top-center.y*pxPerMm*zoom,event.clientX-page.left-center.x*pxPerMm*zoom)*180/Math.PI+90; editor.execute(rotateElements([drag.element.id],event.shiftKey?Math.round(degrees/15)*15:degrees)); }
+  function finishDrag(event: PointerEvent) { if (!drag) return;
+    const raw = dragDelta(event);
+    if (drag.kind === 'move') { const snapped = $editor.view.snapping ? snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),snapOptions(event),$editor.document) : {delta:raw,guides:[]}; if(snapped.delta.x||snapped.delta.y)editor.execute(moveElements(drag.ids,snapped.delta)); editor.setView({guides:[]}); }
+    else if (drag.kind === 'resize' && drag.bounds&&drag.handle) {const selected=$editor.document.elements.filter(item=>drag?.ids.includes(item.id));const constrained=selected.some(item=>item.constraints?.some(value=>value.kind==='aspect'));const preserve=event.shiftKey?!constrained:constrained;editor.execute(resizeElements(drag.ids,resizedBounds(drag.bounds,raw,preserve,drag.handle)));}
+    else if (drag.kind === 'rotate' && drag.element) { const root=elementRootBounds($editor.document,drag.element);const center={x:root.x+root.width/2,y:root.y+root.height/2}; const page=(event.currentTarget as HTMLElement).closest('.media')!.getBoundingClientRect(); const degrees=Math.atan2(event.clientY-page.top-center.y*pxPerMm*$editor.view.zoom,event.clientX-page.left-center.x*pxPerMm*$editor.view.zoom)*180/Math.PI+90; editor.execute(rotateElements([drag.element.id],event.shiftKey?Math.round(degrees/15)*15:degrees)); }
     drag = undefined;
   }
-  const styleFor = (element: LabelElement) => `left:${element.transform.x * pxPerMm}px;top:${element.transform.y * pxPerMm}px;width:${element.transform.width * pxPerMm}px;height:${element.transform.height * pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${element.zIndex}`;
+  const styleFor = (element: LabelElement,offset:Point) => `left:${(element.transform.x+offset.x)*pxPerMm}px;top:${(element.transform.y+offset.y)*pxPerMm}px;width:${element.transform.width*pxPerMm}px;height:${element.transform.height*pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${element.zIndex}`;
+  const boundsStyle = (bounds:Bounds) => `left:${bounds.x*pxPerMm}px;top:${bounds.y*pxPerMm}px;width:${bounds.width*pxPerMm}px;height:${bounds.height*pxPerMm}px`;
+  const dragDelta=(event:Pick<PointerEvent,'clientX'|'clientY'>):Point=>({x:(event.clientX-drag!.at.x)/pxPerMm/$editor.view.zoom,y:(event.clientY-drag!.at.y)/pxPerMm/$editor.view.zoom});
+  const snapOptions=(event:PointerEvent)=>({grid:$editor.view.gridSize,gridEnabled:$editor.view.showGrid,threshold:1.25/$editor.view.zoom,guides:$editor.view.manualGuides,zones:$editor.document.media.zones,mode:snapModeForModifiers(event)});
+  function resizedBounds(bounds:Bounds,delta:Point,preserve:boolean,handle:ResizeHandle):Bounds{
+    const west=handle.includes('w'),east=handle.includes('e'),north=handle.includes('n'),south=handle.includes('s');
+    let width=Math.max(.1,bounds.width+(east?delta.x:west?-delta.x:0));let height=Math.max(.1,bounds.height+(south?delta.y:north?-delta.y:0));
+    if(preserve){const ratio=bounds.width/bounds.height;if((east||west)&&(north||south)){if(Math.abs((width-bounds.width)/bounds.width)>=Math.abs((height-bounds.height)/bounds.height))height=width/ratio;else width=height*ratio}else if(east||west)height=width/ratio;else if(north||south)width=height*ratio}
+    const x=west?bounds.x+bounds.width-width:east?bounds.x:bounds.x+(bounds.width-width)/2;const y=north?bounds.y+bounds.height-height:south?bounds.y:bounds.y+(bounds.height-height)/2;
+    return{x,y,width,height};
+  }
+  function boundsOf(elements:LabelElement[]):Bounds|undefined{if(!elements.length)return;const roots=elements.map(item=>elementRootBounds($editor.document,item));const x=Math.min(...roots.map(item=>item.x));const y=Math.min(...roots.map(item=>item.y));const right=Math.max(...roots.map(item=>item.x+item.width));const bottom=Math.max(...roots.map(item=>item.y+item.height));return{x,y,width:right-x,height:bottom-y}}
+  $: selectionBounds=boundsOf($editor.selectedElements.filter(item=>!item.locked));
+  $: rotateElement=$editor.selectedElements.length===1&&$editor.selectedElements[0].type!=='group'?$editor.selectedElements[0]:undefined;
+  $: rollSettings=continuousSettings($editor.document);
+  $: { $editor.document; rollSettings.lengthMode; rollSettings.fixedLengthMm; rollSettings.leadingMarginMm; rollSettings.trailingMarginMm; printer?.id; void preparePreview(); }
+  $: displayHeight=previewDocument?.media.height??$editor.document.media.height;
+  async function preparePreview(){const generation=++previewGeneration;if(!sdk){previewDocument=undefined;previewError='';previewWarning='';return}try{const continuous=printer?.continuousMedia;const prepared=await prepareDocumentForOutput($editor.document,{materializer,measurer:sdk.measure?sdk as import('../continuous-media.js').DocumentMeasurer:undefined},{limits:printer?{minimumLengthMm:continuous?.minimumLengthMm??printer.media.minHeight,maximumLengthMm:continuous?.maximumLengthMm??printer.media.maxHeight,source:'printer',printerModel:printer.id}:undefined});if(generation===previewGeneration){previewDocument=prepared.document;previewError='';const warnings=prepared.warnings.filter(item=>item.severity==='warning').map(item=>item.message);if(rollSettings.lengthMode==='fixed'&&prepared.contentBounds&&prepared.contentBounds.y+prepared.contentBounds.height>prepared.resolvedLengthMm&&!warnings.some(item=>item.includes('fixed cut line')))warnings.push('Visible content extends past the fixed cut line.');previewWarning=warnings.join(' ')}}catch(error){if(generation===previewGeneration){previewDocument=undefined;previewWarning='';previewError=error instanceof Error?error.message:String(error)}}}
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
 <div class="viewport" class:with-rulers={$editor.view.showRulers} on:click={clearSelection} on:wheel|nonpassive={wheel} on:pointerdown={gestureStart} on:pointermove={moveDrag} on:pointerup={gestureEnd} on:pointercancel={gestureEnd} role="application" aria-label="Label canvas">
   {#if $editor.view.showRulers}<div class="ruler horizontal"></div><div class="ruler vertical"></div>{/if}
   <div class="pan" style={`transform:translate(calc(-50% + ${$editor.view.pan.x}px),calc(-50% + ${$editor.view.pan.y}px)) scale(${$editor.view.zoom})`}>
-    <div class:grid={$editor.view.showGrid} class="media" style={`width:${$editor.document.media.width * pxPerMm}px;height:${$editor.document.media.height * pxPerMm}px;--grid:${$editor.view.gridSize * pxPerMm}px;border-radius:${$editor.document.media.shape === 'round' ? '50%' : '3px'}`}>
-      {#if sdk}<ThermalPreview {sdk} document={$editor.document}/>{/if}
+    <div class:grid={$editor.view.showGrid} class:continuous={$editor.document.media.shape==='continuous'} class="media" style={`width:${$editor.document.media.width * pxPerMm}px;height:${displayHeight * pxPerMm}px;--grid:${$editor.view.gridSize * pxPerMm}px;border-radius:${$editor.document.media.shape === 'round' ? '50%' : '3px'}`}>
+      {#if $editor.document.media.shape==='continuous'}<div class="safe-margin leading" style={`height:${rollSettings.leadingMarginMm*pxPerMm}px`}></div><div class="safe-margin trailing" style={`height:${rollSettings.trailingMarginMm*pxPerMm}px`}></div><div class="cut-line"><span>Cut at {displayHeight.toFixed(2)} mm</span></div>{/if}
+      {#if sdk&&previewDocument}<ThermalPreview {sdk} document={previewDocument}/>{:else if previewError}<span class="preview-error" title={previewError}>Fit preview unavailable</span>{/if}
+      {#if previewWarning}<span class="preview-warning" role="status" title={previewWarning}>{previewWarning}</span>{/if}
       {#each [...$editor.document.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
         {#if element.visible && element.type !== 'group'}
-          <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={element.locked} class:exact={!!sdk} class="element {element.type}" style={styleFor(element)} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} aria-label={element.name}>
+          <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={element.locked} class:exact={!!sdk} class="element {element.type}" style={styleFor(element,elementRootOffset($editor.document,element))} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} aria-label={element.name}>
             {#if element.type === 'text'}<span style={`font-family:${element.fontFamily};font-size:${element.fontSize}px;text-align:${element.horizontalAlign}`}>{element.text}</span>
             {:else if element.type === 'barcode'}<span class="placeholder">▥ {element.value}</span>
             {:else if element.type === 'qr'}<span class="placeholder">▦</span>
@@ -77,20 +109,24 @@
               {@const resource = $editor.document.resources.find((item) => item.id === element.resourceId)}
               {#if resource}<img class="asset" style={`object-fit:${element.type === 'image' && element.fit === 'stretch' ? 'fill' : element.type === 'image' && element.fit === 'cover' ? 'cover' : 'contain'};filter:${element.type === 'image' && element.invert ? 'invert(1)' : 'none'}`} alt={element.name} src={`data:${resource.mimeType};base64,${resource.data}`}>{:else}<span class="placeholder">Missing asset</span>{/if}
             {:else}<span class="placeholder">{element.type}</span>{/if}
-            {#if $editor.selection.has(element.id) && !element.locked}<i class="handle resize" role="presentation" on:pointerdown={(event)=>startHandle(event,'resize',element)} on:pointerup={finishDrag}></i><i class="handle rotate" role="presentation" on:pointerdown={(event)=>startHandle(event,'rotate',element)} on:pointerup={finishDrag}>↻</i>{/if}
           </button>
         {/if}
       {/each}
+      {#if selectionBounds}<div class="selection-box" style={boundsStyle(selectionBounds)}>{#each resizeHandles as handle}<i class="handle resize {handle}" role="presentation" title={`Resize ${handle}; hold Shift to toggle aspect ratio`} on:pointerdown={(event)=>startResize(event,handle)} on:pointerup={finishDrag}></i>{/each}{#if rotateElement}<i class="handle rotate" role="presentation" title="Rotate; hold Shift for 15° increments" on:pointerdown={(event)=>startRotate(event,rotateElement!)} on:pointerup={finishDrag}>↻</i>{/if}</div>{/if}
       {#each [...$editor.view.manualGuides,...$editor.view.guides] as guide}<div class="guide {guide.axis}" style={`${guide.axis === 'x' ? 'left' : 'top'}:${guide.value * pxPerMm}px`}></div>{/each}
     </div>
+    {#if $editor.document.media.shape==='continuous'}<div class="roll-continuation" style={`top:${displayHeight*pxPerMm}px;width:${$editor.document.media.width*pxPerMm}px`} aria-hidden="true"><span>continuous roll</span></div>{/if}
   </div>
 </div>
 
 <style>
   .viewport{position:absolute;inset:0;overflow:hidden;min-width:0;min-height:0;background:var(--mble-surface-sunken,#d8ddd8);touch-action:none}.pan{position:absolute;left:50%;top:50%;transform-origin:center}.media{position:relative;background:#fff;box-shadow:0 8px 28px #17231c33;overflow:hidden}.media.grid{background-image:linear-gradient(#1c66471c 1px,transparent 1px),linear-gradient(90deg,#1c66471c 1px,transparent 1px);background-size:var(--grid) var(--grid)}
-  .element{position:absolute;margin:0;padding:0;overflow:visible;border:1px dashed transparent;background:transparent;color:#111;transform-origin:center;cursor:move}.element:hover{background:transparent}.element:not(.selected):hover{border-color:var(--mble-border-strong,#948274)}.element.selected{border-color:var(--mble-primary,#ed6146);outline:1px solid white}.element.locked{cursor:not-allowed}.element span{display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden}.handle{position:absolute;display:block;width:8px;height:8px;background:white;border:1px solid var(--mble-primary,#ed6146);z-index:20}.handle.resize{right:-5px;bottom:-5px;cursor:nwse-resize}.handle.rotate{top:-18px;left:calc(50% - 5px);cursor:grab;font-size:9px;line-height:8px;color:var(--mble-text,#17231c)}.rectangle,.ellipse,.triangle{border:1px solid #111}.ellipse{border-radius:50%}.triangle{clip-path:polygon(50% 0,100% 100%,0 100%);background:#111}.line{height:1px!important;background:#111}.placeholder{font-size:10px}.ruler{position:absolute;background:var(--mble-surface-muted,#f7f4ed);z-index:3}.ruler.horizontal{height:20px;left:20px;right:0;border-bottom:1px solid var(--mble-border-strong,#aaa)}.ruler.vertical{width:20px;top:20px;bottom:0;border-right:1px solid var(--mble-border-strong,#aaa)}.guide{position:absolute;background:var(--mble-guide,#46a8ed);pointer-events:none}.guide.x{top:0;bottom:0;width:1px}.guide.y{left:0;right:0;height:1px}
+  .element{position:absolute;margin:0;padding:0;overflow:visible;border:1px dashed transparent;background:transparent;color:#111;transform-origin:center;cursor:move}.element:hover{background:transparent}.element:not(.selected):hover{border-color:var(--mble-border-strong,#948274)}.element.selected{border-color:var(--mble-primary,#ed6146);outline:1px solid white}.element.locked{cursor:not-allowed}.element span{display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden}.selection-box{position:absolute;box-sizing:border-box;border:1px solid var(--mble-primary,#ed6146);outline:1px solid white;pointer-events:none;z-index:10000}.handle{position:absolute;display:block;box-sizing:content-box;width:8px;height:8px;background:white;border:1px solid var(--mble-primary,#ed6146);pointer-events:auto;z-index:20}.handle.resize.nw{left:-5px;top:-5px;cursor:nwse-resize}.handle.resize.n{left:calc(50% - 5px);top:-5px;cursor:ns-resize}.handle.resize.ne{right:-5px;top:-5px;cursor:nesw-resize}.handle.resize.e{right:-5px;top:calc(50% - 5px);cursor:ew-resize}.handle.resize.se{right:-5px;bottom:-5px;cursor:nwse-resize}.handle.resize.s{left:calc(50% - 5px);bottom:-5px;cursor:ns-resize}.handle.resize.sw{left:-5px;bottom:-5px;cursor:nesw-resize}.handle.resize.w{left:-5px;top:calc(50% - 5px);cursor:ew-resize}.handle.rotate{top:-18px;left:calc(50% - 5px);cursor:grab;font-size:9px;line-height:8px;color:var(--mble-text,#17231c)}.rectangle,.ellipse,.triangle{border:1px solid #111}.ellipse{border-radius:50%}.triangle{clip-path:polygon(50% 0,100% 100%,0 100%);background:#111}.line{height:1px!important;background:#111}.placeholder{font-size:10px}.ruler{position:absolute;background:var(--mble-surface-muted,#f7f4ed);z-index:3}.ruler.horizontal{height:20px;left:20px;right:0;border-bottom:1px solid var(--mble-border-strong,#aaa)}.ruler.vertical{width:20px;top:20px;bottom:0;border-right:1px solid var(--mble-border-strong,#aaa)}.guide{position:absolute;background:var(--mble-guide,#46a8ed);pointer-events:none}.guide.x{top:0;bottom:0;width:1px}.guide.y{left:0;right:0;height:1px}
   .element.exact:not(.selected) span,.element.exact:not(.selected) .asset{visibility:hidden}
   .asset{width:100%;height:100%;pointer-events:none}
+  .media.continuous{border-radius:3px 3px 0 0!important}.safe-margin{position:absolute;left:0;right:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(135deg,#46a8ed12 0 4px,#46a8ed28 4px 5px)}.safe-margin.leading{top:0;border-bottom:1px dotted var(--mble-guide,#46a8ed)}.safe-margin.trailing{bottom:0;border-top:1px dotted var(--mble-guide,#46a8ed)}.cut-line{position:absolute;left:0;right:0;bottom:-1px;z-index:10001;border-bottom:2px dashed var(--mble-danger,#a22929);pointer-events:none}.cut-line span{position:absolute;right:2px;bottom:2px;width:auto;height:auto;padding:1px 3px;background:#fff;color:var(--mble-danger,#a22929);font-size:8px;white-space:nowrap}.roll-continuation{position:absolute;left:0;height:56px;z-index:-1;border:1px solid #b8b8b8;border-top:0;background:linear-gradient(#fffde8cc,#e9e5ce44),repeating-linear-gradient(90deg,#0000 0 8px,#8a856a18 8px 9px);box-sizing:border-box;box-shadow:0 12px 20px #17231c22;color:#777;text-align:center;font-size:8px;pointer-events:none}.roll-continuation span{display:block;margin-top:30px;opacity:.65}
+  .preview-error{position:absolute;right:.3rem;bottom:.3rem;z-index:10002;padding:2px 4px;background:#fff;color:var(--mble-danger,#a21);font-size:9px}
+  .preview-warning{position:absolute;left:.3rem;bottom:.3rem;z-index:10002;max-width:80%;padding:2px 4px;background:#fff7df;color:var(--mble-danger,#a21);font-size:9px}
   .ruler.horizontal{background-image:repeating-linear-gradient(90deg,transparent 0 18px,var(--mble-text-muted,#59635e) 18px 19px,transparent 19px 37.795px)}
   .ruler.vertical{background-image:repeating-linear-gradient(transparent 0 18px,var(--mble-text-muted,#59635e) 18px 19px,transparent 19px 37.795px)}
 </style>
