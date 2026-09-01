@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { ElementBase, Id, LabelDocument, LabelElement, Point, Transform } from './model.js';
+import type { Bounds, ElementBase, Id, LabelDocument, LabelElement, Point, Transform } from './model.js';
 import { cloneDocument, uuid } from './model.js';
+import { elementRootBounds, elementRootOffset } from './zones.js';
 
 export interface Command {
   readonly label: string;
   /** Consecutive commands with the same key form one user-visible undo step. */
   readonly coalesceKey?: string;
   apply(document: LabelDocument): LabelDocument;
+}
+export interface CreatedElementCommand extends Command {
+  /** Stable identity allocated when the command is created, for post-command selection. */
+  readonly createdId: Id;
 }
 const changed = (document: LabelDocument, mutate: (copy: LabelDocument) => void): LabelDocument => {
   const copy = cloneDocument(document); mutate(copy); copy.modifiedAt = new Date().toISOString(); return copy;
@@ -99,6 +104,27 @@ export const moveElements = (ids: Iterable<Id>, delta: Point): Command => {
   }) };
 };
 export const resizeElement = (id: Id, size: { width: number; height: number }, origin?: Point): Command => transformElements([id], (current) => ({ ...current, ...(origin ?? {}), width: Math.max(0.1, size.width), height: Math.max(0.1, size.height) }), 'resize');
+export const resizeElements = (ids: Iterable<Id>, bounds: Bounds): Command => {
+  const selected = [...new Set(ids)];
+  return { label: 'Resize elements', coalesceKey: `resize:${[...selected].sort().join(',')}`, apply: (doc) => changed(doc, (copy) => {
+    const roots = topLevelSelection(copy, selected);
+    const items = roots.map((id) => elementById(copy, id)).filter((item) => !item.locked);
+    if (!items.length) return;
+    const source = elementBounds(items.map((item)=>({...item,transform:{...item.transform,...elementRootBounds(copy,item)}})));
+    const scaleX = bounds.width / Math.max(0.1, source.width);
+    const scaleY = bounds.height / Math.max(0.1, source.height);
+    const resizing = descendantIds(copy, items.map((item) => item.id));
+    copy.elements.forEach((element) => {
+      if (!resizing.has(element.id) || element.locked) return;
+      const transform = element.transform;
+      const offset=elementRootOffset(copy,element);
+      transform.x = bounds.x + (transform.x+offset.x-source.x) * scaleX-offset.x;
+      transform.y = bounds.y + (transform.y+offset.y-source.y) * scaleY-offset.y;
+      transform.width = Math.max(0.1, transform.width * scaleX);
+      transform.height = Math.max(0.1, transform.height * scaleY);
+    });
+  }) };
+};
 export const rotateElements = (ids: Iterable<Id>, degrees: number): Command => transformElements(ids, (current) => ({ ...current, rotation: ((degrees % 360) + 360) % 360 }), 'rotate');
 export const duplicateElements = (ids: Iterable<Id>, offset: Point = { x: 1, y: 1 }): Command => {
   const selected = new Set(ids); return { label: 'Duplicate elements', apply: (doc) => changed(doc, (copy) => {
@@ -140,6 +166,30 @@ export const alignElements = (ids: Iterable<Id>, alignment: Alignment): Command 
     });
   }) };
 };
+/** Aligns each selected top-level element (or group subtree) inside an explicit label/zone boundary. */
+export const alignElementsToBounds = (ids: Iterable<Id>, alignment: Alignment, bounds: Bounds): Command => {
+  const selected = [...new Set(ids)];
+  return { label: `Align ${alignment} to boundary`, apply: (doc) => changed(doc, (copy) => {
+    for (const id of topLevelSelection(copy, selected)) {
+      const item = elementById(copy, id);
+      if (item.locked) continue;
+      const root=elementRootBounds(copy,item);
+      const delta = { x: 0, y: 0 };
+      if (alignment === 'left') delta.x = bounds.x - root.x;
+      if (alignment === 'right') delta.x = bounds.x + bounds.width - root.x - root.width;
+      if (alignment === 'center-x') delta.x = bounds.x + (bounds.width - root.width) / 2 - root.x;
+      if (alignment === 'top') delta.y = bounds.y - root.y;
+      if (alignment === 'bottom') delta.y = bounds.y + bounds.height - root.y - root.height;
+      if (alignment === 'center-y') delta.y = bounds.y + (bounds.height - root.height) / 2 - root.y;
+      const moving = descendantIds(copy, [id]);
+      copy.elements.forEach((element) => {
+        if (!moving.has(element.id) || element.locked) return;
+        element.transform.x += delta.x;
+        element.transform.y += delta.y;
+      });
+    }
+  }) };
+};
 export const distributeElements = (ids: Iterable<Id>, axis: 'horizontal' | 'vertical'): Command => {
   const selected = new Set(ids); return { label: `Distribute ${axis}`, apply: (doc) => changed(doc, (copy) => {
     const items = copy.elements.filter((item) => selected.has(item.id) && !item.locked).sort((a, b) => axis === 'horizontal' ? a.transform.x - b.transform.x : a.transform.y - b.transform.y);
@@ -158,14 +208,15 @@ export const reorderElement = (id: Id, target: 'front' | 'back' | 'forward' | 'b
     ordered.splice(current, 1); ordered.splice(next, 0, item); ordered.forEach((element, index) => { element.zIndex = index; });
   })
 });
-export const groupElements = (ids: Iterable<Id>): Command => {
-  const selected = [...new Set(ids)]; return { label: 'Group elements', apply: (doc) => changed(doc, (copy) => {
+export const groupElements = (ids: Iterable<Id>): CreatedElementCommand => {
+  const selected = [...new Set(ids)]; const createdId = uuid(); return { label: 'Group elements', createdId, apply: (doc) => changed(doc, (copy) => {
     if (selected.length < 2) return; const children = selected.map((id) => elementById(copy, id));
     if (children.some((item) => item.groupId)) throw new Error('Ungroup nested elements before grouping them again');
-    const x = Math.min(...children.map((item) => item.transform.x)); const y = Math.min(...children.map((item) => item.transform.y));
-    const right = Math.max(...children.map((item) => item.transform.x + item.transform.width)); const bottom = Math.max(...children.map((item) => item.transform.y + item.transform.height));
-    const id = uuid(); children.forEach((item) => { item.groupId = id; });
-    copy.elements.push({ id, type: 'group', name: 'Group', childIds: selected, transform: { x, y, width: right - x, height: bottom - y, rotation: 0 }, zIndex: Math.max(...children.map((item) => item.zIndex)) + 1, visible: true, locked: false });
+    const bounds = children.map((item) => elementRootBounds(copy, item));
+    const x = Math.min(...bounds.map((item) => item.x)); const y = Math.min(...bounds.map((item) => item.y));
+    const right = Math.max(...bounds.map((item) => item.x + item.width)); const bottom = Math.max(...bounds.map((item) => item.y + item.height));
+    children.forEach((item) => { item.groupId = createdId; });
+    copy.elements.push({ id: createdId, type: 'group', name: 'Group', childIds: selected, transform: { x, y, width: right - x, height: bottom - y, rotation: 0 }, zIndex: Math.max(...children.map((item) => item.zIndex)) + 1, visible: true, locked: false });
     assertGroupInvariants(copy);
   }) };
 };
@@ -179,6 +230,38 @@ export const ungroup = (groupId: Id): Command => ({ label: 'Ungroup elements', a
   assertGroupInvariants(copy);
 }) });
 export const updateDocument = (patch: Partial<Omit<LabelDocument, 'version' | 'elements' | 'resources' | 'fonts'>>): Command => ({ label: 'Edit document', apply: (doc) => changed(doc, (copy) => Object.assign(copy, structuredClone(patch))) });
+
+function topLevelSelection(document: LabelDocument, ids: Iterable<Id>): Id[] {
+  const selected = new Set(ids);
+  return [...selected].filter((id) => {
+    let item = elementById(document, id);
+    while (item.groupId) {
+      if (selected.has(item.groupId)) return false;
+      item = elementById(document, item.groupId);
+    }
+    return true;
+  });
+}
+
+function descendantIds(document: LabelDocument, ids: Iterable<Id>): Set<Id> {
+  const result = new Set<Id>();
+  const include = (id: Id) => {
+    if (result.has(id)) return;
+    const item = elementById(document, id);
+    result.add(id);
+    if (item.type === 'group') item.childIds.forEach(include);
+  };
+  for (const id of ids) include(id);
+  return result;
+}
+
+function elementBounds(items: LabelElement[]): Bounds {
+  const x = Math.min(...items.map((item) => item.transform.x));
+  const y = Math.min(...items.map((item) => item.transform.y));
+  const right = Math.max(...items.map((item) => item.transform.x + item.transform.width));
+  const bottom = Math.max(...items.map((item) => item.transform.y + item.transform.height));
+  return { x, y, width: right - x, height: bottom - y };
+}
 // Resource references are ID-based. Two imports may intentionally share bytes
 // while using different IDs, so content-hash deduplication would leave a newly
 // placed element pointing at a resource that was never inserted.

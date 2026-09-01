@@ -4,7 +4,8 @@ import { toSdkDocument } from '../sdk-document.js';
 import type { PersistedJob } from '../persistence/database.js';
 import type { JobJournal } from '../jobs.js';
 import { CloudPrintSubmissionError, type CloudPrintClient, type CloudPrintJob, type CloudPrinter, type CloudPrintSubmission } from '../cloud-print/client.js';
-import type { PrintProgress, PrintRequest, PrintResult, PrintRoute } from './types.js';
+import { validateContinuousPrintOptions, type PrintProgress, type PrintRequest, type PrintResult, type PrintRoute } from './types.js';
+import { assertDocumentReadyForOutput } from '../continuous-media.js';
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled-before-send', 'cancelled-partial', 'outcome-unknown']);
 const OUTCOMES = new Set<PrintResult['outcome']>(['completed', 'failed', 'cancelled-before-send', 'cancelled-partial', 'outcome-unknown']);
@@ -56,6 +57,7 @@ export class CloudPrintRoute implements PrintRoute {
   readonly label = 'MakersBrain cloud printer service';
   readonly controller: CloudPrintJobController;
   #active = false;
+  get supportsNativeBatch(){return this.options.client.supportsNativeBatch}
   constructor(private options: CloudPrintRouteOptions) { this.controller = options.controller ?? new CloudPrintJobController(options.client); }
   isSupported() { return typeof fetch === 'function'; }
 
@@ -66,14 +68,42 @@ export class CloudPrintRoute implements PrintRoute {
     finally { this.#active = false; }
   }
 
+  async printBatch(request: Parameters<NonNullable<PrintRoute['printBatch']>>[0]): Promise<PrintResult> {
+    if(!this.supportsNativeBatch)return failed('The cloud print service has not negotiated native batch support. Update it and reconnect.');
+    if(this.#active)return failed('Another cloud print job is already active in this editor.');
+    this.#active=true;
+    try{return await this.printBatchOnce(request)}finally{this.#active=false}
+  }
+
+  private async printBatchOnce(request: Parameters<NonNullable<PrintRoute['printBatch']>>[0]):Promise<PrintResult>{
+    if(!request.documents.length)return failed('Batch printing requires at least one document.');
+    request.documents.forEach(document=>{assertDocumentReadyForOutput(document);validateContinuousPrintOptions(document,request.printer,request.continuous)});
+    const printer=this.options.printer();
+    if(!printer?.enabled)return failed('Select an enabled cloud printer.');
+    if(printer.model!==request.printer.id)return failed(`Cloud printer ${printer.displayName} requires model ${printer.model}.`);
+    const idempotencyKey=globalThis.crypto?.randomUUID?.()??uuid();
+    const submission:CloudPrintSubmission={printerId:printer.id,source:'mb-label-editor',request:{documents:request.documents.map(toSdkDocument),model:printer.model,copies:request.copies,...(request.continuous?{continuous:request.continuous}:{})}};
+    const serialized=this.options.client.serializeSubmission(submission);
+    let persisted=await this.begin(request.documents[0],{kind:'cloud-print',idempotencyKey,printerId:printer.id,model:printer.model,copies:request.copies,submission:serialized});
+    try{
+      const submitted=await this.options.client.submitSerialized(serialized,idempotencyKey,request.signal);this.controller.publish(submitted);
+      persisted=await this.save(persisted,submitted.state,true,{...detailsOf(persisted),remoteJobId:submitted.id,submission:undefined,lastJob:submitted});
+      const terminal=isTerminal(submitted)?submitted:await this.controller.poll(submitted.id,request.signal,job=>request.onProgress?.({item:job.item,items:job.items,copy:job.copy,copies:job.copies,current:progressOf(job)}));
+      await this.save(persisted,terminal.state,ambiguous(terminal),{...detailsOf(persisted),lastJob:terminal});return resultOf(terminal);
+    }catch(error){const details=detailsOf(persisted);const uncertain=!!details.remoteJobId||(error instanceof CloudPrintSubmissionError&&error.uncertain);await this.save(persisted,uncertain?'status-unknown':'failed',uncertain,uncertain?details:{...details,submission:undefined});return uncertain?{outcome:'outcome-unknown',lastCompletedAction:details.lastJob?.lastCompletedAction??-1,bytesSent:details.lastJob?.bytesSent??0,error:'The cloud batch may still be queued or printing. Resume its status before printing again.'}:failed(error instanceof Error?error.message:String(error))}
+  }
+
   private async printOnce(request: PrintRequest): Promise<PrintResult> {
+    if(request.continuous?.cutMode==='after-job'&&!this.supportsNativeBatch)return failed('Cut after job requires negotiated native batch support from the cloud print service.');
+    assertDocumentReadyForOutput(request.document);
+    validateContinuousPrintOptions(request.document,request.printer,request.continuous);
     const printer = this.options.printer();
     if (!printer?.enabled) return failed('Select an enabled cloud printer.');
     if (printer.model !== request.printer.id) return failed(`Cloud printer ${printer.displayName} requires model ${printer.model}.`);
     const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? uuid();
     const submission: CloudPrintSubmission = {
       printerId: printer.id, source: 'mb-label-editor',
-      request: { document: toSdkDocument(request.document), model: printer.model, copies: request.copies, ...(request.density === undefined ? {} : { density: request.density }) }
+      request: { document: toSdkDocument(request.document), model: printer.model, copies: request.copies, ...(request.density === undefined ? {} : { density: request.density }), ...(request.continuous ? { continuous: request.continuous } : {}) }
     };
     const serialized = this.options.client.serializeSubmission(submission);
     let persisted = await this.begin(request.document, {

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { PrintProgress, PrintRequest, PrintResult, PrintRoute } from './types.js';
+import { validateContinuousPrintOptions, type PrintProgress, type PrintRequest, type PrintResult, type PrintRoute } from './types.js';
 import { toSdkDocument } from '../sdk-document.js';
 import type { JobJournal } from '../jobs.js';
 import type { PersistedJob } from '../persistence/database.js';
+import { assertDocumentReadyForOutput } from '../continuous-media.js';
 
 export type LocalApiTransport = { kind: 'file'; path: string } | { kind: 'tcp'; address: string } | { kind: 'serial' | 'rfcomm'; path: string; baud?: number } | { kind: 'ipp'; uri: string; certificatePem?: string };
 export type LocalApiPrinterOperation = 'status' | 'system-report' | 'wifi-status' | 'wifi-scan' | 'wifi-configure' | 'ipp-status';
@@ -20,6 +21,7 @@ export interface LocalApiDiscoveryCandidate {
   operations?: LocalApiPrinterOperation[];
 }
 export interface LocalApiDiscoveryResponse { devices: LocalApiDiscoveryCandidate[]; supportedTransports: string[] }
+export interface LocalApiCapabilities { service:string;version:string;api:string;features:string[] }
 export interface BrotherWifiStatus {
   connected: boolean;
   ipAddress?: string | null;
@@ -73,6 +75,7 @@ export interface LocalApiJob {
   id: string; state: string; terminal: boolean; outcome?: PrintResult['outcome'] | null;
   lastCompletedAction: number; bytesSent: number; action: number; actions: number;
   totalBytes: number; phase: string; error?: string | null;
+  item?:number;items?:number;copy?:number;copies?:number;
 }
 export interface LocalApiJobDetails {
   kind: 'local-api-print';
@@ -85,6 +88,7 @@ export interface LocalApiJobDetails {
 export class LocalApiPrintRoute implements PrintRoute {
   readonly id = 'local-api';
   readonly label = 'MakersBrain local printer service';
+  supportsNativeBatch = false;
   private baseUrl: string;
 
   constructor(private options: LocalApiOptions) { this.baseUrl = options.baseUrl ?? 'http://127.0.0.1:9847/v1'; }
@@ -110,6 +114,10 @@ export class LocalApiPrintRoute implements PrintRoute {
     return await response.json() as LocalApiAdminGrant;
   }
 
+  async negotiateCapabilities():Promise<LocalApiCapabilities>{
+    const response=await this.request('/capabilities',{headers:this.headers(false,true)});if(!response.ok)throw new Error(await actionableResponse(response));
+    const capabilities=await response.json() as LocalApiCapabilities;this.supportsNativeBatch=capabilities.features.includes('native-document-batch')&&capabilities.features.includes('continuous-options');return capabilities;
+  }
   async validate(document: PrintRequest['document']) {
     const response = await this.request('/documents/validate', { method: 'POST', headers: this.headers(true, true), body: JSON.stringify(toSdkDocument(document)) });
     if (!response.ok) throw new Error(await actionableResponse(response));
@@ -192,12 +200,25 @@ export class LocalApiPrintRoute implements PrintRoute {
   }
 
   private prepare(request: PrintRequest) {
+    assertDocumentReadyForOutput(request.document);
+    validateContinuousPrintOptions(request.document,request.printer,request.continuous);
     const connection = this.options.connection?.();
     if (!connection) throw new Error('Select a persisted, probed local-service printer connection before printing. Capture is never a printing destination.');
     if (['unavailable', 'error'].includes(connection.status) || !['file', 'tcp', 'serial', 'rfcomm', 'ipp'].includes(connection.transport.kind)) throw new Error('The selected local-service connection is not a ready physical transport.');
     const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? `mb-editor-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const requestBody = JSON.stringify({ document: toSdkDocument(request.document), printerId: request.printer.id, connectionId: connection.id, copies: request.copies, ...(request.density === undefined ? {} : { density: request.density }) });
+    const requestBody = JSON.stringify({ document: toSdkDocument(request.document), printerId: request.printer.id, connectionId: connection.id, copies: request.copies, ...(request.density === undefined ? {} : { density: request.density }), ...(request.continuous ? { continuous: request.continuous } : {}) });
     return { idempotencyKey, requestBody };
+  }
+
+  private prepareBatch(request: Parameters<NonNullable<PrintRoute['printBatch']>>[0]) {
+    if(!request.documents.length)throw new Error('Batch printing requires at least one document.');
+    request.documents.forEach(document=>{assertDocumentReadyForOutput(document);validateContinuousPrintOptions(document,request.printer,request.continuous)});
+    const connection=this.options.connection?.();
+    if(!connection)throw new Error('Select a persisted, probed local-service printer connection before printing. Capture is never a printing destination.');
+    if(['unavailable','error'].includes(connection.status)||!['file','tcp','serial','rfcomm','ipp'].includes(connection.transport.kind))throw new Error('The selected local-service connection is not a ready physical transport.');
+    const idempotencyKey=globalThis.crypto?.randomUUID?.()??`mb-editor-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const requestBody=JSON.stringify({documents:request.documents.map(toSdkDocument),printerId:request.printer.id,connectionId:connection.id,copies:request.copies,...(request.continuous?{continuous:request.continuous}:{})});
+    return{idempotencyKey,requestBody};
   }
 
   private async submitPrepared(idempotencyKey: string, requestBody: string, signal?: AbortSignal): Promise<LocalApiJob> {
@@ -243,16 +264,29 @@ export class LocalApiPrintRoute implements PrintRoute {
 
   async print(request: PrintRequest): Promise<PrintResult> {
     if (!this.options.token()) return { outcome: 'failed', bytesSent: 0, lastCompletedAction: -1, error: 'Pair with the local printer service first.' };
+    if(request.continuous?.cutMode==='after-job'&&!this.supportsNativeBatch)return{outcome:'failed',bytesSent:0,lastCompletedAction:-1,error:'Cut after job requires negotiated native batch support from the local printer service.'};
     const prepared = this.prepare(request);
+    return await this.printPrepared(request.document.id,prepared,request.signal,request.onProgress);
+  }
+
+  async printBatch(request: Parameters<NonNullable<PrintRoute['printBatch']>>[0]): Promise<PrintResult> {
+    if(!this.options.token())return{outcome:'failed',bytesSent:0,lastCompletedAction:-1,error:'Pair with the local printer service first.'};
+    if(!this.supportsNativeBatch)return{outcome:'failed',bytesSent:0,lastCompletedAction:-1,error:'The local printer service has not negotiated native batch support. Update it and reconnect.'};
+    const prepared=this.prepareBatch(request);
+    return await this.printPrepared(request.documents[0]?.id??'batch',prepared,request.signal,undefined,job=>request.onProgress?.({item:job.item??0,items:job.items??request.documents.length,copy:job.copy??0,copies:job.copies??request.copies,current:progressOf(job)}));
+  }
+
+  private async printPrepared(documentId:string,prepared:{idempotencyKey:string;requestBody:string},signal?:AbortSignal,onProgress?:(progress:PrintProgress)=>void,onJob?:(job:LocalApiJob)=>void):Promise<PrintResult>{
     let persisted = await this.options.journal?.save({
-      id: `local:${prepared.idempotencyKey}`, documentId: request.document.id,
+      id: `local:${prepared.idempotencyKey}`, documentId,
       createdAt: new Date().toISOString(), state: 'submitting', route: this.id, resumable: true,
       details: { kind: 'local-api-print', ...prepared } satisfies LocalApiJobDetails
     });
     try {
-      const submitted = await this.submitPrepared(prepared.idempotencyKey, prepared.requestBody, request.signal);
+      const submitted = await this.submitPrepared(prepared.idempotencyKey, prepared.requestBody, signal);
       if (persisted) persisted = await this.save(persisted, submitted.state, true, { kind: 'local-api-print', idempotencyKey: prepared.idempotencyKey, remoteJobId: submitted.id, lastJob: submitted });
-      const terminal = submitted.terminal ? submitted : await this.poll(submitted.id, request.signal, request.onProgress, async (job) => {
+      const terminal = submitted.terminal ? submitted : await this.poll(submitted.id, signal, onProgress, async (job) => {
+        onJob?.(job);
         if (persisted) persisted = await this.save(persisted, job.state, true, { ...localDetails(persisted), lastJob: job });
       });
       const result = normalizeJob(terminal);

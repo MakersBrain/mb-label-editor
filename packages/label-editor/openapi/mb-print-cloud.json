@@ -774,6 +774,40 @@
           }
         }
       },
+      "ContinuousCutMode": {
+        "type": "string",
+        "enum": [
+          "after-each",
+          "after-job",
+          "none"
+        ]
+      },
+      "ContinuousPrintOptions": {
+        "type": "object",
+        "required": [
+          "cutMode",
+          "extraFeedBeforeMm",
+          "extraFeedAfterMm",
+          "chainCopies"
+        ],
+        "properties": {
+          "cutMode": {
+            "$ref": "#/components/schemas/ContinuousCutMode"
+          },
+          "extraFeedBeforeMm": {
+            "type": "number",
+            "format": "double"
+          },
+          "extraFeedAfterMm": {
+            "type": "number",
+            "format": "double"
+          },
+          "chainCopies": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "EnrollmentBody": {
         "type": "object",
         "required": [
@@ -867,6 +901,10 @@
           "totalBytes",
           "lastCompletedAction",
           "actionCount",
+          "item",
+          "items",
+          "copy",
+          "copies",
           "writeMayHaveOccurred",
           "createdAt"
         ],
@@ -915,6 +953,22 @@
             "format": "int64"
           },
           "actionCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "item": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "items": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "copy": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "copies": {
             "type": "integer",
             "format": "int64"
           },
@@ -1038,13 +1092,20 @@
       "ValidatedPrintRequest": {
         "type": "object",
         "required": [
-          "document",
           "model"
         ],
         "properties": {
           "document": {
             "type": "object",
             "additionalProperties": true
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "minItems": 1
           },
           "model": {
             "type": "string"
@@ -1078,6 +1139,16 @@
           "payloadLimit": {
             "type": "integer",
             "minimum": 0
+          },
+          "continuous": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousPrintOptions"
+              }
+            ]
           }
         },
         "additionalProperties": false

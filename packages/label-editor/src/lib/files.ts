@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { LabelDocument } from './model.js'; import {fromSdkDocument,toSdkDocument} from './sdk-document.js';
+import { ContinuousMediaError, continuousSettings, isResolvedLabelDocument } from './continuous-media.js';
 
 interface FileSystemFileHandle { getFile(): Promise<File>; createWritable(): Promise<{ write(data: Blob | string): Promise<void>; close(): Promise<void> }> }
 interface PickerWindow extends Window {
   showOpenFilePicker?: (options: unknown) => Promise<FileSystemFileHandle[]>;
   showSaveFilePicker?: (options: unknown) => Promise<FileSystemFileHandle>;
 }
-export const serializeDocument = (document: LabelDocument) => JSON.stringify(toSdkDocument(document), null, 2) + '\n';
+export const serializeDocument = (document: LabelDocument) => {
+  if(document.media.shape==='continuous'&&continuousSettings(document).lengthMode==='fit-content'&&!isResolvedLabelDocument(document))throw new ContinuousMediaError('continuous.unresolved_document','Fit-content continuous labels must be prepared before serialization.');
+  return JSON.stringify(toSdkDocument(document), null, 2) + '\n';
+};
 export function parseDocument(text: string): LabelDocument { return fromSdkDocument(JSON.parse(text) as unknown); }
 export interface CanonicalDocumentValidator {
   validateCanonical(value: unknown): Promise<{ valid: boolean; errors: string[] }>;

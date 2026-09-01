@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { LabelDocument, Resource, TemplateData } from '../model.js';
 import type { SheetPreferencesV1 } from '../sheets/types.js';
+import type { ContinuousPrintOptions } from '../print/types.js';
 
 const DB_NAME = 'makersbrain-label-editor'; const DB_VERSION = 1;
 export type StoreName = 'documents' | 'autosaves' | 'templates' | 'assets' | 'recent' | 'preferences' | 'jobs';
 export interface PersistedJob { id: string; documentId: string; createdAt: string; state: string; route: string; resumable: boolean; details?: unknown }
 export interface RecentItem { id:string; kind:'document'|'template'|'asset'; openedAt:string }
-export interface EditorPreferences { gridSize:number; showGrid:boolean; showRulers:boolean; snapping:boolean; defaultPrinterId?:string; defaultRoute?:string; theme:'system'|'light'|'dark'; sheet?:SheetPreferencesV1 }
+export interface EditorPreferences { gridSize:number; showGrid:boolean; showRulers:boolean; snapping:boolean; defaultPrinterId?:string; defaultRoute?:string; theme:'system'|'light'|'dark'; sheet?:SheetPreferencesV1; continuousPrint?:Record<string,ContinuousPrintOptions> }
 const stores: StoreName[] = ['documents', 'autosaves', 'templates', 'assets', 'recent', 'preferences', 'jobs'];
 export class EditorDatabase {
   #database?: Promise<IDBDatabase>;

@@ -148,6 +148,16 @@ export interface components {
             /** Format: int64 */
             lastHeartbeatAt?: number | null;
         };
+        /** @enum {string} */
+        ContinuousCutMode: "after-each" | "after-job" | "none";
+        ContinuousPrintOptions: {
+            cutMode: components["schemas"]["ContinuousCutMode"];
+            /** Format: double */
+            extraFeedBeforeMm: number;
+            /** Format: double */
+            extraFeedAfterMm: number;
+            chainCopies: boolean;
+        };
         EnrollmentBody: {
             displayName: string;
         };
@@ -188,6 +198,14 @@ export interface components {
             lastCompletedAction: number;
             /** Format: int64 */
             actionCount: number;
+            /** Format: int64 */
+            item: number;
+            /** Format: int64 */
+            items: number;
+            /** Format: int64 */
+            copy: number;
+            /** Format: int64 */
+            copies: number;
             writeMayHaveOccurred: boolean;
             /** Format: int64 */
             cancellationRequestedAt?: number | null;
@@ -223,9 +241,12 @@ export interface components {
             request: components["schemas"]["ValidatedPrintRequest"];
         };
         ValidatedPrintRequest: {
-            document: {
+            document?: {
                 [key: string]: unknown;
             };
+            documents?: {
+                [key: string]: unknown;
+            }[];
             model: string;
             /** Format: int32 */
             dpi?: number | null;
@@ -237,6 +258,7 @@ export interface components {
             /** Format: int32 */
             copies?: number;
             payloadLimit?: number;
+            continuous?: null | components["schemas"]["ContinuousPrintOptions"];
         };
     };
     responses: never;

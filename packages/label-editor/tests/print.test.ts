@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { executePlan } from '@makersbrain/printer-sdk/adapters';
-import {describe,expect,it,vi} from 'vitest';import {adaptSdkProtocolPlan,DeviceError,DirectPrintRoute,defaultDocument,executeBatch,inspectLaPosteSheet,selectedDocuments,toSdkPlanActions,type DirectTransport,type PrinterDefinition,type PrinterSdk,type ProtocolPlan} from '../src/index.js';
+import {describe,expect,it,vi} from 'vitest';import {adaptSdkProtocolPlan,ContinuousPrintError,DeviceError,DirectPrintRoute,defaultDocument,executeBatch,inspectLaPosteSheet,resolveContinuousDocument,selectedDocuments,toSdkPlanActions,validateContinuousPrintOptions,type DirectTransport,type PrinterDefinition,type PrinterSdk,type ProtocolPlan} from '../src/index.js';
 const printer:PrinterDefinition={id:'p',displayName:'P',dpi:203,protocols:['test'],media:{minWidth:1,maxWidth:100,minHeight:1,maxHeight:100}};
 const sdk=(plan?:ProtocolPlan):PrinterSdk=>({validateCanonical:vi.fn(),validate:vi.fn(),render:vi.fn(),exportPng:vi.fn(),exportPdf:vi.fn(),printerDefinitions:async()=>[printer],importFirstPdfPage:vi.fn(),plan:async()=>plan!,executePlan:(value,transport,progress,signal)=>executePlan(value.sdkActions??toSdkPlanActions(value),transport,progress,signal),inspectLaPoste:vi.fn(),laPosteSlotDocument:vi.fn()});
 it('classifies a rejected first write as potentially accepted',async()=>{const transport:DirectTransport={kind:'usb',physicalWriteLimit:64,connect:async()=>{},disconnect:async()=>{},write:async()=>{throw new Error('transfer status unavailable')},subscribe:async()=>{},waitResponse:async()=>new Uint8Array([1])};const route=new DirectPrintRoute(sdk({protocol:'x',totalBytes:1,actions:[{type:'write',data:new Uint8Array([1]),chunkable:false,atomic:true,logicalChunkSize:64,delayAfterMs:0}]}),async()=>transport,'usb');const result=await route.print({document:defaultDocument(),printer,copies:1});expect(result.outcome).toBe('outcome-unknown');expect(result.bytesSent).toBe(0)});
@@ -51,4 +51,55 @@ it('stops a shared batch immediately on an ambiguous outcome', async () => {
   const result = await executeBatch({ documents: [defaultDocument(), defaultDocument(), defaultDocument()], route, printer, copies: 1 });
   expect(result).toMatchObject({ completed: 1, result: { outcome: 'outcome-unknown' } });
   expect(print).toHaveBeenCalledTimes(2);
+});
+
+it('never emulates cut-after-job with separate print jobs', async () => {
+  const print = vi.fn();
+  const route = { id: 'test', label: 'Test', isSupported: () => true, print };
+  await expect(executeBatch({ documents: [defaultDocument(), defaultDocument()], route, printer, copies: 1, continuous: { cutMode: 'after-job', extraFeedBeforeMm: 0, extraFeedAfterMm: 0, chainCopies: false } })).rejects.toThrow(/native batch support/i);
+  expect(print).not.toHaveBeenCalled();
+});
+
+it('uses stable capability error codes before continuous bytes can be sent', () => {
+  const document=defaultDocument();document.media.shape='continuous';
+  const resolved=resolveContinuousDocument(document).document;
+  const options={cutMode:'after-job' as const,extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:false};
+  expect(()=>validateContinuousPrintOptions(resolved,printer,options)).toThrowError(expect.objectContaining({code:'continuous.unsupported_printer'} satisfies Partial<ContinuousPrintError>));
+  expect(()=>validateContinuousPrintOptions(resolved,printer,undefined)).toThrowError(expect.objectContaining({code:'continuous.unsupported_printer'} satisfies Partial<ContinuousPrintError>));
+  const continuousPrinter:PrinterDefinition={...printer,continuousMedia:{supported:true,minimumLengthMm:.1,maximumLengthMm:100,minimumExtraFeedMm:0,maximumExtraFeedMm:0,cutModes:['after-each'],automaticCutter:true,supportsChainedRaster:false}};
+  expect(()=>validateContinuousPrintOptions(resolved,continuousPrinter,options)).toThrowError(expect.objectContaining({code:'continuous.cut_mode_unsupported'} satisfies Partial<ContinuousPrintError>));
+  expect(()=>validateContinuousPrintOptions(resolved,continuousPrinter,{...options,cutMode:'after-each',extraFeedAfterMm:1})).toThrowError(expect.objectContaining({code:'continuous.feed_out_of_range'} satisfies Partial<ContinuousPrintError>));
+});
+
+it('uses the stable native-batch route error code', async () => {
+  const route = { id: 'test', label: 'Test', isSupported: () => true, print: vi.fn() };
+  await expect(executeBatch({documents:[defaultDocument()],route,printer,copies:1,continuous:{cutMode:'after-job',extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:false}})).rejects.toMatchObject({code:'continuous.batch_route_unsupported'});
+});
+
+it('uses one native route call when batch support is available', async () => {
+  const print = vi.fn();
+  const printBatch = vi.fn(async () => ({ outcome: 'completed' as const, lastCompletedAction: 4, bytesSent: 80 }));
+  const route = { id: 'native', label: 'Native', isSupported: () => true, print, printBatch };
+  const documents = [defaultDocument(), defaultDocument()];
+  const result = await executeBatch({ documents, route, printer, copies: 1, continuous: { cutMode: 'after-job', extraFeedBeforeMm: 0, extraFeedAfterMm: 0, chainCopies: false } });
+  expect(result.completed).toBe(2);
+  expect(printBatch).toHaveBeenCalledOnce();
+  expect(print).not.toHaveBeenCalled();
+});
+
+it('direct native batch asks the SDK for one plan and executes it once',async()=>{
+  const transport:DirectTransport={kind:'usb',physicalWriteLimit:64,commandWriteLimit:64,connect:async()=>{},disconnect:async()=>{},write:async()=>{},subscribe:async()=>{},waitResponse:async()=>new Uint8Array()};
+  const fake=sdk();let plannedHeights:number[]=[];const planBatch=vi.fn(async(documents:Parameters<NonNullable<PrinterSdk['planBatch']>>[0])=>{plannedHeights=documents.map(document=>document.media.height);return{protocol:'brother',totalBytes:1,actions:[{type:'write' as const,data:new Uint8Array([1]),chunkable:false,atomic:true,logicalChunkSize:1,delayAfterMs:0}]}});fake.planBatch=planBatch;
+  const route=new DirectPrintRoute(fake,async()=>transport,'usb');const second=defaultDocument();second.media.height=45;second.media.printableBounds.height=45;const documents=[defaultDocument(),second];
+  expect((await route.printBatch!({documents,printer,copies:1})).outcome).toBe('completed');expect(planBatch).toHaveBeenCalledOnce();expect(plannedHeights).toEqual([30,45]);
+});
+
+it('direct native batch reports document and copy coordinates with action bytes',async()=>{
+  const transport:DirectTransport={kind:'usb',physicalWriteLimit:64,commandWriteLimit:64,connect:async()=>{},disconnect:async()=>{},write:async()=>{},subscribe:async()=>{},waitResponse:async()=>new Uint8Array()};
+  const actions=Array.from({length:4},()=>[{action:'command-write' as const,name:'ESC i z print information',bytes:[1],atomic:true},{action:'command-write' as const,name:'print',bytes:[2],atomic:true}]).flat();
+  const plan=adaptSdkProtocolPlan('brother',actions);const fake=sdk();fake.planBatch=async()=>plan;
+  const progress:{item:number;copy:number;current:{bytesSent:number}}[]=[];const route=new DirectPrintRoute(fake,async()=>transport,'usb');
+  expect((await route.printBatch!({documents:[defaultDocument(),defaultDocument()],printer,copies:2,onProgress:value=>progress.push(value)})).outcome).toBe('completed');
+  expect(progress).toEqual(expect.arrayContaining([expect.objectContaining({item:0,copy:0}),expect.objectContaining({item:0,copy:1}),expect.objectContaining({item:1,copy:0}),expect.objectContaining({item:1,copy:1})]));
+  expect(progress.at(-1)?.current.bytesSent).toBe(8)
 });

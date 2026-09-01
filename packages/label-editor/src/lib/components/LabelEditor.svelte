@@ -1,11 +1,12 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<script lang="ts">import type { EditorStore } from '../store.js';import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import type{AssetCatalogClient}from'../asset-catalog/client.js';import type{ExternalResourceProvider}from'../external-resources/types.js'; import {addElement,groupElements,moveElements,removeElements,ungroup} from '../commands.js';import {copyElements,pasteElements} from '../clipboard.js'; import Canvas from './Canvas.svelte';import Inspector from './Inspector.svelte';import Layers from './Layers.svelte';import DataPanel from './DataPanel.svelte';import AssetPanel from './AssetPanel.svelte';import MediaPanel from './MediaPanel.svelte';import LibraryPanel from './LibraryPanel.svelte';import GuidesPanel from './GuidesPanel.svelte';import Toolbar from './Toolbar.svelte';import EditorMenus from './EditorMenus.svelte';import Modal from './Modal.svelte'; export let editor:EditorStore;export let sdk:PrinterSdk|undefined=undefined;export let resourceProvider:ExternalResourceProvider|undefined=undefined;/** @deprecated Pass resourceProvider instead. */export let assetCatalog:AssetCatalogClient|undefined=undefined;export let printers:PrinterDefinition[]=[];export let printerId='';export let onPrinter:(id:string)=>void=()=>{};let sidebarOpen=true;let dialog='';$: activeResourceProvider=resourceProvider??assetCatalog;
+<script lang="ts">import type { EditorStore } from '../store.js';import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import type{DocumentMaterializer}from'../materialization.js';import type{AssetCatalogClient}from'../asset-catalog/client.js';import type{ExternalResourceProvider}from'../external-resources/types.js'; import {addElement,groupElements,moveElements,removeElements,ungroup} from '../commands.js';import {copyElements,pasteElements} from '../clipboard.js'; import Canvas from './Canvas.svelte';import Inspector from './Inspector.svelte';import Layers from './Layers.svelte';import DataPanel from './DataPanel.svelte';import AssetPanel from './AssetPanel.svelte';import MediaPanel from './MediaPanel.svelte';import LibraryPanel from './LibraryPanel.svelte';import GuidesPanel from './GuidesPanel.svelte';import Toolbar from './Toolbar.svelte';import EditorMenus from './EditorMenus.svelte';import Modal from './Modal.svelte'; export let editor:EditorStore;export let sdk:PrinterSdk|undefined=undefined;export let materializer:Pick<DocumentMaterializer,'materializeRecord'>|undefined=undefined;export let resourceProvider:ExternalResourceProvider|undefined=undefined;/** @deprecated Pass resourceProvider instead. */export let assetCatalog:AssetCatalogClient|undefined=undefined;export let printers:PrinterDefinition[]=[];export let printerId='';export let onPrinter:(id:string)=>void=()=>{};let sidebarOpen=true;let dialog='';$: activeResourceProvider=resourceProvider??assetCatalog;
 const dialogTitles:Record<string,string>={media:'Media & zones',data:'Data',assets:'Assets',library:'Library',guides:'Guides'};
+function groupSelected(){if($editor.selection.size<2)return;const command=groupElements($editor.selection);editor.execute(command);editor.select([command.createdId])}
 function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if(['INPUT','TEXTAREA','SELECT'].includes(target.tagName))return;const modifier=event.ctrlKey||event.metaKey;
   if(modifier&&event.key.toLowerCase()==='z'){event.preventDefault();event.shiftKey?editor.redo():editor.undo()}else if(modifier&&event.key.toLowerCase()==='y'){event.preventDefault();editor.redo()}
   else if(modifier&&event.key.toLowerCase()==='a'){event.preventDefault();editor.select($editor.document.elements.map(e=>e.id))}else if(modifier&&event.key.toLowerCase()==='c'){event.preventDefault();copyElements($editor.document.elements,$editor.selection)}
   else if(modifier&&event.key.toLowerCase()==='v'){event.preventDefault();const items=pasteElements();for(const item of items)editor.execute(addElement(item));editor.select(items.map(i=>i.id))}
-  else if(modifier&&event.key.toLowerCase()==='g'){event.preventDefault();if(event.shiftKey){for(const item of $editor.selectedElements)if(item.type==='group')editor.execute(ungroup(item.id))}else editor.execute(groupElements($editor.selection))}
+  else if(modifier&&event.key.toLowerCase()==='g'){event.preventDefault();if(event.shiftKey){for(const item of $editor.selectedElements)if(item.type==='group')editor.execute(ungroup(item.id))}else groupSelected()}
   else if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();editor.execute(removeElements($editor.selection));editor.clearSelection()}
   else if($editor.selection.size&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();const step=event.shiftKey?1:.1;editor.execute(moveElements($editor.selection,{x:event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0,y:event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0}))}}
 </script>
@@ -22,14 +23,14 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
   </header>
   <Toolbar {editor}/>
   <main class:sidebar-closed={!sidebarOpen}>
-    <div class="canvas"><Canvas {editor} {sdk}/></div>
+    <div class="canvas"><Canvas {editor} {sdk} {materializer} printer={printers.find(item=>item.id===printerId)}/></div>
     <aside class:open={sidebarOpen}>
       <details open><summary>Layers</summary><Layers {editor}/></details>
       <details open><summary>Properties</summary><Inspector {editor}/></details>
       <slot name="sidebar"/>
     </aside>
   </main>
-  <Modal open={dialog==='media'} title={dialogTitles.media} onClose={()=>dialog=''}><MediaPanel {editor} {sdk} {printers} {printerId} {onPrinter}/></Modal>
+  <Modal open={dialog==='media'} title={dialogTitles.media} onClose={()=>dialog=''}><MediaPanel {editor} {sdk} {materializer} {printers} {printerId} {onPrinter}/></Modal>
   <Modal open={dialog==='data'} title={dialogTitles.data} onClose={()=>dialog=''}><DataPanel {editor}/></Modal>
   <Modal open={dialog==='assets'} title={dialogTitles.assets} onClose={()=>dialog=''}><AssetPanel {editor} {sdk} resourceProvider={activeResourceProvider}/></Modal>
   <Modal open={dialog==='library'} title={dialogTitles.library} onClose={()=>dialog=''}><LibraryPanel {editor}/></Modal>

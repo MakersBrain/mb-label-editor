@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { LabelDocument } from '../model.js';
+import { ContinuousMediaError, type DocumentMeasurer } from '../continuous-media.js';
 
 export type ProtocolAction =
   | { type: 'job-boundary'; phase: 'start' | 'end'; id: string }
@@ -46,12 +47,52 @@ export function toSdkPlanActions(plan: ProtocolPlan): SdkPlanAction[] {
     }
   });
 }
-export interface PrinterDefinition { id: string; displayName: string; dpi: number; protocols: string[]; media: { minWidth: number; maxWidth: number; minHeight: number; maxHeight: number } }
+export type ContinuousCutMode = 'after-each' | 'after-job' | 'none';
+export interface ContinuousMediaCapabilities {
+  supported: boolean;
+  minimumLengthMm: number;
+  maximumLengthMm: number;
+  minimumExtraFeedMm: number;
+  maximumExtraFeedMm: number;
+  cutModes: ContinuousCutMode[];
+  automaticCutter: boolean;
+  supportsChainedRaster: boolean;
+  requiredFeedBeforeMm?: number;
+  requiredFeedAfterMm?: number;
+}
+export interface ContinuousPrintOptions {
+  cutMode: ContinuousCutMode;
+  extraFeedBeforeMm: number;
+  extraFeedAfterMm: number;
+  chainCopies: boolean;
+}
+export type ContinuousPrintErrorCode =
+  | 'continuous.unsupported_printer'
+  | 'continuous.cut_mode_unsupported'
+  | 'continuous.feed_out_of_range'
+  | 'continuous.batch_route_unsupported';
+export class ContinuousPrintError extends Error {
+  constructor(readonly code: ContinuousPrintErrorCode, message: string) { super(message); this.name = 'ContinuousPrintError'; }
+}
+export function validateContinuousPrintOptions(document:LabelDocument,printer:PrinterDefinition,options:ContinuousPrintOptions|undefined):void {
+  if(document.media.shape!=='continuous'){
+    if(options)throw new ContinuousPrintError('continuous.unsupported_printer','Continuous print options require continuous media.');
+    return;
+  }
+  const capability=printer.continuousMedia;
+  if(!capability?.supported)throw new ContinuousPrintError('continuous.unsupported_printer',`${printer.displayName} does not support qualified continuous-media jobs.`);
+  if(!Number.isFinite(document.media.height)||document.media.height<capability.minimumLengthMm||document.media.height>capability.maximumLengthMm)throw new ContinuousMediaError('continuous.invalid_fixed_length',`Continuous label length must be between ${capability.minimumLengthMm} and ${capability.maximumLengthMm} mm for ${printer.displayName}.`);
+  if(!options)return;
+  if(!capability.cutModes.includes(options.cutMode))throw new ContinuousPrintError('continuous.cut_mode_unsupported',`Cut mode ${options.cutMode} is not supported by ${printer.displayName}.`);
+  for(const [label,value] of [['before',options.extraFeedBeforeMm],['after',options.extraFeedAfterMm]] as const)if(!Number.isFinite(value)||value<capability.minimumExtraFeedMm||value>capability.maximumExtraFeedMm)throw new ContinuousPrintError('continuous.feed_out_of_range',`Extra feed ${label} must be between ${capability.minimumExtraFeedMm} and ${capability.maximumExtraFeedMm} mm.`);
+  if(options.chainCopies&&!capability.supportsChainedRaster)throw new ContinuousPrintError('continuous.cut_mode_unsupported',`${printer.displayName} does not support chained continuous rasters.`);
+}
+export interface PrinterDefinition { id: string; displayName: string; dpi: number; protocols: string[]; media: { minWidth: number; maxWidth: number; minHeight: number; maxHeight: number }; continuousMedia?: ContinuousMediaCapabilities }
 export interface MediaPreset { id: string; name: string; widthMm: number; /** Zero for continuous stock. */ heightMm: number; shape: 'rectangle' | 'round' | 'continuous'; tapeWidthMm?: number }
 export interface PrinterStatus { protocol: string; mediaWidthMm?: number; mediaLengthMm?: number; mediaType?: string; statusType?: string; phase?: string; battery?: number; paper?: string; cover?: string; label?: string; heating?: string; firmware?: string; version?: string; serial?: string; media?: MediaPreset; errors: string[]; raw: Uint8Array[] }
 export interface RasterPreview { width: number; height: number; rgba: Uint8Array }
 export interface LaPosteSlot { id: string; sourcePage: number; slot: number; occupied: boolean; widthMm: 63.5; heightMm: 33.9; preview: RasterPreview }
-export interface PrinterSdk {
+export interface PrinterSdk extends Partial<DocumentMeasurer> {
   /** Validates an unmodified canonical value so schema-unknown fields cannot be lost by an adapter. */
   validateCanonical(value: unknown): Promise<{ valid: boolean; errors: string[] }>;
   importV3Canonical?(value: unknown): Promise<unknown>;
@@ -59,7 +100,9 @@ export interface PrinterSdk {
   render(document: LabelDocument, options?: { exactThermal?: boolean; record?: number }): Promise<RasterPreview>;
   exportPng(document: LabelDocument, options?: { record?: number }): Promise<Uint8Array>;
   exportPdf(documents: LabelDocument[]): Promise<Uint8Array>;
-  plan(document: LabelDocument, printer: PrinterDefinition, options: { copies: number; density?: number; record?: number; streaming?: boolean; lzo?: boolean }): Promise<ProtocolPlan>;
+  plan(document: LabelDocument, printer: PrinterDefinition, options: { copies: number; density?: number; record?: number; streaming?: boolean; lzo?: boolean; continuous?: ContinuousPrintOptions }): Promise<ProtocolPlan>;
+  /** Plans multiple resolved documents as one physical job. */
+  planBatch?(documents: LabelDocument[], printer: PrinterDefinition, options: { copies: number; density?: number; streaming?: boolean; lzo?: boolean; continuous?: ContinuousPrintOptions }): Promise<ProtocolPlan>;
   /** Executes a protocol plan through the canonical printer-SDK browser adapter. */
   executePlan?: ProtocolPlanExecutor;
   printerDefinitions(): Promise<PrinterDefinition[]>;
@@ -77,15 +120,20 @@ export const LA_POSTE_FORMATS = ['L24A', 'L24B', 'L21A', 'L18A', 'L16A', 'L14A',
 export type LaPosteFormat = typeof LA_POSTE_FORMATS[number];
 export type PrintOutcome = 'completed' | 'cancelled-before-send' | 'cancelled-partial' | 'outcome-unknown' | 'failed';
 export interface PrintProgress { action: number; actions: number; bytesSent: number; totalBytes: number; phase: string }
+export interface BatchPrintProgress { item:number;items:number;copy:number;copies:number;current:PrintProgress }
 export interface PrintResult { outcome: PrintOutcome; lastCompletedAction: number; bytesSent: number; error?: string }
-export interface PrintRequest { document: LabelDocument; printer: PrinterDefinition; copies: number; density?: number; record?: number; /** Send the raster LZO-compressed, which Phomemo firmware accepts on the M110 family. */ compressRaster?: boolean; signal?: AbortSignal; onProgress?: (progress: PrintProgress) => void }
+export interface PrintRequest { document: LabelDocument; printer: PrinterDefinition; copies: number; density?: number; record?: number; continuous?: ContinuousPrintOptions; /** Send the raster LZO-compressed, which Phomemo firmware accepts on the M110 family. */ compressRaster?: boolean; signal?: AbortSignal; onProgress?: (progress: PrintProgress) => void }
 export interface PrintRoute {
   readonly id: string;
   readonly label: string;
   readonly connected?: boolean;
+  /** True only after the route has negotiated a native multi-document contract. */
+  readonly supportsNativeBatch?: boolean;
   isSupported(): boolean;
   connect?(options?: { signal?: AbortSignal }): Promise<void>;
   disconnect?(): Promise<void>;
   print(request: PrintRequest): Promise<PrintResult>;
+  /** One physical job. Required for batch-level cutting; never emulate after-job with separate jobs. */
+  printBatch?(request: { documents: LabelDocument[]; printer: PrinterDefinition; copies: number; continuous?: ContinuousPrintOptions; signal?: AbortSignal; onProgress?: (progress: BatchPrintProgress) => void }): Promise<PrintResult>;
   queryStatus?(printer: PrinterDefinition, options?: { signal?: AbortSignal }): Promise<PrinterStatus>;
 }
