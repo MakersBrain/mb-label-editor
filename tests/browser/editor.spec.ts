@@ -177,6 +177,31 @@ test('continuous CSV records resolve to variable lengths and gate batch cutting'
   expect(Number.parseFloat(lengths[1])).toBeGreaterThan(Number.parseFloat(lengths[0]));
 });
 
+test('selected elements follow the pointer before their move is committed', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  const element = page.locator('.element.selected');
+  const before = await element.boundingBox();
+  expect(before).not.toBeNull();
+  const initialX = Number(await page.getByLabel('X (mm)').inputValue());
+  const initialY = Number(await page.getByLabel('Y (mm)').inputValue());
+  const center = { x: before!.x + before!.width / 2, y: before!.y + before!.height / 2 };
+  await page.keyboard.down('Alt');
+  await page.mouse.move(center.x, center.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x + 38, center.y + 19, { steps: 3 });
+  const during = await element.boundingBox();
+  expect(during).not.toBeNull();
+  expect(during!.x).toBeCloseTo(before!.x + 38, 0);
+  expect(during!.y).toBeCloseTo(before!.y + 19, 0);
+  expect(Number(await page.getByLabel('X (mm)').inputValue())).toBe(initialX);
+  expect(Number(await page.getByLabel('Y (mm)').inputValue())).toBe(initialY);
+  await page.mouse.up();
+  await page.keyboard.up('Alt');
+  expect(Number(await page.getByLabel('X (mm)').inputValue())).toBeGreaterThan(initialX);
+  expect(Number(await page.getByLabel('Y (mm)').inputValue())).toBeGreaterThan(initialY);
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
