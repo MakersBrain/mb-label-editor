@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import init, * as wasm from '@makersbrain/printer-sdk/web';
-import { executePlan as executeBrowserPlan } from '@makersbrain/printer-sdk/adapters';
-import { DocumentMaterializationError, adaptSdkProtocolPlan, assertDocumentReadyForOutput, defaultDocument, fromSdkDocument, isSheetPlan, isZoneBatchPlanForRequest, structuredMaterializationError, toSdkDocument, toSdkPlanActions, uuid, type DocumentMaterializer, type DocumentMeasurement, type DocumentMeasurer, type LabelDocument, type MaterializeOptions, type MediaPreset, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type RasterPreview, type SdkPlanAction, type SheetDiagnostic, type SheetExporter, type ZoneBatchOptions } from '@makersbrain/label-editor';
+import { DocumentMaterializationError, adaptSdkProtocolPlan, assertDocumentReadyForOutput, defaultDocument, fromSdkDocument, isSheetPlan, isZoneBatchPlanForRequest, sdkPlanExecutor, structuredMaterializationError, toSdkDocument, uuid, type DocumentMaterializer, type DocumentMeasurement, type DocumentMeasurer, type LabelDocument, type MaterializeOptions, type MediaPreset, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type RasterPreview, type SdkPlanAction, type SheetDiagnostic, type SheetExporter, type ZoneBatchOptions } from '@makersbrain/label-editor';
 
 interface NormalizedPage { page: number; widthUm: number; heightUm: number; rasterWidth: number; rasterHeight: number; pixels: number[] }
 interface Stamp extends NormalizedPage { slot: number }
-type BrowserSdk = PrinterSdk & SheetExporter & DocumentMaterializer & DocumentMeasurer;
+/** Identity of the embedded WebAssembly SDK, as reported by its `buildInfo()` export. */
+export interface SdkBuildInfo { name: string; version: string; commit: string; dirty: boolean; protocolSourceCommit: string }
+export type BrowserSdk = PrinterSdk & SheetExporter & DocumentMaterializer & DocumentMeasurer & { readonly buildInfo: SdkBuildInfo };
 let instance: Promise<BrowserSdk> | undefined;
 
 export function loadPrinterSdk(diagnostics?: (event: SheetDiagnostic) => void): Promise<BrowserSdk> {
@@ -15,6 +16,7 @@ export function loadPrinterSdk(diagnostics?: (event: SheetDiagnostic) => void): 
 function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
   const stampCache = new Map<string, Stamp>();
   return {
+    buildInfo: parseBuildInfo(wasm.buildInfo()),
     async measure(document) {
       return measurement(JSON.parse(wasm.measureDocument(JSON.stringify(toSdkDocument(document)))) as unknown);
     },
@@ -62,24 +64,22 @@ function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
     async plan(document, printer, options) {
       assertDocumentReadyForOutput(document);
       const request = JSON.stringify({ copies: options.copies, ...(options.density === undefined ? {} : { density: options.density }), streaming: !!options.streaming, lzo: !!options.lzo, ...(options.continuous ? { continuous: { cutMode: options.continuous.cutMode, extraFeedBeforeUm: Math.round(options.continuous.extraFeedBeforeMm * 1_000), extraFeedAfterUm: Math.round(options.continuous.extraFeedAfterMm * 1_000), chainCopies: options.continuous.chainCopies } } : {}) });
-      const parsed = JSON.parse(wasm.renderProtocolPlanWithOptions(JSON.stringify(toSdkDocument(document)), printer.id, request)) as { protocol: string; actions: SdkPlanAction[] };
-      return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
+      const parsed = JSON.parse(wasm.renderProtocolPlanWithOptions(JSON.stringify(toSdkDocument(document)), printer.id, request)) as { protocol: string; source_commit?: string; actions: SdkPlanAction[] };
+      return adaptSdkProtocolPlan(parsed.protocol, parsed.actions, parsed.source_commit);
     },
     async planBatch(documents, printer, options) {
       documents.forEach(assertDocumentReadyForOutput);
       const request = JSON.stringify({ copies: options.copies, ...(options.density === undefined ? {} : { density: options.density }), streaming: !!options.streaming, lzo: !!options.lzo, ...(options.continuous ? { continuous: { cutMode: options.continuous.cutMode, extraFeedBeforeUm: Math.round(options.continuous.extraFeedBeforeMm * 1_000), extraFeedAfterUm: Math.round(options.continuous.extraFeedAfterMm * 1_000), chainCopies: options.continuous.chainCopies } } : {}) });
-      const parsed = JSON.parse(wasm.renderProtocolBatchPlanWithOptions(JSON.stringify(documents.map(toSdkDocument)), printer.id, request)) as { protocol: string; actions: SdkPlanAction[] };
-      return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
+      const parsed = JSON.parse(wasm.renderProtocolBatchPlanWithOptions(JSON.stringify(documents.map(toSdkDocument)), printer.id, request)) as { protocol: string; source_commit?: string; actions: SdkPlanAction[] };
+      return adaptSdkProtocolPlan(parsed.protocol, parsed.actions, parsed.source_commit);
     },
-    async executePlan(plan, transport, progress, signal) {
-      return executeBrowserPlan(plan.sdkActions ?? toSdkPlanActions(plan), transport, progress, signal);
-    },
+    executePlan: sdkPlanExecutor(wasm.executePlan),
     async mediaPresets(printer): Promise<MediaPreset[]> {
       return JSON.parse(wasm.mediaPresets(printer.id)) as MediaPreset[];
     },
     async statusPlan(printer) {
-      const parsed = JSON.parse(wasm.statusPlan(printer.id)) as { protocol: string; actions: SdkPlanAction[] };
-      return adaptSdkProtocolPlan(parsed.protocol, parsed.actions);
+      const parsed = JSON.parse(wasm.statusPlan(printer.id)) as { protocol: string; source_commit?: string; actions: SdkPlanAction[] };
+      return adaptSdkProtocolPlan(parsed.protocol, parsed.actions, parsed.source_commit);
     },
     async parseStatus(printer: PrinterDefinition, frames: Uint8Array[]): Promise<PrinterStatus> {
       const protocol = printer.protocols[0] ?? 'brother';
@@ -122,6 +122,16 @@ function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
   };
 }
 
+function parseBuildInfo(json: string): SdkBuildInfo {
+  const raw = JSON.parse(json) as Partial<Record<keyof SdkBuildInfo, unknown>>;
+  const text = (value: unknown) => typeof value === 'string' && value ? value : 'unknown';
+  return { name: text(raw.name), version: text(raw.version), commit: text(raw.commit), dirty: raw.dirty === true, protocolSourceCommit: text(raw.protocolSourceCommit) };
+}
+/** Short footer label such as `0.1.0+0a5cf33f`, with a trailing `*` when the SDK was built from a modified tree. */
+export function sdkBuildLabel(info: SdkBuildInfo): string {
+  const commit = info.commit === 'unknown' ? '' : `+${info.commit.slice(0, 8)}`;
+  return `${info.version}${commit}${info.dirty ? '*' : ''}`;
+}
 function measurement(value: unknown): DocumentMeasurement {
   if (!value || typeof value !== 'object') throw new Error('The printer SDK returned an invalid document measurement.');
   const raw = value as { elements?: unknown; contentBounds?: unknown; layoutVersion?: unknown };

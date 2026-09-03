@@ -29,6 +29,9 @@ ARG SCCACHE_PREFIX=rust-v1
 
 WORKDIR /workspace
 COPY mb-printer-sdk ./mb-printer-sdk
+# The SDK build script stamps this commit into its buildInfo() export when no git repository is present.
+ARG MB_SDK_GIT_COMMIT=
+ENV MB_SDK_GIT_COMMIT=$MB_SDK_GIT_COMMIT
 WORKDIR /workspace/mb-printer-sdk/crates/mb-printer-wasm
 RUN --mount=type=secret,id=aws_access_key_id,env=AWS_ACCESS_KEY_ID \
     --mount=type=secret,id=aws_secret_access_key,env=AWS_SECRET_ACCESS_KEY \
@@ -46,6 +49,8 @@ WORKDIR /workspace/mb-label-editor
 RUN --mount=type=cache,target=/root/.npm npm ci
 ARG VITE_ASSET_CATALOG_URL=http://127.0.0.1:8766
 ENV VITE_ASSET_CATALOG_URL=$VITE_ASSET_CATALOG_URL
+ARG MB_BUILD_TAG=
+ENV MB_BUILD_TAG=$MB_BUILD_TAG
 RUN npm run build --workspace @makersbrain/label-editor \
     && npm run build --workspace @makersbrain/label-editor-pwa
 
