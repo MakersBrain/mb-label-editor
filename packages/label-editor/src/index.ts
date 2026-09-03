@@ -17,7 +17,7 @@ export * from './lib/sdk-document.js';
 export * from './lib/clipboard.js';
 export * from './lib/persistence/database.js'; export * from './lib/template/csv.js'; export * from './lib/template/evaluate.js';
 export * from './lib/template/materialize.js';
-export * from './lib/print/types.js'; export * from './lib/print/direct.js'; export * from './lib/print/local-api.js'; export * from './lib/laposte/workflow.js';
+export * from './lib/print/types.js'; export * from './lib/print/sdk-executor.js'; export * from './lib/print/direct.js'; export * from './lib/print/local-api.js'; export * from './lib/laposte/workflow.js';
 export * from './lib/print/cloud.js';
 export * from './lib/print/browser-transports.js';
 export { default as LabelEditor } from './lib/components/LabelEditor.svelte'; export { default as Canvas } from './lib/components/Canvas.svelte';
