@@ -2,44 +2,41 @@
 <script lang="ts">
   import type { BrotherWifiConfigureRequest, LocalApiBrotherReport, LocalApiBrotherWifiConfigurePreparation, LocalApiBrotherWifiScan, LocalApiBrotherWifiStatus, LocalApiConnection, LocalApiDiscoveryCandidate, LocalApiPrinterOperation, LocalApiPrintRoute } from '../print/local-api.js';
 
-  export let route: LocalApiPrintRoute;
-  export let onToken: (token: string) => void = () => {};
-  export let onConnection: (connection: LocalApiConnection | undefined) => void = () => {};
-  export let selectedId = '';
-  export let paired = false;
-  /** Parent toggles this with the modal so sensitive fields do not survive reopening. */
-  export let active = false;
+  import { untrack } from 'svelte';
+  /** `active` is toggled by the parent with the modal so sensitive fields do not survive reopening. */
+  interface Props { route: LocalApiPrintRoute; onToken?: (token: string) => void; onConnection?: (connection: LocalApiConnection | undefined) => void; selectedId?: string; paired?: boolean; active?: boolean }
+  let { route, onToken = () => {}, onConnection = () => {}, selectedId = $bindable(''), paired = false, active = false }: Props = $props();
 
-  let secret = '';
-  let status = '';
-  let liveStatus = '';
-  let connections: LocalApiConnection[] = [];
-  let connectionId = 'brother-network';
-  let model = 'ql-1110nwb';
-  let ippUri = 'ipps://brother.local:631/ipp/print';
-  let certificatePem = '';
-  let candidates: LocalApiDiscoveryCandidate[] = [];
-  let diagnosticTask = '';
-  let diagnosticStatus = '';
-  let wifi: LocalApiBrotherWifiStatus | undefined;
-  let scan: LocalApiBrotherWifiScan | undefined;
-  let report: LocalApiBrotherReport | undefined;
+  let secret = $state('');
+  let status = $state('');
+  let liveStatus = $state('');
+  let connections = $state.raw<LocalApiConnection[]>([]);
+  let connectionId = $state('brother-network');
+  let model = $state('ql-1110nwb');
+  let ippUri = $state('ipps://brother.local:631/ipp/print');
+  let certificatePem = $state('');
+  let candidates = $state.raw<LocalApiDiscoveryCandidate[]>([]);
+  let diagnosticTask = $state('');
+  let diagnosticStatus = $state('');
+  let wifi = $state.raw<LocalApiBrotherWifiStatus | undefined>();
+  let scan = $state.raw<LocalApiBrotherWifiScan | undefined>();
+  let report = $state.raw<LocalApiBrotherReport | undefined>();
   // These values intentionally stay in this component only. Do not lift them
   // into App.svelte, a store, localStorage, URL parameters, or diagnostics.
-  let adminToken = '';
-  let adminPairingSecret = '';
-  let wifiSsid = '';
-  let wifiPassword = '';
-  let wifiEncryption = 'aes';
-  let wifiAuthentication = 'wpa2-only';
-  let wifiInfrastructure = true;
-  let wifiWirelessDirect = false;
-  let wifiReboot = true;
-  let wifiPreparation: LocalApiBrotherWifiConfigurePreparation | undefined;
-  let wifiConfigureTask = '';
-  let wifiConfigureStatus = '';
-  $: selectedConnection = connections.find((item) => item.id === selectedId);
-  $: if (!active) clearWifiConfigure();
+  let adminToken = $state('');
+  let adminPairingSecret = $state('');
+  let wifiSsid = $state('');
+  let wifiPassword = $state('');
+  let wifiEncryption = $state('aes');
+  let wifiAuthentication = $state('wpa2-only');
+  let wifiInfrastructure = $state(true);
+  let wifiWirelessDirect = $state(false);
+  let wifiReboot = $state(true);
+  let wifiPreparation = $state.raw<LocalApiBrotherWifiConfigurePreparation | undefined>();
+  let wifiConfigureTask = $state('');
+  let wifiConfigureStatus = $state('');
+  const selectedConnection = $derived(connections.find((item) => item.id === selectedId));
+  $effect(() => { if (!active) untrack(clearWifiConfigure); });
 
   async function pair() {
     try {
@@ -240,25 +237,25 @@
   <h2>Local service</h2>
   <div class="row">
     <label>One-time pairing secret<input type="password" bind:value={secret} autocomplete="off"></label>
-    <button on:click={pair} disabled={!secret}>Pair on localhost</button>
+    <button onclick={pair} disabled={!secret}>Pair on localhost</button>
   </div>
   <div class="row">
     <label class="grow">Printer connection
-      <select bind:value={selectedId} on:change={choose}>
+      <select bind:value={selectedId} onchange={choose}>
         <option value="">Select a connection</option>
         {#each connections as connection}
           <option value={connection.id}>{connection.id} · {connection.model} · {connection.transport.kind} · {connection.status}</option>
         {/each}
       </select>
     </label>
-    <button on:click={refresh}>Refresh</button>
-    <button on:click={inspect} disabled={!selectedId}>Check status</button>
+    <button onclick={refresh}>Refresh</button>
+    <button onclick={inspect} disabled={!selectedId}>Check status</button>
   </div>
   {#if liveStatus}<p class="live" aria-live="polite">{liveStatus}</p>{/if}
 
   <fieldset>
     <legend>Discover local printers</legend>
-    <button on:click={discover} disabled={!paired || !!diagnosticTask}>{diagnosticTask === 'discover' ? 'Discovering…' : 'Discover'}</button>
+    <button onclick={discover} disabled={!paired || !!diagnosticTask}>{diagnosticTask === 'discover' ? 'Discovering…' : 'Discover'}</button>
     {#if !paired}<p>Pair with the local service to enable discovery.</p>{/if}
     {#if candidates.length}
       <ul aria-label="Discovered printer candidates">
@@ -273,9 +270,9 @@
     <fieldset>
       <legend>Brother diagnostics</legend>
       <div class="row diagnostics">
-        {#if supports('wifi-status')}<button on:click={readWifiStatus} disabled={!!diagnosticTask}>{diagnosticTask === 'wifi-status' ? 'Reading…' : 'Wi-Fi status'}</button>{/if}
-        {#if supports('wifi-scan')}<button on:click={scanWifi} disabled={!!diagnosticTask}>{diagnosticTask === 'wifi-scan' ? 'Scanning…' : 'Scan Wi-Fi'}</button>{/if}
-        {#if supports('system-report')}<button on:click={readReport} disabled={!!diagnosticTask}>{diagnosticTask === 'system-report' ? 'Reading…' : 'Redacted report'}</button>{/if}
+        {#if supports('wifi-status')}<button onclick={readWifiStatus} disabled={!!diagnosticTask}>{diagnosticTask === 'wifi-status' ? 'Reading…' : 'Wi-Fi status'}</button>{/if}
+        {#if supports('wifi-scan')}<button onclick={scanWifi} disabled={!!diagnosticTask}>{diagnosticTask === 'wifi-scan' ? 'Scanning…' : 'Scan Wi-Fi'}</button>{/if}
+        {#if supports('system-report')}<button onclick={readReport} disabled={!!diagnosticTask}>{diagnosticTask === 'system-report' ? 'Reading…' : 'Redacted report'}</button>{/if}
       </div>
       {#if wifi}
         <dl aria-label="Brother Wi-Fi status">
@@ -311,35 +308,35 @@
               <label>One-time administrator pairing secret
                 <input type="password" bind:value={adminPairingSecret} autocomplete="off" spellcheck="false" aria-label="One-time administrator pairing secret">
               </label>
-              <button on:click={pairAdmin} disabled={!!wifiConfigureTask || !adminPairingSecret.trim()}>{wifiConfigureTask === 'admin-pair' ? 'Authorizing…' : 'Authorize Wi-Fi administration'}</button>
+              <button onclick={pairAdmin} disabled={!!wifiConfigureTask || !adminPairingSecret.trim()}>{wifiConfigureTask === 'admin-pair' ? 'Authorizing…' : 'Authorize Wi-Fi administration'}</button>
               <p>Generate this short-lived secret locally with <code>mb-printer api pair-admin</code>. Its issued token stays only in this open panel.</p>
             {:else}
               <p>Wi-Fi administration is authorized for this open panel. Closing it clears the token.</p>
             {/if}
             <label>Wi-Fi network name (SSID)
-              <input bind:value={wifiSsid} autocomplete="off" spellcheck="false" aria-label="Wi-Fi network name" on:input={invalidateWifiPreparation}>
+              <input bind:value={wifiSsid} autocomplete="off" spellcheck="false" aria-label="Wi-Fi network name" oninput={invalidateWifiPreparation}>
             </label>
             <label>Wi-Fi password
-              <input type="password" bind:value={wifiPassword} autocomplete="new-password" spellcheck="false" aria-label="Wi-Fi password" on:input={invalidateWifiPreparation}>
+              <input type="password" bind:value={wifiPassword} autocomplete="new-password" spellcheck="false" aria-label="Wi-Fi password" oninput={invalidateWifiPreparation}>
             </label>
             <div class="grid">
               <label>Encryption
-                <select bind:value={wifiEncryption} aria-label="Wi-Fi encryption" on:change={invalidateWifiPreparation}>
+                <select bind:value={wifiEncryption} aria-label="Wi-Fi encryption" onchange={invalidateWifiPreparation}>
                   <option value="aes">WPA2/WPA3 AES</option><option value="tkip">WPA TKIP</option><option value="none">Open network</option>
                 </select>
               </label>
               <label>Authentication
-                <select bind:value={wifiAuthentication} aria-label="Wi-Fi authentication" on:change={invalidateWifiPreparation}>
+                <select bind:value={wifiAuthentication} aria-label="Wi-Fi authentication" onchange={invalidateWifiPreparation}>
                   <option value="wpa2-only">WPA2 personal</option><option value="wpa-psk">WPA personal</option><option value="open">Open</option>
                 </select>
               </label>
             </div>
             <div class="checks">
-              <label><input type="checkbox" bind:checked={wifiInfrastructure} on:change={invalidateWifiPreparation}> Infrastructure mode</label>
-              <label><input type="checkbox" bind:checked={wifiWirelessDirect} on:change={invalidateWifiPreparation}> Wireless Direct</label>
-              <label><input type="checkbox" bind:checked={wifiReboot} on:change={invalidateWifiPreparation}> Reboot printer after applying</label>
+              <label><input type="checkbox" bind:checked={wifiInfrastructure} onchange={invalidateWifiPreparation}> Infrastructure mode</label>
+              <label><input type="checkbox" bind:checked={wifiWirelessDirect} onchange={invalidateWifiPreparation}> Wireless Direct</label>
+              <label><input type="checkbox" bind:checked={wifiReboot} onchange={invalidateWifiPreparation}> Reboot printer after applying</label>
             </div>
-            <button on:click={prepareWifiConfigure} disabled={!!wifiConfigureTask || !adminToken.trim() || !wifiSsid.trim() || (wifiEncryption !== 'none' && !wifiPassword)}> {wifiConfigureTask === 'prepare' ? 'Preparing review…' : 'Review Wi-Fi configuration'}</button>
+            <button onclick={prepareWifiConfigure} disabled={!!wifiConfigureTask || !adminToken.trim() || !wifiSsid.trim() || (wifiEncryption !== 'none' && !wifiPassword)}> {wifiConfigureTask === 'prepare' ? 'Preparing review…' : 'Review Wi-Fi configuration'}</button>
           {:else}
             <div class="review" aria-label="Wi-Fi configuration review">
               <strong>Review before applying</strong>
@@ -355,8 +352,8 @@
               <p>The password is not displayed or saved. This review expires {new Date(wifiPreparation.expiresAt * 1_000).toLocaleTimeString()}.</p>
               <p>{wifiPreparation.recovery}</p>
               <div class="row">
-                <button on:click={() => { wifiPreparation = undefined; wifiConfigureStatus = 'Review cancelled.'; }}>Edit settings</button>
-                <button class="danger" on:click={applyWifiConfigure} disabled={!!wifiConfigureTask}>{wifiConfigureTask === 'apply' ? 'Applying…' : 'Apply Wi-Fi configuration'}</button>
+                <button onclick={() => { wifiPreparation = undefined; wifiConfigureStatus = 'Review cancelled.'; }}>Edit settings</button>
+                <button class="danger" onclick={applyWifiConfigure} disabled={!!wifiConfigureTask}>{wifiConfigureTask === 'apply' ? 'Applying…' : 'Apply Wi-Fi configuration'}</button>
               </div>
             </div>
           {/if}
@@ -376,7 +373,7 @@
     <label>Trusted certificate PEM (optional)
       <textarea bind:value={certificatePem} spellcheck="false" rows="3" placeholder="Leave blank for normal system certificate trust"></textarea>
     </label>
-    <button on:click={configureIpp} disabled={!connectionId.trim() || !model.trim() || !ippUri.trim()}>Probe, save, and select</button>
+    <button onclick={configureIpp} disabled={!connectionId.trim() || !model.trim() || !ippUri.trim()}>Probe, save, and select</button>
     <p>Use <code>ipps://</code> for encrypted printing. A private or self-signed printer certificate must be supplied explicitly and must match the printer hostname.</p>
   </fieldset>
   <p>Printing is enabled only after the service has probed and persisted a physical printer connection.</p>
