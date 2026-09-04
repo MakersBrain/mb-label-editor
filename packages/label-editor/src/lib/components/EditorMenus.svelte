@@ -54,4 +54,5 @@ function paste(){const items=pasteElements();for(const item of items)editor.exec
 </Menu>
 <Menu label="Help">
   <button on:click={()=>onOpen('shortcuts')}>Keyboard shortcuts…<kbd>?</kbd></button>
+  <button on:click={()=>onOpen('syntax')}>Template syntax…</button>
 </Menu>

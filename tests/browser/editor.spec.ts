@@ -341,6 +341,24 @@ test('hiding or locking a group applies to the elements inside it', async ({ pag
   await expect(page.locator('aside ol > li').filter({ hasText: 'Ellipse' }).getByRole('button', { name: 'Lock' })).toHaveAttribute('title', 'Locked by its group');
 });
 
+test('the template syntax reference explains transforms and evaluates expressions live', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('summary', { hasText: 'Help' }).click();
+  await page.getByRole('button', { name: 'Template syntax…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Template syntax' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Fixed decimals with half-up rounding', { exact: false })).toBeVisible();
+  await expect(dialog.locator('output')).toHaveText('EUR 4.50');
+  await dialog.getByLabel('Expression').fill('{{best_before | date:%d.%m.%Y | prefix:"Use by "}}');
+  await expect(dialog.locator('output')).toHaveText('Use by 31.12.2026');
+  await dialog.getByLabel('Expression').fill('{{missing}}');
+  await expect(dialog.locator('.error')).toContainText('unknown field');
+  await page.keyboard.press('Escape');
+  await openDialog(page, 'Label', 'Data…');
+  await page.getByRole('button', { name: 'Template syntax reference' }).click();
+  await expect(dialog).toBeVisible();
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
