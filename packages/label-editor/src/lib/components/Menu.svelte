@@ -1,11 +1,16 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-export let label:string;export let align:'start'|'end'='start';
+import type { Snippet } from 'svelte';
+let { label, align = 'start', children }: { label: string; align?: 'start' | 'end'; children?: Snippet } = $props();
 function dismiss(event:FocusEvent){const menu=event.currentTarget as HTMLDetailsElement;const next=event.relatedTarget as Node|null;if(!next||!menu.contains(next))menu.open=false}
 function pick(event:MouseEvent){if((event.target as HTMLElement).closest('button'))(event.currentTarget as HTMLElement).closest('details')!.removeAttribute('open')}
 </script>
-<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-<details class="menu" on:focusout={dismiss}><summary>{label}</summary><div class="sheet" class:end={align==='end'} on:click={pick}><slot/></div></details>
+<details class="menu" onfocusout={dismiss}>
+  <summary>{label}</summary>
+  <!-- The sheet only observes clicks that bubble from its own buttons, which stay keyboard-operable themselves. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="sheet" class:end={align==='end'} onclick={pick}>{@render children?.()}</div>
+</details>
 <style>
   .menu{position:relative}
   .sheet :global(kbd){margin-left:auto;padding-left:1rem;color:var(--mble-text-muted,#59635e);font-family:var(--mble-font-mono,ui-monospace,monospace);font-size:.68rem}
