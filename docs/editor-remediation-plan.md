@@ -37,6 +37,16 @@ elements on a 50 x 30 mm label:
 | Controls under 32 px at any viewport | 99 |
 | Media queries for `pointer: coarse`, `hover: none`, `env(safe-area-inset-*)` or `prefers-color-scheme` in the editor package | 0 |
 
+Measured by `tests/browser/perf.spec.ts` at Phase 0 (2026-09-04), one 100-step
+drag of a text element on the 178 KB image fixture plus 40 inserted texts:
+
+| Measure | Value |
+| --- | --- |
+| IndexedDB write transactions during the drag and 2.5 s settle | 316 |
+| SDK renders during the drag | 102 |
+| Longest task during the drag | 80 ms |
+| Scripted insertion of 40 text elements | 4568 ms |
+
 Root cause of the slowness: `createEditorStore` in `store.ts` exposes one
 merged snapshot that emits on every document, selection or view change.
 Every component reads `$editor`, and `Canvas.moveDrag` calls `setView` on
