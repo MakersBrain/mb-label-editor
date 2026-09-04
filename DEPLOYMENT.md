@@ -14,5 +14,10 @@ collections stay in browser IndexedDB.
 For the Access-protected development Docker deployment, serve the asset API at
 same-origin `/v1/` with `Cache-Control: no-store`, keep the service worker away
 from `/v1/` and all cross-origin requests, and preserve the printer service's
-loopback bind. Cloudflare Access protects network delivery but does not erase
+loopback bind. Give the editor container `ASSET_CATALOG_API_KEY` as well: its
+nginx injects that bearer token into `/v1/` requests that carry Cloudflare's
+`Cf-Access-Authenticated-User-Email` header and no token of their own, so an
+Access-authenticated user needs no session token in the editor. Requests without
+the Access header, or an image started without the key, still reach the
+catalogue unauthenticated and receive its 401. Cloudflare Access protects network delivery but does not erase
 an already installed offline shell or browser-local documents.

@@ -59,6 +59,10 @@ RUN npm run build --workspace @makersbrain/label-editor \
     && npm run build --workspace @makersbrain/label-editor-pwa
 
 FROM nginx:1.27-alpine AS runtime
-COPY mb-label-editor/deploy/nginx.conf /etc/nginx/conf.d/default.conf
+# The site config is a template so the entrypoint can inject the catalogue key
+# for Cloudflare Access sessions; only that one variable is substituted.
+ENV NGINX_ENVSUBST_FILTER=^ASSET_CATALOG_PROXY_AUTHORIZATION$
+COPY mb-label-editor/deploy/nginx.conf /etc/nginx/templates/default.conf.template
+COPY mb-label-editor/deploy/15-asset-catalog-proxy.envsh /docker-entrypoint.d/15-asset-catalog-proxy.envsh
 COPY --from=build /workspace/mb-label-editor/apps/pwa/dist /usr/share/nginx/html
 EXPOSE 8080

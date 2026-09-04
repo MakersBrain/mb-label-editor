@@ -41,7 +41,10 @@ test.describe('deployed label-editor nginx boundary', () => {
       };
     }, assetToken);
 
-    expect(result.unauthenticated).toBe(401);
+    // Behind Cloudflare Access the nginx image injects the catalogue key, so a browser
+    // request without its own bearer token succeeds; set ASSET_CATALOG_PROXY_INJECTION=off
+    // when testing an image that runs without the key.
+    expect(result.unauthenticated).toBe(process.env.ASSET_CATALOG_PROXY_INJECTION === 'off' ? 401 : 200);
     expect(result.authenticated).toBe(200);
     expect(result.authenticatedUrl).toBe(`${deployedOrigin}/v1/catalog`);
     expect(result.cacheControl).toBe('no-store');

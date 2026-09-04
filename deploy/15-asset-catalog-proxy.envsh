@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Sourced by the nginx image entrypoint before templates are rendered. Turns the
+# optional catalogue key into the header value nginx injects for Access-verified
+# requests; an absent key renders an empty value and injection stays off.
+if [ -n "${ASSET_CATALOG_API_KEY:-}" ]; then
+  export ASSET_CATALOG_PROXY_AUTHORIZATION="Bearer ${ASSET_CATALOG_API_KEY}"
+else
+  export ASSET_CATALOG_PROXY_AUTHORIZATION=""
+fi
