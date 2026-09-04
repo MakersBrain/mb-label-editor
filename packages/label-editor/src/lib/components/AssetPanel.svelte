@@ -70,7 +70,7 @@
     scheduleRemoteSearch();
   }
   $: if (mounted && active && source === 'service' && resourceProvider) { query; remoteKind; void loadFacets(); }
-  $: localCategories = catalogue.categories.map(value => ({ value, count: catalogue.search({ query, category: value }).length })).filter(item => item.count);
+  $: localCategories = (() => { const counts: Record<string, number> = {}; for (const asset of catalogue.search({ query })) counts[asset.category] = (counts[asset.category] ?? 0) + 1; return Object.keys(counts).sort().map(value => ({ value, count: counts[value] })); })();
   $: chips = source === 'service' ? facetCategories : localCategories;
   $: selectedSource = source; $: selectedKind = remoteKind;
   $: { selectedSource; selectedKind; selected = undefined; }

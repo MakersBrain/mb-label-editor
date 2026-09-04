@@ -2,7 +2,7 @@
 import init, * as wasm from '@makersbrain/printer-sdk/web';
 import { DocumentMaterializationError, adaptSdkProtocolPlan, assertDocumentReadyForOutput, defaultDocument, fromSdkDocument, isSheetPlan, isZoneBatchPlanForRequest, sdkPlanExecutor, structuredMaterializationError, toSdkDocument, uuid, type DocumentMaterializer, type DocumentMeasurement, type DocumentMeasurer, type LabelDocument, type MaterializeOptions, type MediaPreset, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type RasterPreview, type SdkPlanAction, type SheetDiagnostic, type SheetExporter, type ZoneBatchOptions } from '@makersbrain/label-editor';
 
-interface NormalizedPage { page: number; widthUm: number; heightUm: number; rasterWidth: number; rasterHeight: number; pixels: number[] }
+interface NormalizedPage { page: number; widthUm: number; heightUm: number; rasterWidth: number; rasterHeight: number; pixels: ArrayLike<number> }
 interface Stamp extends NormalizedPage { slot: number }
 /** Identity of the embedded WebAssembly SDK, as reported by its `buildInfo()` export. */
 export interface SdkBuildInfo { name: string; version: string; commit: string; dirty: boolean; protocolSourceCommit: string }
@@ -17,7 +17,16 @@ export function loadPrinterSdk(diagnostics?: (event: SheetDiagnostic) => void): 
 const perf = import.meta.env.MODE === 'test' ? (window.__mbPerf ??= { render: 0, measure: 0, materialize: 0, reset() { this.render = 0; this.measure = 0; this.materialize = 0; } }) : undefined;
 
 function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
+  // Extracted stamps are kept for the slot picker; bounded and packed so repeated inspection cannot grow without limit.
   const stampCache = new Map<string, Stamp>();
+  const STAMP_CACHE_LIMIT = 8;
+  const rememberStamp = (id: string, stamp: Stamp) => {
+    const packed: Stamp = { ...stamp, pixels: stamp.pixels instanceof Uint8Array ? stamp.pixels : Uint8Array.from(stamp.pixels) };
+    stampCache.delete(id); stampCache.set(id, packed);
+    while (stampCache.size > STAMP_CACHE_LIMIT) stampCache.delete(stampCache.keys().next().value!);
+    return packed;
+  };
+  const recallStamp = (id: string) => { const stamp = stampCache.get(id); if (stamp) { stampCache.delete(id); stampCache.set(id, stamp); } return stamp; };
   return {
     buildInfo: parseBuildInfo(wasm.buildInfo()),
     async measure(document) {
@@ -114,12 +123,12 @@ function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
     async inspectLaPoste(data, format, options) {
       const stamps = JSON.parse(wasm.extractLaPostePdf(format, data, options?.dpi ?? 203)) as Stamp[];
       return stamps.filter((stamp) => !options?.pages || options.pages.includes(stamp.page)).map((stamp) => {
-        const id = `${format}:${stamp.page}:${stamp.slot}`; stampCache.set(id, stamp);
-        return { id, sourcePage: stamp.page, slot: stamp.slot, occupied: true, widthMm: 63.5, heightMm: 33.9, preview: grayPreview(stamp) };
+        const id = `${format}:${stamp.page}:${stamp.slot}`; const packed = rememberStamp(id, stamp);
+        return { id, sourcePage: stamp.page, slot: stamp.slot, occupied: true, widthMm: 63.5, heightMm: 33.9, preview: grayPreview(packed) };
       });
     },
     async laPosteSlotDocument(data, format, slot) {
-      let stamp = stampCache.get(slot.id);
+      let stamp = recallStamp(slot.id);
       if (!stamp) stamp = (JSON.parse(wasm.extractLaPostePdf(format, data, 203)) as Stamp[]).find((item) => item.page === slot.sourcePage && item.slot === slot.slot);
       if (!stamp) throw new Error('Selected La Poste slot is no longer available.');
       return imageDocument(await grayPng(stamp), `La Poste ${format} page ${stamp.page} slot ${stamp.slot}`);
@@ -187,7 +196,7 @@ async function decodePng(data: Uint8Array): Promise<RasterPreview> {
 }
 function grayPreview(page: NormalizedPage): RasterPreview {
   const rgba = new Uint8Array(page.rasterWidth * page.rasterHeight * 4);
-  page.pixels.forEach((gray, index) => rgba.set([gray, gray, gray, 255], index * 4));
+  for (let index = 0; index < page.pixels.length; index++) { const gray = page.pixels[index]; const offset = index * 4; rgba[offset] = gray; rgba[offset + 1] = gray; rgba[offset + 2] = gray; rgba[offset + 3] = 255; }
   return { width: page.rasterWidth, height: page.rasterHeight, rgba };
 }
 async function grayPng(page: NormalizedPage) {
