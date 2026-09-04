@@ -385,7 +385,7 @@
   /** `rank` is the element's dense position in paint order, so a stored zIndex can never outrank the canvas chrome. */
   const styleFor = (element: LabelElement, offset: Point, preview: Point | undefined, rank: number) => {
     const delta = preview ?? { x: 0, y: 0 };
-    return `left:${(element.transform.x + offset.x + delta.x) * pxPerMm}px;top:${(element.transform.y + offset.y + delta.y) * pxPerMm}px;width:${element.transform.width * pxPerMm}px;height:${element.transform.height * pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${rank}`;
+    return `left:${(element.transform.x + offset.x + delta.x) * pxPerMm}px;top:${(element.transform.y + offset.y + delta.y) * pxPerMm}px;width:${element.transform.width * pxPerMm}px;height:${element.transform.height * pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${rank}${element.type === 'line' ? ';height:1px' : ''}`;
   };
   const boundsStyle = (bounds: Bounds, preview: Point | undefined) => {
     const delta = preview ?? { x: 0, y: 0 };
@@ -752,8 +752,9 @@
       ondrop={assetDrop}
       class:grid={editor.view.showGrid}
       class:continuous={editor.document.media.shape === 'continuous'}
+      class:round={editor.document.media.shape === 'round'}
       class="media"
-      style={`width:${editor.document.media.width * pxPerMm}px;height:${displayHeight * pxPerMm}px;--grid:${editor.view.gridSize * pxPerMm}px;border-radius:${editor.document.media.shape === 'round' ? '50%' : '3px'}`}
+      style={`width:${editor.document.media.width * pxPerMm}px;height:${displayHeight * pxPerMm}px;--grid:${editor.view.gridSize * pxPerMm}px`}
     >
       {#if editor.document.media.shape === 'continuous'}<div
           class="safe-margin leading"
@@ -914,6 +915,7 @@
   .media {
     position: relative;
     isolation: isolate;
+    border-radius: 3px;
     background: var(--mble-paper);
     box-shadow: var(--mble-shadow);
     overflow: hidden;
@@ -1070,7 +1072,6 @@
     background: var(--mble-ink);
   }
   .line {
-    height: 1px !important;
     background: var(--mble-ink);
   }
   .placeholder {
@@ -1147,8 +1148,11 @@
     outline: 2px dashed var(--mble-primary);
     outline-offset: 2px;
   }
+  .media.round {
+    border-radius: 50%;
+  }
   .media.continuous {
-    border-radius: 3px 3px 0 0 !important;
+    border-radius: 3px 3px 0 0;
   }
   .safe-margin {
     position: absolute;
