@@ -280,6 +280,40 @@ test('layers can hold an empty group, nest elements by drag and drop, and fold',
   expect(await layers.filter({ hasText: 'Rectangle' }).evaluate(node => parseFloat(getComputedStyle(node).paddingLeft))).toBe(0);
 });
 
+test('a group can be dragged by its selection box and clicking a child selects the group', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await page.getByRole('button', { name: 'Ellipse', exact: true }).click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Control+g');
+  await expect(page.getByLabel('Name')).toHaveValue('Group');
+  const rectangle = page.locator('.element.rectangle');
+  const ellipse = page.locator('.element.ellipse');
+  const pan = page.locator('.pan');
+  const panBefore = await pan.getAttribute('style');
+  const rectBefore = await rectangle.boundingBox();
+  const ellipseBefore = await ellipse.boundingBox();
+  const box = await page.locator('.selection-box').boundingBox();
+  await page.keyboard.down('Alt');
+  const grab = { x: box!.x + box!.width / 2 + 6, y: box!.y + box!.height / 2 + 6 };
+  await page.mouse.move(grab.x, grab.y);
+  await page.mouse.down();
+  await page.mouse.move(grab.x + 40, grab.y + 20, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.up('Alt');
+  expect(await pan.getAttribute('style')).toBe(panBefore);
+  const rectAfter = await rectangle.boundingBox();
+  const ellipseAfter = await ellipse.boundingBox();
+  expect(rectAfter!.x).toBeCloseTo(rectBefore!.x + 40, 0);
+  expect(ellipseAfter!.y).toBeCloseTo(ellipseBefore!.y + 20, 0);
+  await expect(page.getByLabel('Name')).toHaveValue('Group');
+  await page.locator('.viewport').click({ position: { x: 5, y: 5 } });
+  await rectangle.click({ force: true });
+  await expect(page.getByLabel('Name')).toHaveValue('Group');
+  await rectangle.dblclick({ force: true });
+  await expect(page.getByLabel('Name')).toHaveValue('Rectangle');
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
