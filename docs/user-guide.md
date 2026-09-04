@@ -31,6 +31,51 @@ deletion, and private asset collections can be exported back to `.mb-assets`.
 The app works offline after its first successful load. Device permission and
 local-service pairing cannot be completed offline.
 
+## Getting around the editor
+
+The label fits the window when it opens and after the media changes. The zoom
+control in the bottom-right corner of the canvas has a slider, a Fit button and
+presets at 50, 100, 200 and 400 percent; any wheel, pinch, slider or preset
+switches to manual zoom until you press Shift+1 to fit again. Ctrl+0 (Cmd+0 on
+a Mac) is 100 percent, Shift+2 is 200 percent, and Ctrl+= and Ctrl+- step in
+and out. Rulers re-tick as you zoom.
+
+The tool rail on the left inserts elements at the visible centre of the label;
+a second insert of the same kind steps aside so nothing piles up. Shift+click a
+tool, or press R, E, T or L, to arm it: the next drag on the label draws a
+rectangle, ellipse, text or line at that size, and Escape puts the tool away.
+Double-click a text element to edit it in place; Ctrl+Enter commits and Escape
+cancels.
+
+The layer list shows an icon per element kind and a short description taken
+from the content (the text, the barcode value, the image name or the group
+size) beside the element's name. Double-click a name or press F2 to rename it,
+use Raise and Lower or Alt+Arrow to reorder, and the More menu to bring to
+front, send to back, duplicate or delete.
+
+With elements selected, the arrow keys nudge by 0.1 mm (1 mm with Shift),
+Ctrl+Arrow resizes by the same steps, Ctrl+Alt+Arrow rotates a single element
+by one degree and the bracket keys rotate by 15 degrees (one with Shift).
+Press ? for the full shortcut list.
+
+## Phones, tablets and wide screens
+
+Below 640 px the menus collapse behind one Menu button, the tool rail runs
+along the top, and the side panels rise as a bottom sheet from the Panels
+button; tap the dimmed label to close it. Between 640 and 768 px the panels
+open as a drawer over the right of the label. On larger screens the panel sits
+beside the label and can be dragged to at most half the window. From 1440 px
+the layers and properties get their own pinned rail and the tabs hold assets,
+data and the printer. Dialogs fill the screen on phones. On touch screens every
+control is at least 44 px.
+
+## Data records
+
+The Data tab can start a sheet from the fields the label already references in
+`{{field}}` expressions, or load a small sample CSV, as well as importing your
+own CSV. Expand sheet moves the record sheet under the label on desktop or into
+a dialog on small screens; edits there update the label at once.
+
 ## Printing on label sheets
 
 Use **Print → Label sheet…** to place the current label on adhesive sheets for

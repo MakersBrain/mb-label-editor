@@ -57,6 +57,30 @@ After Phase 1 (2026-09-04), same spec:
 | Longest task after release (one synchronous WASM raster of the preview) | 64 to 67 ms |
 | Scripted insertion of 40 text elements | 1632 to 1736 ms |
 
+After Phase 4 (2026-09-05), same spec, plus `tests/browser/viewports.spec.ts`:
+
+| Measure | Value |
+| --- | --- |
+| IndexedDB write transactions during the drag and 2.5 s settle | 1 |
+| SDK renders during the drag | 1 |
+| SDK measures during the drag | 0 |
+| Longest task while the pointer is down | 0 ms (none recorded) |
+| Longest task after release (synchronous WASM raster) | 71 ms |
+| Scripted insertion of 40 text elements | 2086 ms |
+| Components in runes mode | 30 of 30 (`svelte.legacy.mjs` deleted, `runes: true` in both configs) |
+| Width media queries off the 40/48/64/90rem scale | 0 (`check:breakpoints`) |
+| Visible controls under 44 px on the 360 px and 768 px touch viewports, per tab | 0 |
+| Browser tests | 83 (editor 71, external resources 3, cloud print 1, perf 1, viewports 8) |
+
+Deviations decided during Phases 3 and 4: keyboard resize lives on
+Ctrl+Arrow and rotate on Ctrl+Alt+Arrow and the bracket keys, because
+Shift+Arrow already means a 1 mm nudge in the tests and the user guide; the
+print route and printer selects stay in the header instead of a print
+dialog; `focusInspector` was not needed once the inspector got a stable id;
+the phone and tablet panels overlay the label (bottom sheet and drawer) rather
+than stacking under it, so the label never drops below 16rem; the data
+sheet dock is a region under the label on desktop and a dialog below 64rem.
+
 Deviations from the plan below, decided during Phase 1: no separate
 `editor.document` readable was added because Phase 2.1 replaces the store
 shape; ESLint rules the migration will clear are warnings under a
