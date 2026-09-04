@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-export * from './lib/model.js'; export * from './lib/commands.js'; export * from './lib/history.js'; export * from './lib/store.js'; export * from './lib/files.js';
+export * from './lib/model.js'; export * from './lib/commands.js'; export * from './lib/history.js'; export * from './lib/store.svelte.js'; export * from './lib/files.js';
 export * from './lib/snapping.js';
 export * from './lib/continuous-media.js';
 export * from './lib/output-preparation.js';

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { get } from 'svelte/store';
 import { addElement } from './commands.js';
 import { uuid, type LabelElement } from './model.js';
-import type { EditorStore } from './store.js';
+import type { EditorStore } from './store.svelte.js';
 
 export const insertTypes = ['text', 'rectangle', 'ellipse', 'triangle', 'line', 'barcode', 'qr'] as const;
 export type InsertType = (typeof insertTypes)[number];
@@ -10,7 +9,7 @@ export const insertLabels: Record<InsertType, string> = { text: 'Text', rectangl
 
 /** Adds a default element of the requested kind and selects it. */
 export function insertElement(editor: EditorStore, type: InsertType): LabelElement {
-  const base = { id: uuid(), name: insertLabels[type], transform: { x: 5, y: 5, width: type === 'text' ? 25 : 12, height: type === 'text' ? 7 : 12, rotation: 0 }, zIndex: get(editor).document.elements.length, visible: true, locked: false };
+  const base = { id: uuid(), name: insertLabels[type], transform: { x: 5, y: 5, width: type === 'text' ? 25 : 12, height: type === 'text' ? 7 : 12, rotation: 0 }, zIndex: editor.document.elements.length, visible: true, locked: false };
   let element: LabelElement;
   if (type === 'text') element = { ...base, type, text: 'Text', fontFamily: 'sans-serif', fontSize: 14, fontWeight: 400, horizontalAlign: 'left', verticalAlign: 'top', overflow: 'word-wrap' };
   else if (type === 'barcode') element = { ...base, type, value: '123456789', symbology: 'code128', showText: true };

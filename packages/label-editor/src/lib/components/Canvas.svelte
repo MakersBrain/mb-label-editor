@@ -10,7 +10,7 @@
   import type { DocumentMaterializer } from '../materialization.js';
   import {GestureTracker}from'../gestures.js';
   import { onDestroy } from 'svelte';
-  import type { EditorStore } from '../store.js';
+  import type { EditorStore } from '../store.svelte.js';
   import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import ThermalPreview from'./ThermalPreview.svelte';
   import type { Bounds, FontResource, LabelDocument, LabelElement, Point, Resource } from '../model.js'; import { elementAncestry, isEffectivelyLocked, isEffectivelyVisible } from '../model.js';
   export let editor: EditorStore;
@@ -41,7 +41,7 @@
   function startDrag(event: PointerEvent, element: LabelElement) {
     const target = dragTargetFor(element, event.ctrlKey || event.metaKey);
     if (isEffectivelyLocked($editor.document, target)) return; const handle = event.currentTarget as HTMLElement; handle.setPointerCapture(event.pointerId);
-    let ids = [target.id]; editor.selection.subscribe((current) => { ids = current.has(target.id) ? [...current] : event.shiftKey ? [...current, target.id] : [target.id]; })();
+    const current = editor.selection; const ids = current.has(target.id) ? [...current] : event.shiftKey ? [...current, target.id] : [target.id];
     editor.select([target.id], event.shiftKey); beginMove(event, ids);
   }
   /** Double-clicking a grouped child enters the group and selects that child on its own. */

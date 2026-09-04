@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import type { EditorStore } from '../store.js'; import { patchElement } from '../commands.js'; export let editor:EditorStore;
+  import type { EditorStore } from '../store.svelte.js'; import { patchElement } from '../commands.js'; export let editor:EditorStore;
   const number=(value:string)=>Number.isFinite(Number(value))?Number(value):0;
   const patch=(id:string,value:Record<string,unknown>)=>editor.execute(patchElement(id,value));
   /** Binding the face by id keeps the printed font exact: family alone cannot tell two weights of one family apart. */

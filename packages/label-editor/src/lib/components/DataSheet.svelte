@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import type { EditorStore } from '../store.js';
+  import type { EditorStore } from '../store.svelte.js';
   import { updateDocument } from '../commands.js';
   import type { TemplateData } from '../model.js';
   export let editor: EditorStore;

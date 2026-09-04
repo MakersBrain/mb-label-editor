@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import type { EditorStore } from '../store.js'; import { isEffectivelyLocked, isEffectivelyVisible, type LabelElement } from '../model.js'; import { createGroup, moveToGroup, reorderElement, setLocked, setVisibility } from '../commands.js';
+import type { EditorStore } from '../store.svelte.js'; import { isEffectivelyLocked, isEffectivelyVisible, type LabelElement } from '../model.js'; import { createGroup, moveToGroup, reorderElement, setLocked, setVisibility } from '../commands.js';
 export let editor:EditorStore;
 /** Groups the user folded; everything else stays expanded. */
 let collapsed=new Set<string>();

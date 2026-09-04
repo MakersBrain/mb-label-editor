@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import type { EditorStore } from '../store.js';
+  import type { EditorStore } from '../store.svelte.js';
   import type { MediaPreset, PrinterDefinition, PrinterSdk } from '../print/types.js';
   import { updateDocument } from '../commands.js';
   import { continuousSettings, defaultContinuousSettings, printableBoundsForResizedMedia } from '../continuous-media.js';

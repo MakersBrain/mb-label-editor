@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import type { EditorStore } from '../store.js'; import { evaluateTemplate } from '../template/evaluate.js';
+import type { EditorStore } from '../store.svelte.js'; import { evaluateTemplate } from '../template/evaluate.js';
 export let editor: EditorStore;
 /** Sample fields let the tester work before any CSV is loaded. */
 const sample: Record<string, string> = { name: 'Blueberry jam', price: '4.5', sku: 'bj-250', best_before: '2026-12-31', notes: '' };

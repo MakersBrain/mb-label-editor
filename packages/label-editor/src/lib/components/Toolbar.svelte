@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import{alignElementsToBounds,groupElements,removeElements,ungroup,type Alignment}from'../commands.js';import type{Bounds}from'../model.js';import type{EditorStore}from'../store.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import{shortcutLabel}from'../shortcuts.js';import Icon from'./Icon.svelte';
+import{alignElementsToBounds,groupElements,removeElements,ungroup,type Alignment}from'../commands.js';import type{Bounds}from'../model.js';import type{EditorStore}from'../store.svelte.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import{shortcutLabel}from'../shortcuts.js';import Icon from'./Icon.svelte';
 export let editor:EditorStore;
 let alignmentTarget='root';
 function del(){editor.execute(removeElements($editor.selection));editor.clearSelection()}

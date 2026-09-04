@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import{alignElements,distributeElements,groupElements,removeElements,reorderElement,ungroup,addElement,type Alignment}from'../commands.js';import{copyElements,pasteElements}from'../clipboard.js';import type{EditorStore}from'../store.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import Icon from'./Icon.svelte';import Menu from'./Menu.svelte';import{shortcutLabel}from'../shortcuts.js';
+import{alignElements,distributeElements,groupElements,removeElements,reorderElement,ungroup,addElement,type Alignment}from'../commands.js';import{copyElements,pasteElements}from'../clipboard.js';import type{EditorStore}from'../store.svelte.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import Icon from'./Icon.svelte';import Menu from'./Menu.svelte';import{shortcutLabel}from'../shortcuts.js';
 export let editor:EditorStore;export let sidebarOpen=true;export let onOpen:(dialog:string)=>void=()=>{};export let onToggleSidebar:()=>void=()=>{};
 const alignments:[Alignment,string][]=[['left','Left'],['center-x','Center'],['right','Right'],['top','Top'],['center-y','Middle'],['bottom','Bottom']];
 const orders:['front'|'forward'|'backward'|'back',string][]=[['front','Bring to front'],['forward','Bring forward'],['backward','Send backward'],['back','Send to back']];

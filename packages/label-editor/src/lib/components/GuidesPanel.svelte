@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import type{EditorStore}from'../store.js';export let editor:EditorStore;let axis:'x'|'y'='x';let guideValue=10;
+import type{EditorStore}from'../store.svelte.js';export let editor:EditorStore;let axis:'x'|'y'='x';let guideValue=10;
 function addGuide(){if(Number.isFinite(guideValue))editor.setView({manualGuides:[...$editor.view.manualGuides,{axis,value:guideValue}]})}
 function editGuide(index:number,value:number){editor.setView({manualGuides:$editor.view.manualGuides.map((guide,i)=>i===index?{...guide,value}:guide)})}
 function removeGuide(index:number){editor.setView({manualGuides:$editor.view.manualGuides.filter((_,i)=>i!==index)})}
