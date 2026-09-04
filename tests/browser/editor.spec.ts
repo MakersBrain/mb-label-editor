@@ -1118,3 +1118,26 @@ test('an imported face is bound to the element and painted on the canvas', async
   await expect(element.locator('span.text-body')).toHaveCSS('font-family', 'plex-latin, sans-serif');
   await expect(async () => expect(await page.evaluate(() => [...document.fonts].some((loaded) => loaded.family === 'plex-latin' && loaded.status === 'loaded'))).toBe(true)).toPass();
 });
+
+test('a bundled face embeds into the label and prints', async ({ page }) => {
+  const fixture = await readFile(new URL('../../packages/label-editor/tests/fixtures/sdk-v4-text.mb-label.json', import.meta.url));
+  await page.goto('/');
+  const input = page.locator('input[type=file][accept*="mb-label"]');
+  await expect(input).toBeAttached({ timeout: 5000 });
+  await input.setInputFiles({ name: 'fixture.mb-label.json', mimeType: 'application/json', buffer: fixture });
+  await expect(page.locator('footer')).toContainText('Opened SDK compatibility');
+  await page.getByText('Assets', { exact: true }).first().click();
+  await expect(page.locator('.bundled-font')).toHaveCount(4);
+  await page.locator('.bundled-font').filter({ hasText: 'IBM Plex Sans Bold' }).click();
+  await page.getByText('Layers', { exact: true }).first().click();
+  await page.locator('.element.text[data-id="text-1"]').click({ force: true });
+  const font = page.getByRole('combobox', { name: 'Font' });
+  await expect(font.locator('option')).toHaveText(['System sans', 'IBM Plex Sans 700']);
+  await font.selectOption({ index: 1 });
+  // The SDK, not the browser, rasterises the export: a face it cannot parse fails here.
+  const download = page.waitForEvent('download');
+  await page.getByText('File', { exact: true }).click();
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  expect((await download).suggestedFilename()).toBe('label.png');
+  await expect(page.locator('footer')).toContainText('Exported PNG');
+});
