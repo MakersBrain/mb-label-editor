@@ -18,7 +18,8 @@
   import { GestureTracker } from '../gestures.js';
   import { onDestroy, untrack } from 'svelte';
   import type { EditorStore } from '../store.svelte.js';
-  import { fitToView, labelToScreen, rulerTicks, PX_PER_MM, RULER_SIZE } from '../view.js';
+  import { fitToView, labelToScreen, screenToLabel, rulerTicks, PX_PER_MM, RULER_SIZE } from '../view.js';
+  import { insertElement } from '../insert.js';
   import { patchElement } from '../commands.js';
   import ZoomControl from './ZoomControl.svelte';
   import SelectionBar from './SelectionBar.svelte';
@@ -60,6 +61,10 @@
   /** Document with the in-progress resize or rotation applied, so the canvas shows the result before the pointer is released. */
   let dragPreview = $state.raw<import('../model.js').LabelDocument | undefined>();
   let mediaElement = $state.raw<HTMLElement | undefined>();
+  /** Rubber band of an armed drawing tool, in viewport pixels. */
+  let draw = $state.raw<{ at: Point; current: Point } | undefined>();
+  /** The click that ends a draw must not clear the selection of the element it just made. */
+  let drewJustNow = false;
   const pxPerMm = 3.7795275591;
   const gestures = new GestureTracker();
   /** Groups are not drawn, so a click on a grouped child targets its outermost group unless the user already entered the group. */
@@ -158,9 +163,42 @@
   function gestureStart(event: PointerEvent) {
     if (event.target !== event.currentTarget && !(event.target as HTMLElement).classList.contains('media')) return;
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    if (editor.tool && viewportElement) {
+      const at = viewportPoint(event);
+      draw = { at, current: at };
+      return;
+    }
     gestures.start(event.pointerId, { x: event.clientX, y: event.clientY });
   }
+  function viewportPoint(event: PointerEvent): Point {
+    const rect = viewportElement?.getBoundingClientRect();
+    return { x: event.clientX - (rect?.left ?? 0), y: event.clientY - (rect?.top ?? 0) };
+  }
+  /** Turns the rubber band into an element; a plain click drops the tool's default size at that point. */
+  function finishDraw() {
+    const band = draw;
+    const tool = editor.tool;
+    draw = undefined;
+    if (!band || !tool) return;
+    const media = { width: editor.document.media.width, height: displayHeight };
+    const a = screenToLabel(band.at, editor.view, media);
+    const b = screenToLabel(band.current, editor.view, media);
+    const round = (value: number) => Math.round(value * 10) / 10;
+    const width = round(Math.abs(b.x - a.x));
+    const height = round(Math.abs(b.y - a.y));
+    const dragged = width >= 0.5 || height >= 0.5;
+    insertElement(editor, tool, {
+      at: { x: round(Math.min(a.x, b.x)), y: round(Math.min(a.y, b.y)) },
+      ...(dragged ? { size: { width: Math.max(width, 0.5), height: Math.max(height, 0.5) } } : {}),
+    });
+    editor.setTool(undefined);
+    drewJustNow = true;
+  }
   function moveDrag(event: PointerEvent) {
+    if (draw) {
+      draw = { ...draw, current: viewportPoint(event) };
+      return;
+    }
     if (drag && gestures.active >= 2) {
       abandonDrag();
     }
@@ -211,6 +249,7 @@
     dragPreview = undefined;
   }
   function gestureEnd(event: PointerEvent) {
+    if (draw) finishDraw();
     gestures.end(event.pointerId);
   }
   /** Assets dragged from the browser drop at the pointer's label position. */
@@ -230,10 +269,15 @@
     void pending.place(at);
   }
   function cancelInteraction(event: PointerEvent) {
+    draw = undefined;
     gestures.end(event.pointerId);
     abandonDrag();
   }
   function clearSelection(event: MouseEvent) {
+    if (drewJustNow) {
+      drewJustNow = false;
+      return;
+    }
     // Clicks on canvas chrome (the selection bar and zoom control) are not clicks on empty label space.
     if (!(event.target as Element).closest('.element,.selection-box,.selection-bar,.zoom-control'))
       editor.clearSelection();
@@ -656,6 +700,7 @@
   bind:this={viewportElement}
   class="viewport"
   class:with-rulers={editor.view.showRulers}
+  class:armed={!!editor.tool}
   onclick={clearSelection}
   onwheel={wheel}
   onpointerdown={gestureStart}
@@ -783,6 +828,12 @@
       </div>{/if}
   </div>
   <div class="chrome" aria-live="polite">
+    {#if draw}
+      <span
+        class="draw-preview"
+        style={`left:${Math.min(draw.at.x, draw.current.x)}px;top:${Math.min(draw.at.y, draw.current.y)}px;width:${Math.abs(draw.current.x - draw.at.x)}px;height:${Math.abs(draw.current.y - draw.at.y)}px`}
+      ></span>
+    {/if}
     {#if editor.document.media.shape === 'continuous'}
       {@const cut = chromeAt({ x: editor.document.media.width, y: displayHeight })}
       <span class="cut-label" style={`left:${cut.x}px;top:${cut.y}px`}>Cut at {displayHeight.toFixed(2)} mm</span>
@@ -1132,6 +1183,14 @@
     z-index: 4;
     pointer-events: none;
     font-size: 0.7rem;
+  }
+  .viewport.armed {
+    cursor: crosshair;
+  }
+  .draw-preview {
+    box-sizing: border-box;
+    border: 1px dashed var(--mble-primary, #ed6146);
+    background: color-mix(in srgb, var(--mble-primary, #ed6146) 12%, transparent);
   }
   .chrome > span {
     position: absolute;

@@ -2099,3 +2099,32 @@ test('the data tab can load a sample CSV', async ({ page }) => {
     panel.getByRole('table', { name: 'Data records' }).getByRole('textbox', { name: 'name, row 1' }),
   ).toHaveValue('Strawberry jam');
 });
+
+test('a shape can be drawn by dragging with an armed tool', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('input.zoom').fill('1');
+  const tools = page.getByRole('navigation', { name: 'Drawing tools' });
+  const rectangle = tools.getByRole('button', { name: 'Rectangle' });
+  await rectangle.click({ modifiers: ['Shift'] });
+  await expect(rectangle).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.element.rectangle')).toHaveCount(0);
+  const media = (await page.locator('.media').boundingBox())!;
+  await page.mouse.move(media.x + 20, media.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(media.x + 96, media.y + 58, { steps: 6 });
+  await expect(page.locator('.draw-preview')).toBeVisible();
+  await page.mouse.up();
+  const drawn = page.locator('.element.rectangle');
+  await expect(drawn).toHaveCount(1);
+  const box = (await drawn.boundingBox())!;
+  expect(box.width).toBeGreaterThan(70);
+  expect(box.width).toBeLessThan(82);
+  expect(box.height).toBeGreaterThan(32);
+  expect(box.height).toBeLessThan(44);
+  await expect(page.locator('.selection-box')).toBeVisible();
+  await expect(rectangle).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('e');
+  await expect(tools.getByRole('button', { name: 'Ellipse' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(tools.getByRole('button', { name: 'Ellipse' })).toHaveAttribute('aria-pressed', 'false');
+});

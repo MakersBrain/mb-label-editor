@@ -54,6 +54,9 @@ export const editorShortcuts: ShortcutGroup[] = [
       { keys: ['Alt while dragging'], action: 'Disable snapping' },
       { keys: ['Mod while dragging'], action: 'Snap to other elements only' },
       { keys: ['Shift while dragging'], action: 'Snap to the grid only' },
+      { keys: ['Shift+Click a tool'], action: 'Arm the tool; the next drag on the label draws it to size' },
+      { keys: ['R', 'E', 'T', 'L'], action: 'Arm the rectangle, ellipse, text or line tool' },
+      { keys: ['Esc'], action: 'Put the armed tool away' },
     ],
   },
   {

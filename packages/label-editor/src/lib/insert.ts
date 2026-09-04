@@ -6,6 +6,10 @@ import { visibleLabelArea } from './view.js';
 
 export const insertTypes = ['text', 'rectangle', 'ellipse', 'triangle', 'line', 'barcode', 'qr'] as const;
 export type InsertType = (typeof insertTypes)[number];
+/** Letter keys that arm a drawing tool from the keyboard. */
+export const toolKeys: Partial<Record<InsertType, string>> = { rectangle: 'R', ellipse: 'E', text: 'T', line: 'L' };
+export const toolForKey = (key: string): InsertType | undefined =>
+  (Object.keys(toolKeys) as InsertType[]).find((type) => toolKeys[type] === key.toUpperCase());
 export const insertLabels: Record<InsertType, string> = {
   text: 'Text',
   rectangle: 'Rectangle',

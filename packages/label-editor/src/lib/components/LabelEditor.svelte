@@ -26,6 +26,7 @@
   import Layers from './Layers.svelte';
   import DataPanel from './DataPanel.svelte';
   import DataSheet from './DataSheet.svelte';
+  import { toolForKey } from '../insert.js';
   import AssetPanel from './AssetPanel.svelte';
   import MediaPanel from './MediaPanel.svelte';
   import LibraryPanel from './LibraryPanel.svelte';
@@ -254,6 +255,13 @@
     } else if (!modifier && event.shiftKey && event.code === 'Digit2') {
       event.preventDefault();
       editor.setZoom(2);
+    } else if (event.key === 'Escape' && editor.tool) {
+      event.preventDefault();
+      editor.setTool(undefined);
+    } else if (!modifier && !event.altKey && !event.shiftKey && toolForKey(event.key)) {
+      event.preventDefault();
+      const tool = toolForKey(event.key);
+      editor.setTool(editor.tool === tool ? undefined : tool);
     } else if (event.key === '?' && !modifier) {
       event.preventDefault();
       dialog = dialog === 'shortcuts' ? '' : 'shortcuts';

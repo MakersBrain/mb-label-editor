@@ -4,6 +4,7 @@ import type { Command } from './commands.js';
 import { DocumentHistory, type HistoryState } from './history.js';
 import type { Id, LabelDocument, LabelElement, Point } from './model.js';
 import { clampZoom, type ViewportSize } from './view.js';
+import type { InsertType } from './insert.js';
 
 export interface ViewState {
   zoom: number;
@@ -43,6 +44,8 @@ export class EditorStore {
   document: LabelDocument = $state.raw(undefined as unknown as LabelDocument);
   readonly selection = new SvelteSet<Id>();
   view: ViewState = $state(defaultView());
+  /** An armed drawing tool: the next drag on the label draws that element instead of panning. */
+  tool: InsertType | undefined = $state(undefined);
   canUndo = $state(false);
   canRedo = $state(false);
   undoLabel = $state<string | undefined>(undefined);
@@ -78,6 +81,9 @@ export class EditorStore {
   }
   clearSelection(): void {
     this.selection.clear();
+  }
+  setTool(tool: InsertType | undefined): void {
+    this.tool = tool;
   }
   setView(patch: Partial<ViewState>): void {
     Object.assign(this.view, patch);
