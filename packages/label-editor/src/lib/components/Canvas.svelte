@@ -18,6 +18,8 @@
   import { GestureTracker } from '../gestures.js';
   import { onDestroy, untrack } from 'svelte';
   import type { EditorStore } from '../store.svelte.js';
+  import { fitToView, RULER_SIZE } from '../view.js';
+  import ZoomControl from './ZoomControl.svelte';
   import type { PrinterDefinition, PrinterSdk } from '../print/types.js';
   import ThermalPreview from './ThermalPreview.svelte';
   import type { Bounds, FontResource, LabelDocument, LabelElement, Point, Resource } from '../model.js';
@@ -162,9 +164,10 @@
       const update = gestures.move(event.pointerId, { x: event.clientX, y: event.clientY });
       if (update)
         editor.setView({
-          zoom: Math.max(0.25, Math.min(4, editor.view.zoom * update.zoomFactor)),
           pan: { x: editor.view.pan.x + update.panDelta.x, y: editor.view.pan.y + update.panDelta.y },
+          zoomMode: 'manual',
         });
+      if (update && update.zoomFactor !== 1) editor.setZoom(editor.view.zoom * update.zoomFactor);
       return;
     }
     gestures.move(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -240,31 +243,50 @@
           : 1;
     if (event.shiftKey) {
       const delta = (event.deltaX || event.deltaY) * unit;
-      editor.setView({ pan: { x: editor.view.pan.x - delta, y: editor.view.pan.y } });
+      editor.setView({ pan: { x: editor.view.pan.x - delta, y: editor.view.pan.y }, zoomMode: 'manual' });
       return;
     }
     if (event.ctrlKey || event.metaKey) {
       const delta = (event.deltaY || event.deltaX) * unit;
-      editor.setView({ pan: { x: editor.view.pan.x, y: editor.view.pan.y - delta } });
+      editor.setView({ pan: { x: editor.view.pan.x, y: editor.view.pan.y - delta }, zoomMode: 'manual' });
       return;
     }
     const delta = (event.deltaY || event.deltaX) * unit;
-    const zoom = Math.max(0.25, Math.min(4, editor.view.zoom * Math.exp(-delta * 0.0015)));
-    if (zoom === editor.view.zoom) return;
     const bounds = viewport.getBoundingClientRect();
-    const pointer = {
+    editor.setZoom(editor.view.zoom * Math.exp(-delta * 0.0015), {
       x: event.clientX - bounds.left - bounds.width / 2,
       y: event.clientY - bounds.top - bounds.height / 2,
-    };
-    const ratio = zoom / editor.view.zoom;
-    editor.setView({
-      zoom,
-      pan: {
-        x: editor.view.pan.x + (pointer.x - editor.view.pan.x) * (1 - ratio),
-        y: editor.view.pan.y + (pointer.y - editor.view.pan.y) * (1 - ratio),
-      },
     });
   }
+  /** The canvas reports its size so fit-to-view and screen conversions can work from view state alone. */
+  let viewportElement: HTMLElement | undefined = $state.raw();
+  $effect(() => {
+    const element = viewportElement;
+    if (!element) return;
+    const report = () => {
+      const { width, height } = element.getBoundingClientRect();
+      const viewport = { width: Math.round(width), height: Math.round(height) };
+      if (viewport.width !== editor.view.viewport.width || viewport.height !== editor.view.viewport.height)
+        editor.setView({ viewport });
+    };
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(element);
+    return () => observer.disconnect();
+  });
+  // Fit mode follows the viewport, the media and the ruler gutters; any manual zoom or pan leaves it.
+  $effect(() => {
+    if (editor.view.zoomMode !== 'fit') return;
+    const viewport = editor.view.viewport;
+    if (!viewport.width || !viewport.height) return;
+    const next = fitToView({ width: editor.document.media.width, height: displayHeight }, viewport, {
+      rulerInset: editor.view.showRulers ? RULER_SIZE : 0,
+    });
+    untrack(() => {
+      if (next.zoom !== editor.view.zoom || next.pan.x !== editor.view.pan.x || next.pan.y !== editor.view.pan.y)
+        editor.setView(next);
+    });
+  });
   function finishDrag(event: PointerEvent) {
     gestures.end(event.pointerId);
     if (!drag) return;
@@ -546,6 +568,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 <div
+  bind:this={viewportElement}
   class="viewport"
   class:with-rulers={editor.view.showRulers}
   onclick={clearSelection}
@@ -667,6 +690,7 @@
         <span>continuous roll</span>
       </div>{/if}
   </div>
+  <ZoomControl {editor} />
 </div>
 
 <style>

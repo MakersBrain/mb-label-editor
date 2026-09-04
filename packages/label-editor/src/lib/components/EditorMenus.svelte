@@ -16,6 +16,7 @@
   import Icon from './Icon.svelte';
   import Menu from './Menu.svelte';
   import { shortcutLabel } from '../shortcuts.js';
+  import { ZOOM_STEP } from '../view.js';
   let {
     editor,
     sidebarOpen = true,
@@ -154,9 +155,10 @@
   <button onclick={() => onOpen('guides')}>Guides…</button>
   <button onclick={onToggleSidebar}>{sidebarOpen ? 'Hide panels' : 'Show panels'}</button>
   <hr />
-  <button onclick={() => editor.setView({ zoom: Math.min(4, editor.view.zoom + 0.25) })}>Zoom in</button>
-  <button onclick={() => editor.setView({ zoom: Math.max(0.25, editor.view.zoom - 0.25) })}>Zoom out</button>
-  <button onclick={() => editor.setView({ zoom: 1, pan: { x: 0, y: 0 } })}>Reset view</button>
+  <button onclick={() => editor.setZoom(editor.view.zoom * ZOOM_STEP)}>Zoom in</button>
+  <button onclick={() => editor.setZoom(editor.view.zoom / ZOOM_STEP)}>Zoom out</button>
+  <button onclick={() => editor.setView({ zoomMode: 'fit' })}>Fit to window</button>
+  <button onclick={() => editor.setZoom(1)}>Actual size</button>
 </Menu>
 <Menu label="Help">
   <button onclick={() => onOpen('shortcuts')}>Keyboard shortcuts…<kbd>?</kbd></button>

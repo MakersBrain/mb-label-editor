@@ -3,6 +3,7 @@ import { SvelteSet } from 'svelte/reactivity';
 import type { Command } from './commands.js';
 import { DocumentHistory, type HistoryState } from './history.js';
 import type { Id, LabelDocument, LabelElement, Point } from './model.js';
+import { clampZoom, type ViewportSize } from './view.js';
 
 export interface ViewState {
   zoom: number;
@@ -13,6 +14,10 @@ export interface ViewState {
   snapping: boolean;
   guides: { axis: 'x' | 'y'; value: number }[];
   manualGuides: { axis: 'x' | 'y'; value: number }[];
+  /** Size of the canvas viewport in CSS pixels, reported by the canvas. */
+  viewport: ViewportSize;
+  /** `fit` keeps the whole label in view until the user zooms or pans by hand. */
+  zoomMode: 'fit' | 'manual';
 }
 
 const defaultView = (): ViewState => ({
@@ -24,6 +29,8 @@ const defaultView = (): ViewState => ({
   snapping: true,
   guides: [],
   manualGuides: [],
+  viewport: { width: 0, height: 0 },
+  zoomMode: 'fit',
 });
 
 /**
@@ -62,6 +69,7 @@ export class EditorStore {
   replace(next: LabelDocument): void {
     this.#sync(this.#history.replace(next));
     this.selection.clear();
+    this.view.zoomMode = 'fit';
   }
   select(ids: Iterable<Id>, additive = false): void {
     const next = [...ids];
@@ -73,6 +81,19 @@ export class EditorStore {
   }
   setView(patch: Partial<ViewState>): void {
     Object.assign(this.view, patch);
+  }
+  /**
+   * Zooms by hand, keeping the label point under `anchor` (an offset from the
+   * viewport centre, in pixels) where it is. Leaves fit mode.
+   */
+  setZoom(zoom: number, anchor: Point = { x: 0, y: 0 }): void {
+    const next = clampZoom(zoom);
+    const ratio = next / this.view.zoom;
+    const pan = {
+      x: this.view.pan.x + (anchor.x - this.view.pan.x) * (1 - ratio),
+      y: this.view.pan.y + (anchor.y - this.view.pan.y) * (1 - ratio),
+    };
+    Object.assign(this.view, { zoom: next, pan, zoomMode: 'manual' });
   }
 
   #sync(state: HistoryState): void {

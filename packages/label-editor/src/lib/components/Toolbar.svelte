@@ -86,19 +86,6 @@
         >{item[1] === 'Horizontal center' ? '↔' : item[1] === 'Vertical center' ? '↕' : item[1]}</button
       >{/each}
   </div>
-  <div class="group">
-    <label class="zoom-field"
-      >Zoom<input
-        class="zoom"
-        type="range"
-        min=".25"
-        max="4"
-        step=".25"
-        value={editor.view.zoom}
-        oninput={(e) => editor.setView({ zoom: +e.currentTarget.value })}
-      /><output>{Math.round(editor.view.zoom * 100)}%</output></label
-    >
-  </div>
 </nav>
 
 <style>
@@ -145,21 +132,6 @@
     padding-inline: 0.3rem;
     font-size: 0.7rem;
   }
-  .zoom-field {
-    display: flex;
-    gap: 0.35rem;
-    align-items: center;
-    font-size: 0.75rem;
-    white-space: nowrap;
-  }
-  .zoom {
-    width: 6rem;
-  }
-  .zoom-field output {
-    min-width: 2.5rem;
-    color: var(--mble-text-muted, #59635e);
-    font-variant-numeric: tabular-nums;
-  }
   @media (max-width: 900px) {
     nav {
       flex-wrap: wrap;
@@ -175,9 +147,6 @@
     .group + .group {
       margin-left: 0;
     }
-    .zoom {
-      width: 4rem;
-    }
   }
   @media (max-width: 600px) {
     .tool {
@@ -187,9 +156,6 @@
     .tool :global(.icon) {
       width: 17px;
       height: 17px;
-    }
-    .zoom-field {
-      font-size: 0.75rem;
     }
   }
 </style>

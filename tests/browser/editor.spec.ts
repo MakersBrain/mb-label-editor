@@ -1117,8 +1117,9 @@ test('wheel navigation and selection keyboard nudging work on the canvas', async
   const viewport = page.getByRole('application', { name: 'Label canvas' });
   const pan = page.locator('.pan');
   const initial = await pan.getAttribute('style');
-  await viewport.dispatchEvent('wheel', { deltaY: -120, clientX: 300, clientY: 200 });
-  await expect(page.locator('input.zoom')).not.toHaveValue('1');
+  const initialZoom = await page.locator('input.zoom').inputValue();
+  await viewport.dispatchEvent('wheel', { deltaY: 120, clientX: 300, clientY: 200 });
+  await expect(page.locator('input.zoom')).not.toHaveValue(initialZoom);
   const zoomed = await pan.getAttribute('style');
   expect(zoomed).not.toBe(initial);
   await viewport.dispatchEvent('wheel', { deltaY: 40, shiftKey: true });
@@ -1324,6 +1325,9 @@ test('the thermal preview resamples the printer raster to the size it is shown a
     .setInputFiles({ name: 'rings.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(svg) });
   await expect(page.locator('aside ol > li').filter({ hasText: 'rings.svg' })).toHaveCount(1);
   await page.keyboard.press('Escape');
+  // Downsampling only happens when the label is shown smaller than the printer raster, so leave fit-to-view for 100%.
+  await page.getByTitle('Zoom presets').click();
+  await page.getByRole('button', { name: /^100%/ }).click();
   await page.getByLabel('Printer model').focus();
   const raster = page.locator('canvas[aria-label="Exact thermal SDK preview"]');
   await expect(raster).toBeAttached({ timeout: 10000 });
@@ -1851,4 +1855,34 @@ test('a bundled face embeds into the label and prints', async ({ page }) => {
   await page.getByRole('button', { name: 'Export PNG' }).click();
   expect((await download).suggestedFilename()).toBe('label.png');
   await expect(page.locator('footer')).toContainText('Exported PNG');
+});
+
+test('the label fits the window on open and stops fitting once the user zooms', async ({ page }) => {
+  await page.goto('/');
+  const viewport = page.getByRole('application', { name: 'Label canvas' });
+  const media = page.locator('.media');
+  const inside = async () => {
+    const outer = (await viewport.boundingBox())!;
+    const inner = (await media.boundingBox())!;
+    return (
+      inner.x >= outer.x + 40 &&
+      inner.y >= outer.y + 40 &&
+      inner.x + inner.width <= outer.x + outer.width - 40 &&
+      inner.y + inner.height <= outer.y + outer.height - 40
+    );
+  };
+  await expect.poll(inside).toBe(true);
+  await expect(page.locator('.zoom-control .fit')).toBeVisible();
+  const fitted = await page.locator('input.zoom').inputValue();
+  expect(Number(fitted)).toBeGreaterThan(1);
+  await viewport.dispatchEvent('wheel', { deltaY: 200, clientX: 400, clientY: 300 });
+  await expect(page.locator('input.zoom')).not.toHaveValue(fitted);
+  await expect(page.locator('.zoom-control .fit')).toHaveCount(0);
+  const manual = await page.locator('input.zoom').inputValue();
+  await page.setViewportSize({ width: 900, height: 600 });
+  await expect(page.locator('input.zoom')).toHaveValue(manual);
+  await page.getByTitle('Zoom presets').click();
+  await page.getByRole('button', { name: 'Fit to window' }).click();
+  await expect(page.locator('.zoom-control .fit')).toBeVisible();
+  await expect.poll(inside).toBe(true);
 });
