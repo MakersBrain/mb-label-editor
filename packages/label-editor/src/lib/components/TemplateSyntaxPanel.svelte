@@ -1,14 +1,14 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
 import type { EditorStore } from '../store.svelte.js'; import { evaluateTemplate } from '../template/evaluate.js';
-export let editor: EditorStore;
+let { editor }: { editor: EditorStore } = $props();
 /** Sample fields let the tester work before any CSV is loaded. */
 const sample: Record<string, string> = { name: 'Blueberry jam', price: '4.5', sku: 'bj-250', best_before: '2026-12-31', notes: '' };
-let expression = '{{price | number:2 | prefix:"EUR "}}';
-$: template = $editor.document.template;
-$: record = template?.records[template.currentRecord] ?? sample;
-$: fields = Object.keys(record);
-$: result = (() => { try { return { value: evaluateTemplate(expression, { record, locale: globalThis.navigator?.language }), error: '' }; } catch (reason) { return { value: '', error: reason instanceof Error ? reason.message : String(reason) }; } })();
+let expression = $state('{{price | number:2 | prefix:"EUR "}}');
+const template = $derived(editor.document.template);
+const record = $derived(template?.records[template.currentRecord] ?? sample);
+const fields = $derived(Object.keys(record));
+const result = $derived.by(() => { try { return { value: evaluateTemplate(expression, { record, locale: globalThis.navigator?.language }), error: '' }; } catch (reason) { return { value: '', error: reason instanceof Error ? reason.message : String(reason) }; } });
 const transforms: { syntax: string; effect: string; example: string }[] = [
   { syntax: 'upper', effect: 'Upper case', example: '{{sku | upper}}' },
   { syntax: 'lower', effect: 'Lower case', example: '{{name | lower}}' },
@@ -32,7 +32,7 @@ const transforms: { syntax: string; effect: string; example: string }[] = [
   <h3>Transforms</h3>
   <table>
     <thead><tr><th>Transform</th><th>Effect</th><th>Example</th></tr></thead>
-    <tbody>{#each transforms as item}<tr><td><code>{item.syntax}</code></td><td>{item.effect}</td><td><button type="button" class="example" title="Try this example" on:click={() => expression = item.example}><code>{item.example}</code></button></td></tr>{/each}</tbody>
+    <tbody>{#each transforms as item}<tr><td><code>{item.syntax}</code></td><td>{item.effect}</td><td><button type="button" class="example" title="Try this example" onclick={() => expression = item.example}><code>{item.example}</code></button></td></tr>{/each}</tbody>
   </table>
   <h3>Try it</h3>
   <p class="muted">{template ? `Evaluated against record ${template.currentRecord + 1} of the loaded data.` : 'No data loaded; evaluated against sample fields.'} Fields: {fields.join(', ')}</p>
