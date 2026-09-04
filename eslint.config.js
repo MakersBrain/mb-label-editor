@@ -43,5 +43,10 @@ export default ts.config(
     },
   },
   { files: ['**/*.cjs'], rules: { '@typescript-eslint/no-require-imports': 'off' } },
-  { files: ['**/*.svelte', '**/*.svelte.ts'], languageOptions: { parserOptions: { parser: ts.parser, svelteConfig } } },
+  {
+    files: ['**/*.svelte', '**/*.svelte.ts'],
+    languageOptions: { parserOptions: { parser: ts.parser, svelteConfig } },
+    // `let { x } = $props()` and `let y = $derived()` are reassignable by design; the Svelte variant knows that.
+    rules: { 'prefer-const': 'off', 'svelte/prefer-const': ['error', { ignoreReadBeforeAssign: true }] },
+  },
 );

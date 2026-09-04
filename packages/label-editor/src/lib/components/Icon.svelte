@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-export let name:'text'|'rectangle'|'ellipse'|'triangle'|'line'|'barcode'|'qr'|'undo'|'redo'|'delete'|'group'|'ungroup';
+let { name }: { name: 'text'|'rectangle'|'ellipse'|'triangle'|'line'|'barcode'|'qr'|'undo'|'redo'|'delete'|'group'|'ungroup' } = $props();
 const paths:Record<string,string>={
   text:'M3 3.75h10M8 3.75v8.5M5.75 12.25h4.5',
   rectangle:'M2.75 4.25h10.5v7.5H2.75z',
