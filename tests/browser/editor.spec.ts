@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 
 /** Opens a menu-bar dialog, e.g. Label > Assets…. */
+async function openMenu(page: Page, menu: string) { await page.getByLabel('Editor menus').getByText(menu, { exact: true }).click(); }
 async function openDialog(page: Page, menu: string, item: string) {
   await page.getByLabel('Editor menus').getByText(menu, { exact: true }).click();
   await page.getByRole('button', { name: item }).click();
@@ -79,7 +80,7 @@ test('fit-content continuous labels preview and export a finite resolved cut len
   await page.getByRole('dialog',{name:'Media & zones'}).getByLabel('Shape').selectOption('rectangle');
   await page.getByRole('button',{name:'Close Media & zones'}).click();
   await page.getByText('File',{exact:true}).click();
-  await page.locator('input[type=file]').setInputFiles(path!);
+  await page.locator('input[type=file][accept*="mb-label"]').setInputFiles(path!);
   await expect(page.locator('.media.continuous .cut-line')).toBeVisible();
   await page.getByRole('listitem').getByRole('button',{name:'Rectangle',exact:true}).click();
   await expect(page.getByLabel('Y (mm)')).toHaveValue('40');
@@ -374,8 +375,15 @@ test('the sidebar switches between layers and printer tabs and remembers the cho
   await expect(page.getByLabel('Connection')).toBeVisible();
   await printerTab.focus();
   await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('tab', { name: 'Assets' })).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('ArrowLeft');
   await expect(layersTab).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('button', { name: '+ Group' })).toBeVisible();
+  await openMenu(page, 'Label');
+  await page.getByRole('button', { name: 'Assets…' }).click();
+  await expect(page.getByRole('tab', { name: 'Assets' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('input[type=file][accept*="image"]')).toBeAttached();
+  await expect(page.getByRole('button', { name: '+ Group' })).toBeHidden();
 });
 
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
@@ -702,7 +710,7 @@ test('origin rejection and an expired pairing secret have distinct recovery text
 });
 });
 
-test('touch gestures, rulers, local SVG import, and autosave recovery work',async({page})=>{await page.goto('/');await expect(page.locator('.ruler.horizontal')).toBeVisible();await expect(page.locator('.ruler.vertical')).toBeVisible();const viewport=page.getByRole('application',{name:'Label canvas'});await viewport.dispatchEvent('pointerdown',{pointerId:1,pointerType:'touch',clientX:100,clientY:100});await viewport.dispatchEvent('pointerdown',{pointerId:2,pointerType:'touch',clientX:200,clientY:100});await viewport.dispatchEvent('pointermove',{pointerId:2,pointerType:'touch',clientX:260,clientY:100});await viewport.dispatchEvent('pointerup',{pointerId:1,pointerType:'touch',clientX:100,clientY:100});await viewport.dispatchEvent('pointerup',{pointerId:2,pointerType:'touch',clientX:260,clientY:100});await expect(page.locator('input.zoom')).toBeVisible();const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>';await openDialog(page,'Label','Assets…');await page.locator('input[type=file][accept*="image"]' ).setInputFiles({name:'local.svg',mimeType:'image/svg+xml',buffer:Buffer.from(svg)});await expect(page.getByText('local.svg',{exact:true}).first()).toBeVisible();await page.waitForTimeout(1700);const autosaves=await page.evaluate(async()=>await new Promise<number>((resolve,reject)=>{const request=indexedDB.open('makersbrain-label-editor');request.onerror=()=>reject(request.error);request.onsuccess=()=>{const count=request.result.transaction('autosaves').objectStore('autosaves').count();count.onsuccess=()=>resolve(count.result);count.onerror=()=>reject(count.error)}}));expect(autosaves).toBeGreaterThan(0);await page.reload();await expect(page.locator('footer')).toContainText('Recovered autosave');await openDialog(page,'Label','Assets…');await expect(page.getByText('local.svg',{exact:true}).first()).toBeVisible()});
+test('touch gestures, rulers, local SVG import, and autosave recovery work',async({page})=>{await page.goto('/');await expect(page.locator('.ruler.horizontal')).toBeVisible();await expect(page.locator('.ruler.vertical')).toBeVisible();const viewport=page.getByRole('application',{name:'Label canvas'});await viewport.dispatchEvent('pointerdown',{pointerId:1,pointerType:'touch',clientX:100,clientY:100});await viewport.dispatchEvent('pointerdown',{pointerId:2,pointerType:'touch',clientX:200,clientY:100});await viewport.dispatchEvent('pointermove',{pointerId:2,pointerType:'touch',clientX:260,clientY:100});await viewport.dispatchEvent('pointerup',{pointerId:1,pointerType:'touch',clientX:100,clientY:100});await viewport.dispatchEvent('pointerup',{pointerId:2,pointerType:'touch',clientX:260,clientY:100});await expect(page.locator('input.zoom')).toBeVisible();const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>';await page.getByRole('tab',{name:'Assets'}).click();await page.locator('input[type=file][accept*="image"]' ).setInputFiles({name:'local.svg',mimeType:'image/svg+xml',buffer:Buffer.from(svg)});await expect(page.locator('aside ol > li').filter({hasText:'local.svg'})).toHaveCount(1);await page.waitForTimeout(1700);const autosaves=await page.evaluate(async()=>await new Promise<number>((resolve,reject)=>{const request=indexedDB.open('makersbrain-label-editor');request.onerror=()=>reject(request.error);request.onsuccess=()=>{const count=request.result.transaction('autosaves').objectStore('autosaves').count();count.onsuccess=()=>resolve(count.result);count.onerror=()=>reject(count.error)}}));expect(autosaves).toBeGreaterThan(0);await page.reload();await expect(page.locator('footer')).toContainText('Recovered autosave');await page.getByRole('tab',{name:'Assets'}).click();await expect(page.locator('aside ol > li').filter({hasText:'local.svg'})).toHaveCount(1)});
 
 test('wheel navigation and selection keyboard nudging work on the canvas',async({page})=>{await page.goto('/');const viewport=page.getByRole('application',{name:'Label canvas'});const pan=page.locator('.pan');const initial=await pan.getAttribute('style');await viewport.dispatchEvent('wheel',{deltaY:-120,clientX:300,clientY:200});await expect(page.locator('input.zoom')).not.toHaveValue('1');const zoomed=await pan.getAttribute('style');expect(zoomed).not.toBe(initial);await viewport.dispatchEvent('wheel',{deltaY:40,shiftKey:true});const horizontal=await pan.getAttribute('style');expect(horizontal).not.toBe(zoomed);await viewport.dispatchEvent('wheel',{deltaY:40,ctrlKey:true});expect(await pan.getAttribute('style')).not.toBe(horizontal);await page.getByRole('button',{name:'Rectangle',exact:true}).click();const element=page.locator('.element.rectangle');await element.click();await expect(element).toHaveClass(/selected/);const before=await element.getAttribute('style');await page.keyboard.press('ArrowRight');expect(await element.getAttribute('style')).not.toBe(before)});
 
@@ -740,9 +748,9 @@ test('canvas elements stay unfilled on hover and the grid survives the thermal p
 test('the thermal preview resamples the printer raster to the size it is shown at',async({page})=>{await page.goto('/');
   // Hairline strokes vanish under nearest-neighbour downscaling, which is exactly what the preview must avoid.
   const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="#000" stroke-width="0.4">'+Array.from({length:20},(_,i)=>`<circle cx="50" cy="50" r="${2+i*2.3}"/>`).join('')+'</svg>';
-  await openDialog(page,'Label','Assets…');
+  await page.getByRole('tab',{name:'Assets'}).click();
   await page.locator('input[type=file][accept*="image"]').setInputFiles({name:'rings.svg',mimeType:'image/svg+xml',buffer:Buffer.from(svg)});
-  await expect(page.getByText('rings.svg',{exact:true}).first()).toBeVisible();
+  await expect(page.locator('aside ol > li').filter({hasText:'rings.svg'})).toHaveCount(1);
   await page.keyboard.press('Escape');
   await page.getByLabel('Printer model').focus();
   const raster=page.locator('canvas[aria-label="Exact thermal SDK preview"]');
@@ -758,13 +766,13 @@ test('the thermal preview resamples the printer raster to the size it is shown a
 });
 test('webp imports transcode to a printable halftone png',async({page})=>{await page.goto('/');
   const webp=await page.evaluate(async()=>{const canvas=new OffscreenCanvas(48,48);const context=canvas.getContext('2d')!;const gradient=context.createLinearGradient(0,0,48,48);gradient.addColorStop(0,'#000');gradient.addColorStop(1,'#fff');context.fillStyle=gradient;context.fillRect(0,0,48,48);return [...new Uint8Array(await (await canvas.convertToBlob({type:'image/webp'})).arrayBuffer())]});
-  await openDialog(page,'Label','Assets…');
+  await page.getByRole('tab',{name:'Assets'}).click();
   const imageInput=page.locator('input[type=file][accept*="webp"]');
   await imageInput.setInputFiles({name:'photo.webp',mimeType:'image/webp',buffer:Buffer.from(webp)});
   // Placing the same cached bytes again must keep the second resource ID valid.
   await imageInput.setInputFiles({name:'photo.webp',mimeType:'image/webp',buffer:Buffer.from(webp)});
   await expect(page.getByText('Imported and placed photo.webp')).toBeVisible();
-  await page.getByRole('button',{name:'Close Assets'}).click();
+  await page.getByRole('tab',{name:'Layers'}).click();
   await expect(page.locator('img.asset')).toHaveCount(2);
   const asset=page.locator('img.asset').first();
   await expect(asset).toBeAttached();

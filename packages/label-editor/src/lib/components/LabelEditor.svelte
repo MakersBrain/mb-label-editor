@@ -1,11 +1,13 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">import type { EditorStore } from '../store.js';import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import type{DocumentMaterializer}from'../materialization.js';import type{AssetCatalogClient}from'../asset-catalog/client.js';import type{ExternalResourceProvider}from'../external-resources/types.js'; import {addElement,groupElements,moveElements,removeElements,ungroup} from '../commands.js';import {copyElements,pasteElements} from '../clipboard.js'; import Canvas from './Canvas.svelte';import ShortcutsPanel from './ShortcutsPanel.svelte';import TemplateSyntaxPanel from './TemplateSyntaxPanel.svelte';import Inspector from './Inspector.svelte';import Layers from './Layers.svelte';import DataPanel from './DataPanel.svelte';import AssetPanel from './AssetPanel.svelte';import MediaPanel from './MediaPanel.svelte';import LibraryPanel from './LibraryPanel.svelte';import GuidesPanel from './GuidesPanel.svelte';import Toolbar from './Toolbar.svelte';import EditorMenus from './EditorMenus.svelte';import Modal from './Modal.svelte'; export let editor:EditorStore;export let sdk:PrinterSdk|undefined=undefined;export let materializer:Pick<DocumentMaterializer,'materializeRecord'>|undefined=undefined;export let resourceProvider:ExternalResourceProvider|undefined=undefined;/** @deprecated Pass resourceProvider instead. */export let assetCatalog:AssetCatalogClient|undefined=undefined;export let printers:PrinterDefinition[]=[];export let printerId='';export let onPrinter:(id:string)=>void=()=>{};let sidebarOpen=true;let dialog='';$: activeResourceProvider=resourceProvider??assetCatalog;
 const dialogTitles:Record<string,string>={media:'Media & zones',data:'Data',assets:'Assets',library:'Library',guides:'Guides',shortcuts:'Keyboard shortcuts',syntax:'Template syntax'};
-type SidebarTab='layers'|'printer';const sidebarTabKey='mb-label-editor:sidebar-tab';
+type SidebarTab='layers'|'assets'|'printer';const sidebarTabs:SidebarTab[]=['layers','assets','printer'];const sidebarTabKey='mb-label-editor:sidebar-tab';
 /** The chosen tab survives reloads; storage may be unavailable in private windows. */
-let sidebarTab:SidebarTab=(()=>{try{return globalThis.localStorage?.getItem(sidebarTabKey)==='printer'?'printer':'layers'}catch{return 'layers'}})();
+let sidebarTab:SidebarTab=(()=>{try{const saved=globalThis.localStorage?.getItem(sidebarTabKey);return sidebarTabs.includes(saved as SidebarTab)?saved as SidebarTab:'layers'}catch{return 'layers'}})();
 function selectSidebarTab(tab:SidebarTab){sidebarTab=tab;try{globalThis.localStorage?.setItem(sidebarTabKey,tab)}catch{/* storage unavailable */}}
-function tabKeys(event:KeyboardEvent){if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();selectSidebarTab(sidebarTab==='layers'?'printer':'layers');(document.getElementById(`sidebar-tab-${sidebarTab}`) as HTMLElement|null)?.focus()}
+function tabKeys(event:KeyboardEvent){if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();const index=sidebarTabs.indexOf(sidebarTab);const next=sidebarTabs[(index+(event.key==='ArrowRight'?1:sidebarTabs.length-1))%sidebarTabs.length];selectSidebarTab(next);(document.getElementById(`sidebar-tab-${next}`) as HTMLElement|null)?.focus()}
+/** Assets live in the sidebar; the Label menu entry reveals that tab instead of a dialog. */
+function openPanel(name:string){if(name==='assets'){selectSidebarTab('assets');sidebarOpen=true}else dialog=name}
 function groupSelected(){if($editor.selection.size<2)return;const command=groupElements($editor.selection);editor.execute(command);editor.select([command.createdId])}
 function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if(['INPUT','TEXTAREA','SELECT'].includes(target.tagName))return;const modifier=event.ctrlKey||event.metaKey;
   if(modifier&&event.key.toLowerCase()==='z'){event.preventDefault();event.shiftKey?editor.redo():editor.undo()}else if(modifier&&event.key.toLowerCase()==='y'){event.preventDefault();editor.redo()}
@@ -22,7 +24,7 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
     <div class="brand"><slot name="brand"/></div>
     <nav class="menubar" aria-label="Editor menus">
       <slot name="menu-start"/>
-      <EditorMenus {editor} {sidebarOpen} onOpen={(name)=>dialog=name} onToggleSidebar={()=>sidebarOpen=!sidebarOpen}/>
+      <EditorMenus {editor} {sidebarOpen} onOpen={openPanel} onToggleSidebar={()=>sidebarOpen=!sidebarOpen}/>
       <slot name="menu-end"/>
     </nav>
     <div class="appbar-actions"><slot name="actions"/></div>
@@ -33,11 +35,15 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
     <aside class:open={sidebarOpen}>
       <div class="tabs" role="tablist" aria-label="Side panels">
         <button type="button" role="tab" id="sidebar-tab-layers" aria-selected={sidebarTab==='layers'} aria-controls="sidebar-panel-layers" tabindex={sidebarTab==='layers'?0:-1} on:click={()=>selectSidebarTab('layers')} on:keydown={tabKeys}>Layers</button>
+        <button type="button" role="tab" id="sidebar-tab-assets" aria-selected={sidebarTab==='assets'} aria-controls="sidebar-panel-assets" tabindex={sidebarTab==='assets'?0:-1} on:click={()=>selectSidebarTab('assets')} on:keydown={tabKeys}>Assets</button>
         <button type="button" role="tab" id="sidebar-tab-printer" aria-selected={sidebarTab==='printer'} aria-controls="sidebar-panel-printer" tabindex={sidebarTab==='printer'?0:-1} on:click={()=>selectSidebarTab('printer')} on:keydown={tabKeys}>Printer</button>
       </div>
       <div id="sidebar-panel-layers" role="tabpanel" aria-labelledby="sidebar-tab-layers" hidden={sidebarTab!=='layers'}>
         <details open><summary>Layers</summary><Layers {editor}/></details>
         <details open><summary>Properties</summary><Inspector {editor}/></details>
+      </div>
+      <div id="sidebar-panel-assets" role="tabpanel" aria-labelledby="sidebar-tab-assets" hidden={sidebarTab!=='assets'}>
+        <AssetPanel {editor} {sdk} resourceProvider={activeResourceProvider}/>
       </div>
       <div id="sidebar-panel-printer" role="tabpanel" aria-labelledby="sidebar-tab-printer" hidden={sidebarTab!=='printer'}>
         <slot name="sidebar"/>
@@ -46,7 +52,6 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
   </main>
   <Modal open={dialog==='media'} title={dialogTitles.media} onClose={()=>dialog=''}><MediaPanel {editor} {sdk} {materializer} {printers} {printerId} {onPrinter}/></Modal>
   <Modal open={dialog==='data'} title={dialogTitles.data} onClose={()=>dialog=''}><DataPanel {editor} onSyntaxHelp={()=>dialog='syntax'}/></Modal>
-  <Modal open={dialog==='assets'} title={dialogTitles.assets} onClose={()=>dialog=''}><AssetPanel {editor} {sdk} resourceProvider={activeResourceProvider}/></Modal>
   <Modal open={dialog==='library'} title={dialogTitles.library} onClose={()=>dialog=''}><LibraryPanel {editor}/></Modal>
   <Modal open={dialog==='guides'} title={dialogTitles.guides} onClose={()=>dialog=''}><GuidesPanel {editor}/></Modal>
   <Modal open={dialog==='shortcuts'} title={dialogTitles.shortcuts} onClose={()=>dialog=''}><ShortcutsPanel/></Modal>
