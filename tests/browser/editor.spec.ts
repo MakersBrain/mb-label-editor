@@ -391,13 +391,13 @@ test('the asset browser filters by category, previews a tile, and places it from
   await page.getByRole('tab', { name: 'Assets' }).click();
   await page.getByRole('group', { name: 'Asset source' }).getByRole('button', { name: 'This browser' }).click();
   const grid = page.getByRole('group', { name: 'Browser assets' });
-  await expect(grid.getByRole('button', { name: /Synthetic plus/ })).toBeVisible();
+  await expect(grid.getByRole('button', { name: /^Synthetic plus/ })).toBeVisible();
   const unfiltered = await grid.getByRole('button').count();
   expect(unfiltered).toBeGreaterThan(1);
   await page.getByRole('group', { name: 'Categories' }).getByRole('button', { name: /^interface/ }).click();
-  await expect(grid.getByRole('button', { name: /Synthetic plus/ })).toBeVisible();
+  await expect(grid.getByRole('button', { name: /^Synthetic plus/ })).toBeVisible();
   expect(await grid.getByRole('button').count()).toBeLessThan(unfiltered);
-  await grid.getByRole('button', { name: /Synthetic plus/ }).click();
+  await grid.getByRole('button', { name: /^Synthetic plus/ }).click();
   const detail = page.locator('.detail');
   await expect(detail.locator('strong')).toHaveText('Synthetic plus');
   await expect(detail.getByLabel('Image rendering')).toBeVisible();
@@ -411,7 +411,7 @@ test('an asset dragged from the browser lands where it is dropped on the label',
   await page.goto('/');
   await page.getByRole('tab', { name: 'Assets' }).click();
   await page.getByRole('group', { name: 'Asset source' }).getByRole('button', { name: 'This browser' }).click();
-  const tile = page.getByRole('group', { name: 'Browser assets' }).getByRole('button', { name: /Synthetic plus/ });
+  const tile = page.getByRole('group', { name: 'Browser assets' }).getByRole('button', { name: /^Synthetic plus/ });
   const media = page.locator('.media');
   const box = (await media.boundingBox())!;
   const target = { x: box.x + box.width * 0.7, y: box.y + box.height * 0.6 };
@@ -423,6 +423,29 @@ test('an asset dragged from the browser lands where it is dropped on the label',
   expect(bounds.y + bounds.height / 2).toBeCloseTo(target.y, -1);
   await page.getByRole('tab', { name: 'Layers' }).click();
   await expect(page.locator('aside ol > li').filter({ hasText: 'Synthetic plus' })).toHaveCount(1);
+});
+
+test('assets can be starred and the favourites filter keeps only starred tiles', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Assets' }).click();
+  await page.getByRole('group', { name: 'Asset source' }).getByRole('button', { name: 'This browser' }).click();
+  const grid = page.getByRole('group', { name: 'Browser assets' });
+  const total = await grid.getByRole('button', { name: /^(?!Favourite)/ }).count();
+  const star = grid.getByRole('button', { name: 'Favourite Synthetic plus', exact: true });
+  await star.click();
+  await expect(star).toHaveAttribute('aria-pressed', 'true');
+  const toggle = page.getByRole('button', { name: 'Show favourites only' });
+  await expect(toggle).toContainText('1');
+  await toggle.click();
+  await expect(grid.getByRole('button', { name: /^Synthetic plus/ })).toHaveCount(1);
+  expect(await grid.getByRole('button', { name: /^(?!Favourite)/ }).count()).toBeLessThan(total);
+  await page.reload();
+  await page.getByRole('tab', { name: 'Assets' }).click();
+  await page.getByRole('group', { name: 'Asset source' }).getByRole('button', { name: 'This browser' }).click();
+  await expect(page.getByRole('group', { name: 'Browser assets' }).getByRole('button', { name: 'Favourite Synthetic plus', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('group', { name: 'Browser assets' }).getByRole('button', { name: 'Favourite Synthetic plus', exact: true }).click();
+  await page.getByRole('button', { name: 'Show favourites only' }).click();
+  await expect(page.getByText('No favourites match', { exact: false })).toBeVisible();
 });
 
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {

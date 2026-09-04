@@ -30,6 +30,9 @@
   let privateAssets: CatalogueAsset[] = [];
   let savedResources: Resource[] = [];
   let favorites = new Set<string>();
+  /** Catalogue favourites keep the whole record so they can be shown without a search. */
+  let remoteFavorites: { assets: Record<string, ExternalAsset>; fonts: Record<string, ExternalFont> } = { assets: {}, fonts: {} };
+  let onlyFavorites = false;
   let recents: string[] = [];
   let page = 0;
   let remotePage = 1;
@@ -50,7 +53,13 @@
   let importOpen = false;
 
   $: catalogue = new AssetCatalogue([...(manifest as CatalogueAsset[]).filter(item => item.visibility === 'public'), ...privateAssets]);
-  $: all = catalogue.search({ query, category: category || undefined }).sort((a, b) => recents.indexOf(b.id) - recents.indexOf(a.id));
+  $: all = catalogue.search({ query, category: category || undefined }).filter(item => !onlyFavorites || favorites.has(item.id)).sort((a, b) => recents.indexOf(b.id) - recents.indexOf(a.id));
+  const matchesQuery = (text: string) => !query.trim() || text.toLowerCase().includes(query.trim().toLowerCase());
+  $: favoriteAssets = Object.values(remoteFavorites.assets).filter(item => matchesQuery(`${item.title} ${item.category} ${item.provider}`) && (!category || item.category === category));
+  $: favoriteFonts = Object.values(remoteFavorites.fonts).filter(item => matchesQuery(`${item.family} ${item.category} ${item.provider}`) && (!category || item.category === category));
+  $: shownAssets = onlyFavorites ? favoriteAssets : remoteAssets;
+  $: shownFonts = onlyFavorites ? favoriteFonts : remoteFonts;
+  $: favoriteCount = source === 'service' ? (remoteKind === 'assets' ? Object.keys(remoteFavorites.assets).length : Object.keys(remoteFavorites.fonts).length) : favorites.size;
   $: results = all.slice(page * pageSize, (page + 1) * pageSize);
   $: pages = Math.max(1, Math.ceil(all.length / pageSize));
   $: if (mounted && active && source === 'service' && resourceProvider) {
@@ -74,6 +83,8 @@
     privateAssets = stored.map(item => item.value).filter((item): item is CatalogueAsset => !!item && typeof item === 'object' && 'visibility' in item && item.visibility === 'private');
     savedResources = stored.map(item => item.value).filter((item): item is Resource => !!item && typeof item === 'object' && 'mimeType' in item && 'data' in item);
     favorites = new Set((await database.get<string[]>('preferences', 'asset-favorites')) ?? []);
+    const savedFavorites = await database.get<typeof remoteFavorites>('preferences', 'asset-remote-favorites');
+    if (savedFavorites && typeof savedFavorites === 'object') remoteFavorites = { assets: savedFavorites.assets ?? {}, fonts: savedFavorites.fonts ?? {} };
     recents = (await database.get<string[]>('preferences', 'asset-recents')) ?? [];
   }
 
@@ -96,6 +107,8 @@
     else void useRemoteFont(selected.item);
   }
   const isSelected = (kind: string, id: string) => selected?.kind === kind && selected.item.id === id;
+  /** Font previews are rendered by the catalogue; the family name set in its own face reads like a type specimen. */
+  const fontSample = (item: ExternalFont, text = item.family, size = 40) => `${item.previewUrl}?text=${encodeURIComponent(text)}&size=${size}`;
   function scheduleRemoteSearch() {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void searchRemote(1), 250);
@@ -134,6 +147,17 @@
     favorites.has(id) ? favorites.delete(id) : favorites.add(id);
     await database.put('preferences', 'asset-favorites', [...favorites]);
   }
+  const isRemoteFavorite = (kind: 'asset' | 'font', id: string) => kind === 'asset' ? id in remoteFavorites.assets : id in remoteFavorites.fonts;
+  async function favoriteRemote(kind: 'asset' | 'font', item: ExternalAsset | ExternalFont) {
+    const bucket = kind === 'asset' ? { ...remoteFavorites.assets } : { ...remoteFavorites.fonts };
+    if (item.id in bucket) delete bucket[item.id]; else bucket[item.id] = structuredClone(item) as never;
+    remoteFavorites = kind === 'asset' ? { ...remoteFavorites, assets: bucket as Record<string, ExternalAsset> } : { ...remoteFavorites, fonts: bucket as Record<string, ExternalFont> };
+    await database.put('preferences', 'asset-remote-favorites', remoteFavorites);
+  }
+  function toggleFavoriteFor(entry: NonNullable<typeof selected>) {
+    if (entry.kind === 'local') void favorite(entry.item.id); else void favoriteRemote(entry.kind, entry.item);
+  }
+  const isFavoriteEntry = (entry: NonNullable<typeof selected>) => entry.kind === 'local' ? favorites.has(entry.item.id) : isRemoteFavorite(entry.kind, entry.item.id);
   /** Starts a drag the canvas can resolve into a drop position on the label. */
   function dragTile(event: DragEvent, label: string, placeAt: (at: Point) => Promise<void> | void) {
     event.dataTransfer?.setData(ASSET_DRAG_TYPE, label); event.dataTransfer?.setData('text/plain', label);
@@ -253,7 +277,10 @@
         <button type="button" class:active={remoteKind === 'fonts'} aria-pressed={remoteKind === 'fonts'} on:click={() => { remoteKind = 'fonts'; category = ''; }}>Fonts</button>
       </div>
     {/if}
-    <input type="search" bind:value={query} on:input={() => page = 0} placeholder={source === 'service' ? `Search ${remoteKind}` : 'Search this browser'} aria-label="Search assets">
+    <div class="search-row">
+      <input type="search" bind:value={query} on:input={() => page = 0} placeholder={source === 'service' ? `Search ${remoteKind}` : 'Search this browser'} aria-label="Search assets">
+      <button type="button" class="favorites-toggle" class:active={onlyFavorites} aria-pressed={onlyFavorites} aria-label="Show favourites only" title="Show favourites only" on:click={() => { onlyFavorites = !onlyFavorites; page = 0; }}>★<span class="count">{favoriteCount}</span></button>
+    </div>
     {#if source === 'service' && facetProviders.length > 1}
       <select bind:value={providerFilter} aria-label="Provider"><option value="">All providers</option>{#each facetProviders as item}<option value={item.value}>{item.value} ({item.count})</option>{/each}</select>
     {/if}
@@ -267,9 +294,10 @@
   <p class="status" aria-live="polite">{remoteLoading ? `Searching ${resourceProvider?.displayName ?? 'external resources'}…` : status}</p>
 
   {#if selected}
-    <div class="detail" aria-label="Selected asset">
+    <div class="detail" class:font={selected.kind === 'font'} aria-label="Selected asset">
       <span class="preview">
         {#if selected.kind === 'local'}{#if selected.item.dataBase64 && selected.item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${selected.item.dataBase64}`}>{:else}<span class="glyph" aria-hidden="true">{selected.item.kind === 'font' ? 'Aa' : '▧'}</span>{/if}
+        {:else if selected.kind === 'font' && resourceProvider}{#key selected.item.id}<RemoteAssetPreview provider={resourceProvider} path={fontSample(selected.item, 'The quick brown fox jumps over 0123', 48)} alt=""/>{/key}
         {:else if resourceProvider}{#key selected.item.id}<RemoteAssetPreview provider={resourceProvider} path={selected.item.previewUrl} alt=""/>{/key}{/if}
       </span>
       <div class="meta">
@@ -282,7 +310,7 @@
         {/if}
         <div class="detail-actions">
           <button type="button" class="primary" on:click={placeSelected}>{selected.kind === 'font' || (selected.kind === 'local' && selected.item.kind === 'font') ? 'Add font' : 'Place on label'}</button>
-          {#if selected.kind === 'local'}<button type="button" aria-label={`Favorite ${selected.item.name}`} aria-pressed={favorites.has(selected.item.id)} on:click={() => { if (selected?.kind === 'local') void favorite(selected.item.id); }}>{favorites.has(selected.item.id) ? '★ Favourite' : '☆ Favourite'}</button>{/if}
+          <button type="button" aria-pressed={isFavoriteEntry(selected)} on:click={() => { if (selected) toggleFavoriteFor(selected); }}>{isFavoriteEntry(selected) ? '★ Favourite' : '☆ Favourite'}</button>
           <button type="button" on:click={() => selected = undefined}>Close</button>
         </div>
       </div>
@@ -293,24 +321,26 @@
 
 
   {#if source === 'service' && resourceProvider}
-    <div class="grid" class:busy={remoteLoading} role="group" aria-label="Catalogue results">
-      {#each remoteAssets as item (item.id)}
+    <div class="grid" class:font-list={remoteKind === 'fonts'} class:busy={remoteLoading} role="group" aria-label="Catalogue results">
+      {#each shownAssets as item (item.id)}
         <button type="button" class="tile" class:active={isSelected('asset', item.id)} aria-pressed={isSelected('asset', item.id)} title={`${item.title} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'asset', item }} on:dblclick={() => useRemoteAsset(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.title, (at) => useRemoteAsset(item, at))} on:dragend={endDrag}>
           <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
           <span class="name">{item.title}</span>
           <span class="sub">{item.category}</span>
+          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.title}`} aria-pressed={isRemoteFavorite('asset', item.id)} class:on={isRemoteFavorite('asset', item.id)} on:click|stopPropagation={() => favoriteRemote('asset', item)} on:keydown|stopPropagation={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favoriteRemote('asset', item); } }}>★</span>
         </button>
       {/each}
-      {#each remoteFonts as item (item.id)}
-        <button type="button" class="tile font" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'font', item }} on:dblclick={() => useRemoteFont(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.family, () => useRemoteFont(item))} on:dragend={endDrag}>
-          <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
-          <span class="name">{item.family}</span>
-          <span class="sub">{item.category}</span>
+      {#each shownFonts as item (item.id)}
+        <button type="button" class="font-row" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'font', item }} on:dblclick={() => useRemoteFont(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.family, () => useRemoteFont(item))} on:dragend={endDrag}>
+          <span class="font-sample">{#key item.id}<RemoteAssetPreview provider={resourceProvider} path={fontSample(item)} alt={item.family}/>{/key}</span>
+          <span class="font-meta"><span class="name">{item.family}</span><span class="sub">{item.category} · {item.variants.length} {item.variants.length === 1 ? 'style' : 'styles'}{item.availability === 'remote' ? ' · download' : ''}</span></span>
+          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.family}`} aria-pressed={isRemoteFavorite('font', item.id)} class:on={isRemoteFavorite('font', item.id)} on:click|stopPropagation={() => favoriteRemote('font', item)} on:keydown|stopPropagation={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favoriteRemote('font', item); } }}>★</span>
         </button>
       {/each}
     </div>
-    {#if !remoteLoading && remoteTotal === 0}<p class="empty">No matching {remoteKind}.</p>{/if}
-    <nav class="pager"><button type="button" on:click={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>Page {remotePage} of {remotePages}{remoteTotal ? ` · ${remoteTotal} ${remoteKind}` : ''}</span><button type="button" on:click={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>
+    {#if onlyFavorites && !shownAssets.length && !shownFonts.length}<p class="empty">No favourite {remoteKind} yet. Star a tile to keep it here.</p>
+    {:else if !onlyFavorites && !remoteLoading && remoteTotal === 0}<p class="empty">No matching {remoteKind}.</p>{/if}
+    {#if !onlyFavorites}<nav class="pager"><button type="button" on:click={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>Page {remotePage} of {remotePages}{remoteTotal ? ` · ${remoteTotal} ${remoteKind}` : ''}</span><button type="button" on:click={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>{/if}
   {:else}
     <div class="grid" role="group" aria-label="Browser assets">
       {#each results as item (item.id)}
@@ -318,11 +348,11 @@
           <span class="thumb">{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${item.dataBase64}`}>{:else}<span class="glyph" aria-hidden="true">{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span>{/if}</span>
           <span class="name">{item.name}</span>
           <span class="sub">{item.category}</span>
-          {#if favorites.has(item.id)}<span class="star-mark" aria-label="Favourite">★</span>{/if}
+          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.name}`} aria-pressed={favorites.has(item.id)} class:on={favorites.has(item.id)} on:click|stopPropagation={() => favorite(item.id)} on:keydown|stopPropagation={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favorite(item.id); } }}>★</span>
         </button>
       {/each}
     </div>
-    {#if !all.length}<p class="empty">Nothing in this browser matches. Import a file below or switch to the catalogue.</p>{/if}
+    {#if !all.length}<p class="empty">{onlyFavorites ? 'No favourites match. Star a tile to keep it here.' : 'Nothing in this browser matches. Import a file below or switch to the catalogue.'}</p>{/if}
     <nav class="pager"><button type="button" on:click={() => page--} disabled={page === 0}>Previous</button><span>Page {page + 1} of {pages}{all.length ? ` · ${all.length} assets` : ''}</span><button type="button" on:click={() => page++} disabled={page + 1 >= pages}>Next</button></nav>
   {/if}
 
@@ -346,7 +376,7 @@
   .segmented button+button{border-left:1px solid var(--mble-border-strong,#bbb)}
   .segmented button.active{background:var(--mble-primary,#ed6146);color:#fff}
   .segmented button:disabled{opacity:.5;cursor:default}
-  .toolbar input[type=search]{width:100%;box-sizing:border-box}
+  .toolbar input[type=search]{box-sizing:border-box}
   .chips{display:flex;flex-wrap:wrap;gap:.25rem}
   .chip{padding:.15rem .5rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:999px;background:var(--mble-surface,#fff);color:var(--mble-text,#17231c);font-size:.68rem;cursor:pointer}
   .chip.active{background:var(--mble-text,#17231c);border-color:var(--mble-text,#17231c);color:var(--mble-surface,#fff)}
@@ -354,6 +384,19 @@
   .status{min-height:1em;margin:0;color:var(--mble-text-muted,#59635e);font-size:.7rem}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.2rem,1fr));gap:.4rem}
   .grid.busy{opacity:.55}
+  .grid.font-list{grid-template-columns:1fr;gap:.3rem}
+  .font-row{display:flex;align-items:center;gap:.6rem;position:relative;padding:.35rem 2rem .35rem .5rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-sm,4px);background:#fff;color:#17231c;cursor:grab;text-align:left}
+  .font-row:hover{border-color:var(--mble-border-strong,#948274)}
+  .font-row.active{border-color:var(--mble-primary,#ed6146);box-shadow:0 0 0 1px var(--mble-primary,#ed6146)}
+  .font-sample{display:flex;align-items:center;flex:1;min-width:0;height:2.1rem;overflow:hidden}
+  .font-sample :global(img){display:block;height:100%;width:auto;max-width:100%;object-fit:contain;object-position:left center;pointer-events:none}
+  .font-sample :global(.preview){width:100%;height:100%}
+  .font-meta{display:flex;flex-direction:column;flex:none;max-width:40%;min-width:0}
+  .font-meta .name{color:#17231c}
+  .font-meta .sub{color:#59635e}
+  .detail.font{grid-template-columns:1fr}
+  .detail.font .preview{aspect-ratio:auto;height:3.6rem;padding:.3rem .5rem;justify-items:start}
+  .detail.font .preview :global(img){width:auto;max-width:100%;height:100%;object-fit:contain;object-position:left center}
   .tile{position:relative;cursor:grab;display:flex;flex-direction:column;gap:.25rem;padding:.3rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-sm,4px);background:var(--mble-surface,#fff);color:inherit;cursor:pointer;text-align:left}
   .tile:hover{border-color:var(--mble-border-strong,#948274)}
   .tile:active{cursor:grabbing}
@@ -364,7 +407,14 @@
   .glyph{font-size:1.4rem;color:var(--mble-text-muted,#59635e)}
   .name{overflow:hidden;font-size:.68rem;line-height:1.25;white-space:nowrap;text-overflow:ellipsis}
   .sub{overflow:hidden;color:var(--mble-text-muted,#59635e);font-size:.62rem;line-height:1.2;white-space:nowrap;text-overflow:ellipsis}
-  .star-mark{position:absolute;top:.2rem;right:.3rem;color:var(--mble-primary,#ed6146);font-size:.7rem}
+  .star{position:absolute;top:.15rem;right:.2rem;display:grid;place-items:center;width:1.3rem;height:1.3rem;border-radius:999px;background:color-mix(in srgb,var(--mble-surface,#fff) 85%,transparent);color:var(--mble-border-strong,#948274);font-size:.85rem;line-height:1;opacity:0;transition:opacity .12s}
+  .tile:hover .star,.tile:focus-within .star,.star.on{opacity:1}
+  .star.on{color:var(--mble-primary,#ed6146)}
+  .search-row{display:flex;gap:.3rem}
+  .search-row input{flex:1;min-width:0}
+  .favorites-toggle{flex:none;padding:.2rem .45rem;border:1px solid var(--mble-border-strong,#bbb);border-radius:var(--mble-radius-sm,4px);background:var(--mble-surface,#fff);color:var(--mble-text-muted,#59635e);cursor:pointer}
+  .favorites-toggle .count{margin-left:.25rem;font-size:.68rem}
+  .favorites-toggle.active{background:var(--mble-primary,#ed6146);border-color:var(--mble-primary,#ed6146);color:#fff}
   .empty,.hint{margin:0;color:var(--mble-text-muted,#59635e);font-size:.7rem}
   .pager{display:flex;align-items:center;justify-content:space-between;gap:.3rem;font-size:.7rem;color:var(--mble-text-muted,#59635e)}
   .detail{display:grid;grid-template-columns:5.5rem minmax(0,1fr);gap:.6rem;padding:.5rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-sm,4px);background:var(--mble-background,#f7f4ed)}
