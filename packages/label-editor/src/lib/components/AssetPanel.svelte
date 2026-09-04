@@ -256,37 +256,6 @@
   {/if}
   <p class="status" aria-live="polite">{remoteLoading ? `Searching ${resourceProvider?.displayName ?? 'external resources'}…` : status}</p>
 
-  {#if source === 'service' && resourceProvider}
-    <div class="grid" class:busy={remoteLoading} role="group" aria-label="Catalogue results">
-      {#each remoteAssets as item (item.id)}
-        <button type="button" class="tile" class:active={isSelected('asset', item.id)} aria-pressed={isSelected('asset', item.id)} title={`${item.title} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'asset', item }} on:dblclick={() => useRemoteAsset(item)}>
-          <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
-          <span class="name">{item.title}</span>
-        </button>
-      {/each}
-      {#each remoteFonts as item (item.id)}
-        <button type="button" class="tile font" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'font', item }} on:dblclick={() => useRemoteFont(item)}>
-          <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
-          <span class="name">{item.family}</span>
-        </button>
-      {/each}
-    </div>
-    {#if !remoteLoading && remoteTotal === 0}<p class="empty">No matching {remoteKind}.</p>{/if}
-    <nav class="pager"><button type="button" on:click={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>Page {remotePage} of {remotePages}{remoteTotal ? ` · ${remoteTotal} ${remoteKind}` : ''}</span><button type="button" on:click={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>
-  {:else}
-    <div class="grid" role="group" aria-label="Browser assets">
-      {#each results as item (item.id)}
-        <button type="button" class="tile" class:active={isSelected('local', item.id)} aria-pressed={isSelected('local', item.id)} title={`${item.name} · ${item.kind} · ${item.category}`} on:click={() => selected = { kind: 'local', item }} on:dblclick={() => use(item)}>
-          <span class="thumb">{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${item.dataBase64}`}>{:else}<span class="glyph" aria-hidden="true">{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span>{/if}</span>
-          <span class="name">{item.name}</span>
-          {#if favorites.has(item.id)}<span class="star-mark" aria-label="Favourite">★</span>{/if}
-        </button>
-      {/each}
-    </div>
-    {#if !all.length}<p class="empty">Nothing in this browser matches. Import a file below or switch to the catalogue.</p>{/if}
-    <nav class="pager"><button type="button" on:click={() => page--} disabled={page === 0}>Previous</button><span>Page {page + 1} of {pages}{all.length ? ` · ${all.length} assets` : ''}</span><button type="button" on:click={() => page++} disabled={page + 1 >= pages}>Next</button></nav>
-  {/if}
-
   {#if selected}
     <div class="detail" aria-label="Selected asset">
       <span class="preview">
@@ -311,6 +280,42 @@
   {:else}
     <p class="hint">Click a tile to see details, double-click to place it directly.</p>
   {/if}
+
+
+  {#if source === 'service' && resourceProvider}
+    <div class="grid" class:busy={remoteLoading} role="group" aria-label="Catalogue results">
+      {#each remoteAssets as item (item.id)}
+        <button type="button" class="tile" class:active={isSelected('asset', item.id)} aria-pressed={isSelected('asset', item.id)} title={`${item.title} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'asset', item }} on:dblclick={() => useRemoteAsset(item)}>
+          <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
+          <span class="name">{item.title}</span>
+          <span class="sub">{item.category}</span>
+        </button>
+      {/each}
+      {#each remoteFonts as item (item.id)}
+        <button type="button" class="tile font" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'font', item }} on:dblclick={() => useRemoteFont(item)}>
+          <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
+          <span class="name">{item.family}</span>
+          <span class="sub">{item.category}</span>
+        </button>
+      {/each}
+    </div>
+    {#if !remoteLoading && remoteTotal === 0}<p class="empty">No matching {remoteKind}.</p>{/if}
+    <nav class="pager"><button type="button" on:click={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>Page {remotePage} of {remotePages}{remoteTotal ? ` · ${remoteTotal} ${remoteKind}` : ''}</span><button type="button" on:click={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>
+  {:else}
+    <div class="grid" role="group" aria-label="Browser assets">
+      {#each results as item (item.id)}
+        <button type="button" class="tile" class:active={isSelected('local', item.id)} aria-pressed={isSelected('local', item.id)} title={`${item.name} · ${item.kind} · ${item.category}`} on:click={() => selected = { kind: 'local', item }} on:dblclick={() => use(item)}>
+          <span class="thumb">{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${item.dataBase64}`}>{:else}<span class="glyph" aria-hidden="true">{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span>{/if}</span>
+          <span class="name">{item.name}</span>
+          <span class="sub">{item.category}</span>
+          {#if favorites.has(item.id)}<span class="star-mark" aria-label="Favourite">★</span>{/if}
+        </button>
+      {/each}
+    </div>
+    {#if !all.length}<p class="empty">Nothing in this browser matches. Import a file below or switch to the catalogue.</p>{/if}
+    <nav class="pager"><button type="button" on:click={() => page--} disabled={page === 0}>Previous</button><span>Page {page + 1} of {pages}{all.length ? ` · ${all.length} assets` : ''}</span><button type="button" on:click={() => page++} disabled={page + 1 >= pages}>Next</button></nav>
+  {/if}
+
 
   <details class="import" bind:open={importOpen}>
     <summary>Import files</summary>
@@ -347,6 +352,7 @@
   .thumb :global(.preview){width:100%;height:100%}
   .glyph{font-size:1.4rem;color:var(--mble-text-muted,#59635e)}
   .name{overflow:hidden;font-size:.68rem;line-height:1.25;white-space:nowrap;text-overflow:ellipsis}
+  .sub{overflow:hidden;color:var(--mble-text-muted,#59635e);font-size:.62rem;line-height:1.2;white-space:nowrap;text-overflow:ellipsis}
   .star-mark{position:absolute;top:.2rem;right:.3rem;color:var(--mble-primary,#ed6146);font-size:.7rem}
   .empty,.hint{margin:0;color:var(--mble-text-muted,#59635e);font-size:.7rem}
   .pager{display:flex;align-items:center;justify-content:space-between;gap:.3rem;font-size:.7rem;color:var(--mble-text-muted,#59635e)}
