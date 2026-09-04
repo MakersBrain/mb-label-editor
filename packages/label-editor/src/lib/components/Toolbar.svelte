@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import{alignElementsToBounds,groupElements,removeElements,ungroup,type Alignment}from'../commands.js';import type{Bounds}from'../model.js';import type{EditorStore}from'../store.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import Icon from'./Icon.svelte';
+import{alignElementsToBounds,groupElements,removeElements,ungroup,type Alignment}from'../commands.js';import type{Bounds}from'../model.js';import type{EditorStore}from'../store.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import{shortcutLabel}from'../shortcuts.js';import Icon from'./Icon.svelte';
 export let editor:EditorStore;
 let alignmentTarget='root';
 function del(){editor.execute(removeElements($editor.selection));editor.clearSelection()}
@@ -14,8 +14,8 @@ const alignments:[Alignment,string][]=[['left','Left'],['center-x','Horizontal c
   <div class="group">{#each insertTypes as type}<button class="tool" on:click={()=>insertElement(editor,type)} title={`Insert ${insertLabels[type].toLowerCase()}`}><Icon name={type}/>{insertLabels[type]}</button>{/each}</div>
   <span class="spacer"></span>
   <div class="group">
-    <button class="tool" on:click={()=>editor.undo()} disabled={!$editor.canUndo}><Icon name="undo"/>Undo</button>
-    <button class="tool" on:click={()=>editor.redo()} disabled={!$editor.canRedo}><Icon name="redo"/>Redo</button>
+    <button class="tool" on:click={()=>editor.undo()} disabled={!$editor.canUndo} title={`Undo (${shortcutLabel('Mod+Z')})`}><Icon name="undo"/>Undo</button>
+    <button class="tool" on:click={()=>editor.redo()} disabled={!$editor.canRedo} title={`Redo (${shortcutLabel('Mod+Shift+Z')})`}><Icon name="redo"/>Redo</button>
   </div>
   <div class="group">
     <button class="tool" on:click={group} disabled={$editor.selection.size<2}><Icon name="group"/>Group</button>

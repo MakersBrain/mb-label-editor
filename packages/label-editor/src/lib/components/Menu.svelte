@@ -8,6 +8,7 @@ function pick(event:MouseEvent){if((event.target as HTMLElement).closest('button
 <details class="menu" on:focusout={dismiss}><summary>{label}</summary><div class="sheet" class:end={align==='end'} on:click={pick}><slot/></div></details>
 <style>
   .menu{position:relative}
+  .sheet :global(kbd){margin-left:auto;padding-left:1rem;color:var(--mble-text-muted,#59635e);font-family:var(--mble-font-mono,ui-monospace,monospace);font-size:.68rem}
   .menu>summary{padding:.25rem .5rem;border-radius:var(--mble-radius-sm,4px);list-style:none;color:var(--mble-text-muted,#59635e);white-space:nowrap}
   .menu>summary::-webkit-details-marker{display:none}
   .menu>summary:hover,.menu[open]>summary{background:var(--mble-surface-sunken,#f0e9e3);color:var(--mble-text,#17231c)}

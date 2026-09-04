@@ -202,6 +202,59 @@ test('selected elements follow the pointer before their move is committed', asyn
   expect(Number(await page.getByLabel('Y (mm)').inputValue())).toBeGreaterThan(initialY);
 });
 
+test('resizing shows the new size live before the pointer is released', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  const element = page.locator('.element.selected');
+  const before = await element.boundingBox();
+  expect(before).not.toBeNull();
+  const initialWidth = await page.getByLabel('Width').inputValue();
+  const handle = page.locator('.selection-box .handle.resize.se');
+  const grip = await handle.boundingBox();
+  expect(grip).not.toBeNull();
+  const start = { x: grip!.x + grip!.width / 2, y: grip!.y + grip!.height / 2 };
+  await page.keyboard.down('Alt');
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 40, start.y + 24, { steps: 4 });
+  const during = await element.boundingBox();
+  expect(during!.width).toBeCloseTo(before!.width + 40, 0);
+  expect(during!.height).toBeCloseTo(before!.height + 24, 0);
+  const box = await page.locator('.selection-box').boundingBox();
+  expect(box!.width).toBeCloseTo(before!.width + 40, 0);
+  expect(await page.getByLabel('Width').inputValue()).toBe(initialWidth);
+  await page.mouse.up();
+  await page.keyboard.up('Alt');
+  expect(Number(await page.getByLabel('Width').inputValue())).toBeGreaterThan(Number(initialWidth));
+  const after = await element.boundingBox();
+  expect(after!.width).toBeCloseTo(before!.width + 40, 0);
+});
+
+test('undo and redo shortcuts work and the shortcut viewer lists them', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await expect(page.locator('.element.rectangle')).toHaveCount(1);
+  await page.locator('.viewport').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('.element.rectangle')).toHaveCount(0);
+  await page.keyboard.press('Control+Shift+z');
+  await expect(page.locator('.element.rectangle')).toHaveCount(1);
+  await page.keyboard.press('Control+z');
+  await page.keyboard.press('Control+y');
+  await expect(page.locator('.element.rectangle')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: /^Undo/ }).first()).toHaveAttribute('title', /Undo \((Ctrl|Cmd)\+Z\)/);
+  await page.keyboard.press('Shift+?');
+  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('Undo', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Toggle keeping the aspect ratio')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Help' }).or(page.locator('summary', { hasText: 'Help' })).first().click();
+  await page.getByRole('button', { name: 'Keyboard shortcuts…' }).click();
+  await expect(dialog).toBeVisible();
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();

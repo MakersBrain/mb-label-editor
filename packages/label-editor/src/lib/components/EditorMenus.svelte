@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import{alignElements,distributeElements,groupElements,removeElements,reorderElement,ungroup,addElement,type Alignment}from'../commands.js';import{copyElements,pasteElements}from'../clipboard.js';import type{EditorStore}from'../store.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import Icon from'./Icon.svelte';import Menu from'./Menu.svelte';
+import{alignElements,distributeElements,groupElements,removeElements,reorderElement,ungroup,addElement,type Alignment}from'../commands.js';import{copyElements,pasteElements}from'../clipboard.js';import type{EditorStore}from'../store.js';import{insertElement,insertLabels,insertTypes}from'../insert.js';import Icon from'./Icon.svelte';import Menu from'./Menu.svelte';import{shortcutLabel}from'../shortcuts.js';
 export let editor:EditorStore;export let sidebarOpen=true;export let onOpen:(dialog:string)=>void=()=>{};export let onToggleSidebar:()=>void=()=>{};
 const alignments:[Alignment,string][]=[['left','Left'],['center-x','Center'],['right','Right'],['top','Top'],['center-y','Middle'],['bottom','Bottom']];
 const orders:['front'|'forward'|'backward'|'back',string][]=[['front','Bring to front'],['forward','Bring forward'],['backward','Send backward'],['back','Send to back']];
@@ -10,8 +10,8 @@ function group(){if($editor.selection.size<2)return;const command=groupElements(
 function paste(){const items=pasteElements();for(const item of items)editor.execute(addElement(item));editor.select(items.map(item=>item.id))}
 </script>
 <Menu label="Edit">
-  <button on:click={()=>editor.undo()} disabled={!$editor.canUndo}><Icon name="undo"/>Undo</button>
-  <button on:click={()=>editor.redo()} disabled={!$editor.canRedo}><Icon name="redo"/>Redo</button>
+  <button on:click={()=>editor.undo()} disabled={!$editor.canUndo} title={shortcutLabel('Mod+Z')}><Icon name="undo"/>Undo<kbd>{shortcutLabel('Mod+Z')}</kbd></button>
+  <button on:click={()=>editor.redo()} disabled={!$editor.canRedo} title={shortcutLabel('Mod+Shift+Z')}><Icon name="redo"/>Redo<kbd>{shortcutLabel('Mod+Shift+Z')}</kbd></button>
   <hr>
   <button on:click={()=>editor.select($editor.document.elements.map(item=>item.id))}>Select all</button>
   <button on:click={()=>copyElements($editor.document.elements,$editor.selection)} disabled={!$editor.selection.size}>Copy</button>
@@ -51,4 +51,7 @@ function paste(){const items=pasteElements();for(const item of items)editor.exec
   <button on:click={()=>editor.setView({zoom:Math.min(4,$editor.view.zoom+.25)})}>Zoom in</button>
   <button on:click={()=>editor.setView({zoom:Math.max(.25,$editor.view.zoom-.25)})}>Zoom out</button>
   <button on:click={()=>editor.setView({zoom:1,pan:{x:0,y:0}})}>Reset view</button>
+</Menu>
+<Menu label="Help">
+  <button on:click={()=>onOpen('shortcuts')}>Keyboard shortcuts…<kbd>?</kbd></button>
 </Menu>
