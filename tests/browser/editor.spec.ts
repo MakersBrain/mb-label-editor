@@ -1892,3 +1892,23 @@ test('the label fits the window on open and stops fitting once the user zooms', 
   await page.keyboard.press('Shift+1');
   await expect(page.locator('.zoom-control .fit')).toBeVisible();
 });
+
+test('inserting the same kind twice cascades the second element by one grid step', async ({ page }) => {
+  await page.goto('/');
+  const tools = page.getByRole('navigation', { name: 'Drawing tools' });
+  await tools.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  const firstX = Number(await page.getByLabel('X (mm)').inputValue());
+  const firstY = Number(await page.getByLabel('Y (mm)').inputValue());
+  await tools.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await expect(page.locator('.element.rectangle')).toHaveCount(2);
+  expect(Number(await page.getByLabel('X (mm)').inputValue())).toBeCloseTo(firstX + 1, 6);
+  expect(Number(await page.getByLabel('Y (mm)').inputValue())).toBeCloseTo(firstY + 1, 6);
+  await tools.getByRole('button', { name: 'Ellipse', exact: true }).click();
+  expect(Number(await page.getByLabel('X (mm)').inputValue())).toBeCloseTo(firstX, 6);
+  const media = (await page.locator('.media').boundingBox())!;
+  for (const element of await page.locator('.element').all()) {
+    const box = (await element.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(media.x - 1);
+    expect(box.y).toBeGreaterThanOrEqual(media.y - 1);
+  }
+});
