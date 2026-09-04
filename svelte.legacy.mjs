@@ -14,7 +14,6 @@ export const legacyComponents = new Set([
   'CloudPrintPanel.svelte',
   'DirectPrintPanel.svelte',
   'ExternalResourceConnectionsPanel.svelte',
-  'GuidesPanel.svelte',
   'JobRecoveryPanel.svelte',
   'LaPostePanel.svelte',
   'LibraryPanel.svelte',
