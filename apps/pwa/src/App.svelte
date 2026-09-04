@@ -80,7 +80,14 @@
   const editor = createEditorStore(defaultDocument());
   const database = new EditorDatabase();
   let status = $state('Ready');
-  const autosave = createAutosaver(database, 1500, (error) => (status = `Autosave unavailable: ${message(error)}`));
+  let savedDocument = $state.raw<LabelDocument | undefined>();
+  const autosave = createAutosaver(
+    database,
+    1500,
+    (error) => (status = `Autosave unavailable: ${message(error)}`),
+    5000,
+    (document) => (savedDocument = document),
+  );
   let sdk = $state.raw<Awaited<ReturnType<typeof loadPrinterSdk>> | undefined>();
   let printers = $state.raw<PrinterDefinition[]>([]);
   let printerId = $state('');
@@ -236,6 +243,7 @@
   }
   // Persistence follows the editor's fine-grained state once preferences and the autosave are restored; each concern tracks only what it writes.
   let persistenceArmed = $state(false);
+  const saveState = $derived(!persistenceArmed ? '' : editor.document === savedDocument ? 'Saved' : 'Unsaved changes');
   let lastView = '';
   let lastTemplate: LabelDocument['template'];
   const preferencesSaver = debounced(1000, () =>
@@ -595,7 +603,16 @@
 
 <svelte:window ononline={() => (online = true)} onoffline={() => (online = false)} />
 <div class="app">
-  <LabelEditor {editor} {sdk} materializer={sdk} {resourceProvider} {printers} {printerId} onPrinter={selectPrinter}>
+  <LabelEditor
+    {editor}
+    {sdk}
+    materializer={sdk}
+    {resourceProvider}
+    {printers}
+    {printerId}
+    onPrinter={selectPrinter}
+    {saveState}
+  >
     {#snippet brand()}<BrandLockup product="Label Editor" href="./" />{/snippet}
     {#snippet menuStart()}<Menu label="File">
         <button onclick={() => open()}>Open picker</button>
@@ -658,9 +675,6 @@
         <button onclick={() => (dialog = 'jobs')}>Recover print jobs…</button>
       </Menu>{/snippet}
     {#snippet actions()}
-      <span class="media-chip"
-        >{editor.document.media.width} × {editor.document.media.height} mm · {editor.document.media.shape}</span
-      >
       <select
         value={selectedRoute.id}
         onchange={(event) => chooseRoute(event.currentTarget.value)}
@@ -838,14 +852,6 @@
   .primary:disabled {
     opacity: 0.45;
     cursor: default;
-  }
-  .media-chip {
-    padding: 0.22rem 0.45rem;
-    border: var(--mb-border);
-    border-radius: var(--mb-radius-sm);
-    color: var(--mb-text-muted);
-    font-size: 0.72rem;
-    white-space: nowrap;
   }
   .pending {
     margin: 0;

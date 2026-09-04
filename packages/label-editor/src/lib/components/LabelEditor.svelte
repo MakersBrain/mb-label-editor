@@ -21,6 +21,7 @@
   import GuidesPanel from './GuidesPanel.svelte';
   import ToolRail from './ToolRail.svelte';
   import HistoryButtons from './HistoryButtons.svelte';
+  import DocumentTitle from './DocumentTitle.svelte';
   import { MediaQuery } from 'svelte/reactivity';
   import EditorMenus from './EditorMenus.svelte';
   import Modal from './Modal.svelte';
@@ -34,6 +35,8 @@
     printers?: PrinterDefinition[];
     printerId?: string;
     onPrinter?: (id: string) => void;
+    /** What the host knows about persistence, shown under the document title (for example "Saved"). */
+    saveState?: string;
     /** Host-provided regions of the shell: brand lockup, extra menus, header actions and the printer tab. */
     brand?: Snippet;
     menuStart?: Snippet;
@@ -50,6 +53,7 @@
     printers = [],
     printerId = '',
     onPrinter = () => {},
+    saveState = '',
     brand,
     menuStart,
     menuEnd,
@@ -58,6 +62,8 @@
   }: Props = $props();
   /** Below 64rem the selection bar folds its alignment tools away and the tool rail runs along the top. */
   const narrow = new MediaQuery('(max-width: 64rem)');
+  /** Below 40rem the menus collapse behind one Menu button. */
+  const phone = new MediaQuery('(max-width: 40rem)');
   let sidebarOpen = $state(true);
   let dialog = $state('');
   const activeResourceProvider = $derived(resourceProvider ?? assetCatalog);
@@ -247,14 +253,26 @@
       </section>
     </div>
   {/snippet}
-  <header class="appbar">
+  {#snippet menus()}
+    {@render menuStart?.()}
+    <EditorMenus {editor} {sidebarOpen} onOpen={openPanel} onToggleSidebar={() => (sidebarOpen = !sidebarOpen)} />
+    <HistoryButtons {editor} />
+    {@render menuEnd?.()}
+  {/snippet}
+  <header class="appbar" class:phone={phone.current}>
     <div class="brand">{@render brand?.()}</div>
-    <nav class="menubar" aria-label="Editor menus">
-      {@render menuStart?.()}
-      <EditorMenus {editor} {sidebarOpen} onOpen={openPanel} onToggleSidebar={() => (sidebarOpen = !sidebarOpen)} />
-      <HistoryButtons {editor} />
-      {@render menuEnd?.()}
-    </nav>
+    <DocumentTitle {editor} {saveState} />
+    {#if phone.current}
+      <details class="menu-drawer">
+        <summary aria-label="Menu" title="Menu">☰</summary>
+        <nav class="menubar" aria-label="Editor menus">{@render menus()}</nav>
+      </details>
+    {:else}
+      <nav class="menubar" aria-label="Editor menus">{@render menus()}</nav>
+    {/if}
+    <span class="media-chip" title="Label media"
+      >{editor.document.media.width} × {editor.document.media.height} mm · {editor.document.media.shape}</span
+    >
     <div class="appbar-actions">{@render actions?.()}</div>
   </header>
   <main class:sidebar-closed={!sidebarOpen} class:wide={wide.current} style={`--sidebar-width:${sidebarWidth}px`}>
@@ -410,6 +428,50 @@
     gap: 0.25rem;
     align-items: center;
     margin-left: auto;
+  }
+  .media-chip {
+    flex: none;
+    padding: 0.22rem 0.45rem;
+    border: 1px solid var(--mble-border, #d8d0c3);
+    border-radius: var(--mble-radius-sm, 4px);
+    color: var(--mble-text-muted, #59635e);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+  .menu-drawer {
+    position: relative;
+  }
+  .menu-drawer > summary {
+    padding: 0.25rem 0.55rem;
+    border-radius: var(--mble-radius-sm, 4px);
+    list-style: none;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .menu-drawer > summary::-webkit-details-marker {
+    display: none;
+  }
+  .menu-drawer[open] > summary {
+    background: var(--mble-surface-sunken, #f0e9e3);
+  }
+  .menu-drawer > .menubar {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 0.3rem);
+    z-index: 61;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 12rem;
+    padding: 0.35rem;
+    background: var(--mble-surface, #fff);
+    border: 1px solid var(--mble-border, #d8d0c3);
+    border-radius: var(--mble-radius-md, 6px);
+    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+  }
+  @media (max-width: 64rem) {
+    .media-chip {
+      display: none;
+    }
   }
   main {
     position: relative;

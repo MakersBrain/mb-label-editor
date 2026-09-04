@@ -84,7 +84,14 @@ describe('persistence lifecycle', () => {
     vi.useFakeTimers();
     try {
       const autosave = vi.fn().mockResolvedValue(undefined);
-      const autosaver = createAutosaver({ autosave } as unknown as EditorDatabase, 1500, () => {}, 5000);
+      const saved: string[] = [];
+      const autosaver = createAutosaver(
+        { autosave } as unknown as EditorDatabase,
+        1500,
+        () => {},
+        5000,
+        (document) => saved.push(document.title),
+      );
       const base = defaultDocument();
       for (let step = 0; step < 16; step++) {
         autosaver({ ...base, title: `edit ${step}` });
@@ -95,6 +102,7 @@ describe('persistence lifecycle', () => {
       await vi.advanceTimersByTimeAsync(1500);
       expect(autosave).toHaveBeenCalledTimes(2);
       expect(autosave.mock.calls[1][0].title).toBe('edit 15');
+      expect(saved).toEqual(['edit 9', 'edit 15']);
       await autosaver.dispose();
     } finally {
       vi.useRealTimers();

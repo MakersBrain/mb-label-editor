@@ -152,6 +152,7 @@ export function createAutosaver(
   intervalMs = 1500,
   onError: (error: unknown) => void = () => {},
   maxWaitMs = 5000,
+  onSaved: (document: LabelDocument) => void = () => {},
 ) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let pending: LabelDocument | undefined;
@@ -163,7 +164,10 @@ export function createAutosaver(
     pending = undefined;
     firstPendingAt = undefined;
     if (!document) return inFlight;
-    inFlight = inFlight.catch(() => {}).then(() => database.autosave(document));
+    inFlight = inFlight
+      .catch(() => {})
+      .then(() => database.autosave(document))
+      .then(() => onSaved(document));
     return inFlight;
   };
   const autosaver = ((document: LabelDocument) => {

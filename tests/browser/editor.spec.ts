@@ -1979,3 +1979,19 @@ test('a wide screen pins layers and properties beside the tabbed panels', async 
   await page.getByRole('tab', { name: 'Data' }).click();
   await expect(pinned.getByLabel('X (mm)')).toBeVisible();
 });
+
+test('the header shows an editable document title and the saved state', async ({ page }) => {
+  await page.goto('/');
+  const title = page.getByLabel('Document title');
+  await expect(title).toHaveValue('Untitled label');
+  await expect(page.locator('.save-state')).toHaveText('Saved', { timeout: 10000 });
+  await title.fill('Shelf tags');
+  await title.press('Enter');
+  await expect(page.locator('.save-state')).toHaveText('Unsaved changes');
+  await expect(page.locator('.save-state')).toHaveText('Saved', { timeout: 10000 });
+  const download = page.waitForEvent('download');
+  await page.getByText('File', { exact: true }).click();
+  await page.getByRole('button', { name: 'Export JSON', exact: true }).click();
+  expect((await download).suggestedFilename()).toBe('Shelf tags.mb-label.json');
+  await expect(page.locator('.appbar .media-chip')).toContainText('50 × 30 mm');
+});
