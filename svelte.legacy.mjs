@@ -29,5 +29,4 @@ export const legacyComponents = new Set([
   'RemoteAssetPreview.svelte',
   'SheetPanel.svelte',
   'TemplateSyntaxPanel.svelte',
-  'Toolbar.svelte',
 ]);
