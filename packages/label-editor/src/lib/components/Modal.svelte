@@ -82,7 +82,7 @@
     padding: 0;
     border: 0;
     border-radius: 0;
-    background: #17231c66;
+    background: var(--mble-scrim);
   }
   /* The class carries the editor's typography and controls to a dialog the host mounts elsewhere. */
   .dialog {
@@ -95,10 +95,10 @@
     flex-direction: column;
     width: min(30rem, calc(100vw - 1.5rem));
     max-height: min(38rem, calc(100dvh - 3rem));
-    background: var(--mble-surface, #fff);
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-md, 6px);
-    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    background: var(--mble-surface);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-md);
+    box-shadow: var(--mble-shadow);
   }
   .dialog.sm {
     width: min(22rem, calc(100vw - 1.5rem));
@@ -134,11 +134,11 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.6rem 0.5rem 0.6rem 0.85rem;
-    border-bottom: 1px solid var(--mble-border, #e5dfd5);
+    border-bottom: 1px solid var(--mble-border);
   }
   .dialog h2 {
     margin: 0;
-    color: var(--mble-text, #17231c);
+    color: var(--mble-text);
     font-size: 0.85rem;
     font-weight: 600;
   }

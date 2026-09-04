@@ -530,9 +530,9 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    color: var(--mble-text, #17231c);
-    background: var(--mble-background, #f7f4ed);
-    font-family: var(--mble-font-ui, Inter, system-ui, sans-serif);
+    color: var(--mble-text);
+    background: var(--mble-background);
+    font-family: var(--mble-font-ui);
   }
   .appbar {
     display: flex;
@@ -542,7 +542,7 @@
     flex: none;
     padding: calc(0.3rem + env(safe-area-inset-top, 0px)) calc(0.5rem + env(safe-area-inset-right, 0px)) 0.3rem
       calc(0.5rem + env(safe-area-inset-left, 0px));
-    border-bottom: 1px solid var(--mble-border, #d8d0c3);
+    border-bottom: 1px solid var(--mble-border);
   }
   .brand {
     min-width: 0;
@@ -565,9 +565,9 @@
   .media-chip {
     flex: none;
     padding: 0.22rem 0.45rem;
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-sm, 4px);
-    color: var(--mble-text-muted, #59635e);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-sm);
+    color: var(--mble-text-muted);
     font-size: 0.72rem;
     white-space: nowrap;
   }
@@ -576,7 +576,7 @@
   }
   .menu-drawer > summary {
     padding: 0.25rem 0.55rem;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
     list-style: none;
     font-size: 1rem;
     line-height: 1;
@@ -585,7 +585,7 @@
     display: none;
   }
   .menu-drawer[open] > summary {
-    background: var(--mble-surface-sunken, #f0e9e3);
+    background: var(--mble-surface-sunken);
   }
   .menu-drawer > .menubar {
     position: absolute;
@@ -596,10 +596,10 @@
     align-items: stretch;
     min-width: 12rem;
     padding: 0.35rem;
-    background: var(--mble-surface, #fff);
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-md, 6px);
-    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    background: var(--mble-surface);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-md);
+    box-shadow: var(--mble-shadow);
   }
   @media (max-width: 64rem) {
     .media-chip {
@@ -646,12 +646,12 @@
       height: 3rem;
       transform: translateY(-50%);
       border-radius: 2px;
-      background: var(--mble-border-strong, #948274);
+      background: var(--mble-border-strong);
     }
   }
   .sidebar-resizer:hover::after,
   .sidebar-resizer:focus-visible::after {
-    background: var(--mble-primary, #ed6146);
+    background: var(--mble-primary);
   }
   .sidebar-resizer:focus-visible {
     outline: none;
@@ -673,8 +673,8 @@
     display: flex;
     flex-direction: column;
     max-height: 40%;
-    border-top: 1px solid var(--mble-border, #d8d0c3);
-    background: var(--mble-surface, #fff);
+    border-top: 1px solid var(--mble-border);
+    background: var(--mble-surface);
   }
   .sheet-dock-bar {
     display: flex;
@@ -682,11 +682,11 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.3rem 0.75rem;
-    border-bottom: 1px solid var(--mble-border, #d8d0c3);
+    border-bottom: 1px solid var(--mble-border);
   }
   .sheet-dock-bar h2 {
     margin: 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -712,8 +712,8 @@
     min-height: 0;
     overflow: hidden;
     overscroll-behavior: contain;
-    background: var(--mble-background, #f7f4ed);
-    border-left: 1px solid var(--mble-border, #d8d0c3);
+    background: var(--mble-background);
+    border-left: 1px solid var(--mble-border);
   }
   aside [role='tabpanel'] {
     flex: 1;
@@ -736,7 +736,7 @@
     min-height: 8rem;
     overflow: auto;
     overscroll-behavior: contain;
-    border-bottom: 1px solid var(--mble-border, #e5dfd5);
+    border-bottom: 1px solid var(--mble-border);
   }
   .props-pane {
     flex: 1 1 auto;
@@ -750,8 +750,8 @@
     z-index: 5;
     margin: 0;
     padding: 0.5rem 0.75rem 0.2rem;
-    background: var(--mble-background, #f7f4ed);
-    color: var(--mble-text-muted, #59635e);
+    background: var(--mble-background);
+    color: var(--mble-text-muted);
     font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -772,8 +772,8 @@
     top: 0;
     z-index: 6;
     display: flex;
-    background: var(--mble-background, #f7f4ed);
-    border-bottom: 1px solid var(--mble-border, #d8d0c3);
+    background: var(--mble-background);
+    border-bottom: 1px solid var(--mble-border);
   }
   .tabs [role='tab'] {
     flex: 1;
@@ -782,14 +782,14 @@
     border-bottom: 2px solid transparent;
     border-radius: 0;
     background: transparent;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
   }
   .tabs [role='tab'][aria-selected='true'] {
-    color: var(--mble-text, #17231c);
-    border-bottom-color: var(--mble-primary, #ed6146);
+    color: var(--mble-text);
+    border-bottom-color: var(--mble-primary);
   }
   aside [role='tabpanel'][hidden] {
     display: none;
@@ -829,7 +829,7 @@
       right: 0;
       bottom: 0;
       width: min(22rem, 80vw);
-      box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+      box-shadow: var(--mble-shadow);
     }
     main.overlay.sidebar-closed aside {
       display: none;
@@ -841,7 +841,7 @@
       padding: 0;
       border: 0;
       border-radius: 0;
-      background: #17231c55;
+      background: var(--mble-scrim);
     }
     .panels-toggle {
       position: absolute;
@@ -850,9 +850,9 @@
       bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
       min-height: 2.75rem;
       padding: 0 0.9rem;
-      border-color: var(--mble-border-strong, #948274);
-      background: var(--mble-surface, #fff);
-      box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+      border-color: var(--mble-border-strong);
+      background: var(--mble-surface);
+      box-shadow: var(--mble-shadow);
     }
     main.overlay:not(.sidebar-closed) .panels-toggle {
       z-index: 10;
@@ -867,8 +867,8 @@
       width: auto;
       height: 70dvh;
       border-left: 0;
-      border-top: 1px solid var(--mble-border, #d8d0c3);
-      border-radius: var(--mble-radius-md, 6px) var(--mble-radius-md, 6px) 0 0;
+      border-top: 1px solid var(--mble-border);
+      border-radius: var(--mble-radius-md) var(--mble-radius-md) 0 0;
     }
   }
 </style>

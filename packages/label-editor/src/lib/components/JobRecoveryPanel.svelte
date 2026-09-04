@@ -42,11 +42,11 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -55,7 +55,7 @@
     padding: 0;
   }
   li {
-    border-left: 3px solid var(--mble-primary, #ed6146);
+    border-left: 3px solid var(--mble-primary);
     padding: 0.4rem;
     margin: 0.4rem 0;
   }

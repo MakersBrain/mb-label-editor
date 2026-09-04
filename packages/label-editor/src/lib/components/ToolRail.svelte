@@ -34,8 +34,8 @@
     flex-direction: column;
     gap: 0.2rem;
     padding: 0.4rem 0.3rem;
-    background: var(--mble-background, #f7f4ed);
-    border-right: 1px solid var(--mble-border, #d8d0c3);
+    background: var(--mble-background);
+    border-right: 1px solid var(--mble-border);
   }
   .rail.horizontal {
     flex-direction: row;
@@ -43,7 +43,7 @@
     scroll-snap-type: x mandatory;
     padding: 0.3rem 0.4rem;
     border-right: 0;
-    border-bottom: 1px solid var(--mble-border, #d8d0c3);
+    border-bottom: 1px solid var(--mble-border);
   }
   .tool {
     display: grid;
@@ -54,9 +54,9 @@
     scroll-snap-align: start;
   }
   .tool.armed {
-    background: var(--mble-primary, #ed6146);
-    border-color: var(--mble-primary, #ed6146);
-    color: var(--mble-on-primary, #fff);
+    background: var(--mble-primary);
+    border-color: var(--mble-primary);
+    color: var(--mble-primary-text);
   }
   .tool :global(.icon) {
     width: 18px;

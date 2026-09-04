@@ -27,7 +27,7 @@
   }
   h3 {
     margin: 0.85rem 0 0.35rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -52,16 +52,16 @@
   }
   kbd {
     padding: 0.05rem 0.35rem;
-    border: 1px solid var(--mble-border, #d8d0c3);
+    border: 1px solid var(--mble-border);
     border-bottom-width: 2px;
-    border-radius: var(--mble-radius-sm, 4px);
-    background: var(--mble-background, #f7f4ed);
-    font-family: var(--mble-font-mono, ui-monospace, monospace);
+    border-radius: var(--mble-radius-sm);
+    background: var(--mble-background);
+    font-family: var(--mble-font-mono);
     font-size: 0.72rem;
     white-space: nowrap;
   }
   .or {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.7rem;
   }
 </style>

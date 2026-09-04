@@ -30,7 +30,7 @@
     align-items: center;
     margin-left: 0.35rem;
     padding-left: 0.45rem;
-    border-left: 1px solid var(--mble-border, #d8d0c3);
+    border-left: 1px solid var(--mble-border);
   }
   button {
     display: grid;

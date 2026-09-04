@@ -302,11 +302,11 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -329,9 +329,9 @@
   td {
     text-align: left;
     padding: 0.25rem;
-    border-bottom: 1px solid var(--mble-border, #e5dfd5);
+    border-bottom: 1px solid var(--mble-border);
   }
   tr.invalid {
-    color: var(--mble-danger, #b42318);
+    color: var(--mble-danger);
   }
 </style>

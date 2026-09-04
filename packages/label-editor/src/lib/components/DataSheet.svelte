@@ -177,9 +177,9 @@
   .sheet-wrap {
     max-height: 22rem;
     overflow: auto;
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-sm, 4px);
-    background: var(--mble-surface, #fff);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-sm);
+    background: var(--mble-surface);
   }
   .sheet {
     border-collapse: separate;
@@ -190,8 +190,8 @@
   th,
   td {
     padding: 0;
-    border-bottom: 1px solid var(--mble-border, #e5dfd5);
-    border-right: 1px solid var(--mble-border, #e5dfd5);
+    border-bottom: 1px solid var(--mble-border);
+    border-right: 1px solid var(--mble-border);
     white-space: nowrap;
   }
   thead th {
@@ -199,8 +199,8 @@
     top: 0;
     z-index: 1;
     padding: 0.3rem 0.4rem;
-    background: var(--mble-background, #f7f4ed);
-    color: var(--mble-text-muted, #59635e);
+    background: var(--mble-background);
+    color: var(--mble-text-muted);
     font-weight: 600;
     text-align: left;
   }
@@ -211,20 +211,20 @@
     padding: 0 0.25rem;
     border: 0;
     background: transparent;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     cursor: pointer;
     opacity: 0.5;
   }
   .remove:hover {
     opacity: 1;
-    color: var(--mble-danger, #a21);
+    color: var(--mble-danger);
   }
   .num {
     position: sticky;
     left: 0;
     z-index: 1;
     width: 2rem;
-    background: var(--mble-background, #f7f4ed);
+    background: var(--mble-background);
     text-align: center;
   }
   .num button {
@@ -232,16 +232,16 @@
     padding: 0.3rem 0.2rem;
     border: 0;
     background: transparent;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-variant-numeric: tabular-nums;
     cursor: pointer;
   }
   tr.current .num button {
-    background: var(--mble-primary, #ed6146);
-    color: #fff;
+    background: var(--mble-primary);
+    color: var(--mble-primary-text);
   }
   tr.current td {
-    background: color-mix(in srgb, var(--mble-selection, #f5c8b9) 35%, var(--mble-surface, #fff));
+    background: color-mix(in srgb, var(--mble-selection) 35%, var(--mble-surface));
   }
   td input {
     width: 100%;
@@ -255,9 +255,9 @@
     font: inherit;
   }
   td input:focus {
-    outline: 2px solid var(--mble-primary, #ed6146);
+    outline: 2px solid var(--mble-primary);
     outline-offset: -2px;
-    background: var(--mble-surface, #fff);
+    background: var(--mble-surface);
   }
   .actions {
     width: 3rem;
@@ -267,11 +267,11 @@
     padding: 0.1rem 0.25rem;
     border: 0;
     background: transparent;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     cursor: pointer;
   }
   .actions button:hover {
-    color: var(--mble-danger, #a21);
+    color: var(--mble-danger);
   }
   .sheet-tools {
     display: flex;
@@ -290,7 +290,7 @@
   }
   .count {
     margin-left: auto;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .visually-hidden {
     position: absolute;

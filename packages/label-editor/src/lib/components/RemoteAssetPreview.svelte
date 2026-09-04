@@ -168,7 +168,7 @@
     width: 2.5rem;
     height: 2.5rem;
     place-items: center;
-    color: var(--mble-text-muted, #666);
-    background: var(--mble-surface-muted, #eee);
+    color: var(--mble-text-muted);
+    background: var(--mble-surface-muted);
   }
 </style>

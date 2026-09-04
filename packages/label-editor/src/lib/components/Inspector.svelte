@@ -282,11 +282,11 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -308,7 +308,7 @@
   }
   .render-help {
     margin: -0.2rem 0 0.55rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.68rem;
     line-height: 1.35;
   }

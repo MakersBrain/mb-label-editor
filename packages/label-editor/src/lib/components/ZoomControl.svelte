@@ -66,10 +66,10 @@
     align-items: center;
     gap: 0.2rem;
     padding: 0.2rem 0.3rem;
-    background: color-mix(in srgb, var(--mble-surface, #fff) 92%, transparent);
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-md, 6px);
-    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    background: color-mix(in srgb, var(--mble-surface) 92%, transparent);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-md);
+    box-shadow: var(--mble-shadow);
     font-size: 0.75rem;
   }
   .zoom-control > button {
@@ -90,7 +90,7 @@
     gap: 0.35rem;
     min-width: 3.4rem;
     padding: 0.2rem 0.4rem;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
     list-style: none;
     cursor: default;
     font-variant-numeric: tabular-nums;
@@ -101,13 +101,13 @@
   }
   .presets > summary:hover,
   .presets[open] > summary {
-    background: var(--mble-surface-sunken, #f0e9e3);
+    background: var(--mble-surface-sunken);
   }
   .fit {
     padding: 0 0.3rem;
     border-radius: 999px;
-    background: var(--mble-selection, #f5c8b9);
-    color: var(--mble-text, #17231c);
+    background: var(--mble-selection);
+    color: var(--mble-text);
     font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -120,10 +120,10 @@
     gap: 0.1rem;
     min-width: 9rem;
     padding: 0.35rem;
-    background: var(--mble-surface, #fff);
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-md, 6px);
-    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    background: var(--mble-surface);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-md);
+    box-shadow: var(--mble-shadow);
   }
   .sheet button {
     display: flex;
@@ -134,8 +134,8 @@
     padding: 0.3rem 0.45rem;
   }
   .sheet kbd {
-    color: var(--mble-text-muted, #59635e);
-    font-family: var(--mble-font-mono, ui-monospace, monospace);
+    color: var(--mble-text-muted);
+    font-family: var(--mble-font-mono);
     font-size: 0.68rem;
   }
   @media (pointer: coarse) {

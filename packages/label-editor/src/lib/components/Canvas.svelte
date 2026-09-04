@@ -896,7 +896,7 @@
     overflow: hidden;
     min-width: 0;
     min-height: 0;
-    background: var(--mble-surface-sunken, #d8ddd8);
+    background: var(--mble-surface-sunken);
     touch-action: none;
   }
   .pan {
@@ -907,13 +907,15 @@
   }
   .media {
     position: relative;
-    background: #fff;
-    box-shadow: 0 8px 28px #17231c33;
+    background: var(--mble-paper);
+    box-shadow: var(--mble-shadow);
     overflow: hidden;
   }
   .media.grid {
     background-image:
-      linear-gradient(#1c66471c 1px, transparent 1px), linear-gradient(90deg, #1c66471c 1px, transparent 1px);
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    --grid-line: color-mix(in srgb, var(--mble-guide) 14%, transparent);
     background-size: var(--grid) var(--grid);
   }
   .element {
@@ -923,7 +925,7 @@
     overflow: visible;
     border: 1px dashed transparent;
     background: transparent;
-    color: #111;
+    color: var(--mble-ink);
     transform-origin: center;
     cursor: move;
   }
@@ -931,10 +933,10 @@
     background: transparent;
   }
   .element:not(.selected):hover {
-    border-color: var(--mble-border-strong, #948274);
+    border-color: var(--mble-border-strong);
   }
   .element.selected {
-    border-color: var(--mble-primary, #ed6146);
+    border-color: var(--mble-primary);
     outline: 1px solid white;
   }
   .element.locked {
@@ -957,7 +959,7 @@
   .selection-box {
     position: absolute;
     box-sizing: border-box;
-    border: 1px solid var(--mble-primary, #ed6146);
+    border: 1px solid var(--mble-primary);
     outline: 1px solid white;
     pointer-events: none;
     z-index: 10000;
@@ -975,7 +977,7 @@
     width: 8px;
     height: 8px;
     background: white;
-    border: 1px solid var(--mble-primary, #ed6146);
+    border: 1px solid var(--mble-primary);
     pointer-events: auto;
     z-index: 20;
     /* Handles keep their screen size at any zoom and carry a hit area larger than they look. */
@@ -1037,43 +1039,43 @@
     cursor: grab;
     font-size: 9px;
     line-height: 8px;
-    color: var(--mble-text, #17231c);
+    color: var(--mble-text);
   }
   .rectangle,
   .ellipse,
   .triangle {
-    border: 1px solid #111;
+    border: 1px solid var(--mble-ink);
   }
   .ellipse {
     border-radius: 50%;
   }
   .triangle {
     clip-path: polygon(50% 0, 100% 100%, 0 100%);
-    background: #111;
+    background: var(--mble-ink);
   }
   .line {
     height: 1px !important;
-    background: #111;
+    background: var(--mble-ink);
   }
   .placeholder {
     font-size: 10px;
   }
   .ruler {
     position: absolute;
-    background: var(--mble-surface-muted, #f7f4ed);
+    background: var(--mble-surface-muted);
     z-index: 3;
   }
   .ruler.horizontal {
     height: 20px;
     left: 20px;
     right: 0;
-    border-bottom: 1px solid var(--mble-border-strong, #aaa);
+    border-bottom: 1px solid var(--mble-border-strong);
   }
   .ruler.vertical {
     width: 20px;
     top: 20px;
     bottom: 0;
-    border-right: 1px solid var(--mble-border-strong, #aaa);
+    border-right: 1px solid var(--mble-border-strong);
   }
   .ruler.corner {
     top: 0;
@@ -1082,28 +1084,28 @@
     height: 20px;
     display: grid;
     place-items: center;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 8px;
-    border-right: 1px solid var(--mble-border-strong, #aaa);
-    border-bottom: 1px solid var(--mble-border-strong, #aaa);
+    border-right: 1px solid var(--mble-border-strong);
+    border-bottom: 1px solid var(--mble-border-strong);
   }
   .ruler svg {
     display: block;
     overflow: visible;
   }
   .ruler line {
-    stroke: var(--mble-text-muted, #59635e);
+    stroke: var(--mble-text-muted);
     stroke-width: 1;
     shape-rendering: crispEdges;
   }
   .ruler text {
-    fill: var(--mble-text-muted, #59635e);
+    fill: var(--mble-text-muted);
     font-size: 8px;
     font-variant-numeric: tabular-nums;
   }
   .guide {
     position: absolute;
-    background: var(--mble-guide, #46a8ed);
+    background: var(--mble-guide);
     pointer-events: none;
   }
   .guide.x {
@@ -1126,7 +1128,7 @@
     pointer-events: none;
   }
   .media.drop-target {
-    outline: 2px dashed var(--mble-primary, #ed6146);
+    outline: 2px dashed var(--mble-primary);
     outline-offset: 2px;
   }
   .media.continuous {
@@ -1138,15 +1140,19 @@
     right: 0;
     z-index: 2;
     pointer-events: none;
-    background: repeating-linear-gradient(135deg, #46a8ed12 0 4px, #46a8ed28 4px 5px);
+    background: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--mble-guide) 7%, transparent) 0 4px,
+      color-mix(in srgb, var(--mble-guide) 16%, transparent) 4px 5px
+    );
   }
   .safe-margin.leading {
     top: 0;
-    border-bottom: 1px dotted var(--mble-guide, #46a8ed);
+    border-bottom: 1px dotted var(--mble-guide);
   }
   .safe-margin.trailing {
     bottom: 0;
-    border-top: 1px dotted var(--mble-guide, #46a8ed);
+    border-top: 1px dotted var(--mble-guide);
   }
   .cut-line {
     position: absolute;
@@ -1154,7 +1160,7 @@
     right: 0;
     bottom: -1px;
     z-index: 10001;
-    border-bottom: 2px dashed var(--mble-danger, #a22929);
+    border-bottom: 2px dashed var(--mble-danger);
     pointer-events: none;
   }
   .roll-continuation {
@@ -1162,12 +1168,17 @@
     left: 0;
     height: 56px;
     z-index: -1;
-    border: 1px solid #b8b8b8;
+    border: 1px solid var(--mble-border-strong);
     border-top: 0;
-    background: linear-gradient(#fffde8cc, #e9e5ce44), repeating-linear-gradient(90deg, #0000 0 8px, #8a856a18 8px 9px);
+    background:
+      linear-gradient(
+        color-mix(in srgb, var(--mble-paper) 80%, transparent),
+        color-mix(in srgb, var(--mble-paper) 25%, transparent)
+      ),
+      repeating-linear-gradient(90deg, transparent 0 8px, color-mix(in srgb, var(--mble-ink) 9%, transparent) 8px 9px);
     box-sizing: border-box;
-    box-shadow: 0 12px 20px #17231c22;
-    color: #777;
+    box-shadow: var(--mble-shadow);
+    color: var(--mble-text-muted);
     text-align: center;
     font-size: 8px;
     pointer-events: none;
@@ -1189,38 +1200,38 @@
   }
   .draw-preview {
     box-sizing: border-box;
-    border: 1px dashed var(--mble-primary, #ed6146);
-    background: color-mix(in srgb, var(--mble-primary, #ed6146) 12%, transparent);
+    border: 1px dashed var(--mble-primary);
+    background: color-mix(in srgb, var(--mble-primary) 12%, transparent);
   }
   .chrome > span {
     position: absolute;
     max-width: 40%;
     padding: 2px 5px;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .cut-label {
     transform: translate(-100%, -100%);
-    background: var(--mble-surface, #fff);
-    color: var(--mble-danger, #a22929);
+    background: var(--mble-surface);
+    color: var(--mble-danger);
   }
   .record-badge {
     border-radius: 999px;
-    background: var(--mble-primary, #ed6146);
-    color: var(--mble-primary-text, #fff);
+    background: var(--mble-primary);
+    color: var(--mble-primary-text);
     font-weight: 600;
   }
   .preview-warning {
     transform: translateY(-100%);
-    background: #fff7df;
-    color: var(--mble-danger, #a21);
+    background: var(--mble-warning-tint);
+    color: var(--mble-danger);
   }
   .preview-error {
     transform: translate(-100%, -100%);
-    background: var(--mble-surface, #fff);
-    color: var(--mble-danger, #a21);
+    background: var(--mble-surface);
+    color: var(--mble-danger);
   }
   .empty-hint {
     position: absolute;
@@ -1230,7 +1241,7 @@
     margin: 0;
     transform: translate(-50%, -50%);
     text-align: center;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.8rem;
   }
   .inline-edit {
@@ -1238,9 +1249,9 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    border: 1px solid var(--mble-primary, #ed6146);
-    background: #fff;
-    color: #111;
+    border: 1px solid var(--mble-primary);
+    background: var(--mble-paper);
+    color: var(--mble-ink);
     font-family: inherit;
     line-height: 1.2;
     resize: none;

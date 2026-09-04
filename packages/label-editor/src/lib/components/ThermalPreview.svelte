@@ -108,8 +108,8 @@
     position: absolute;
     right: 0.3rem;
     bottom: 0.3rem;
-    background: color-mix(in srgb, var(--mble-surface, #fff) 80%, transparent);
-    color: var(--mble-danger, #a21);
+    background: color-mix(in srgb, var(--mble-surface) 80%, transparent);
+    color: var(--mble-danger);
     font-size: 9px;
     z-index: 2;
   }

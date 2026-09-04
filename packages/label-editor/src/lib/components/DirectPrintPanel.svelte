@@ -481,7 +481,7 @@
 <style>
   .printer-card {
     padding: 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   .heading {
     display: flex;
@@ -492,7 +492,7 @@
   }
   .heading h2 {
     margin: 0 0 0.12rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -506,22 +506,22 @@
     align-items: center;
     text-transform: capitalize;
     font-size: 0.68rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .connection i {
     width: 0.48rem;
     height: 0.48rem;
     border-radius: 50%;
-    background: #999;
+    background: var(--mble-text-muted);
   }
   .printer-card[data-state='connected'] .connection i {
-    background: #2e9b62;
+    background: var(--mble-success);
   }
   .printer-card[data-state='connecting'] .connection i {
-    background: #d49331;
+    background: var(--mble-warning);
   }
   .printer-card[data-state='error'] .connection i {
-    background: var(--mble-danger, #a21);
+    background: var(--mble-danger);
   }
   .media-summary {
     display: grid;
@@ -529,13 +529,13 @@
     gap: 0.08rem 0.5rem;
     padding: 0.55rem 0.6rem;
     margin-bottom: 0.65rem;
-    border: 1px solid var(--mble-border, #e5dfd5);
-    border-radius: var(--mble-radius-sm, 6px);
-    background: var(--mble-surface-muted, #f4f1ea);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-sm);
+    background: var(--mble-surface-muted);
   }
   .media-summary span {
     grid-row: span 2;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -544,13 +544,13 @@
     font-size: 0.9rem;
   }
   .media-summary small {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   fieldset {
     margin: 0.55rem 0;
     padding: 0.5rem;
-    border: 1px solid var(--mble-border, #e5dfd5);
-    border-radius: var(--mble-radius-sm, 6px);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-sm);
   }
   legend {
     font-size: 0.72rem;
@@ -558,7 +558,7 @@
   }
   fieldset small {
     display: block;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.68rem;
   }
   .check {
@@ -575,7 +575,7 @@
   .hint,
   .message {
     margin: 0.45rem 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.72rem;
     line-height: 1.35;
   }
@@ -590,9 +590,9 @@
     padding: 0.48rem;
   }
   .primary {
-    background: var(--mble-primary, #1c6647);
-    color: var(--mble-primary-text, #fff);
-    border-color: var(--mble-primary, #1c6647);
+    background: var(--mble-primary);
+    color: var(--mble-primary-text);
+    border-color: var(--mble-primary);
   }
   button:disabled {
     opacity: 0.45;
@@ -616,17 +616,17 @@
     gap: 0.18rem 0.55rem;
     margin: 0.55rem 0 0;
     padding-top: 0.5rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
     font-size: 0.72rem;
   }
   dt {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   dd {
     margin: 0;
   }
   .fault {
-    color: var(--mble-danger, #a21);
+    color: var(--mble-danger);
   }
   code {
     font-size: 0.68rem;

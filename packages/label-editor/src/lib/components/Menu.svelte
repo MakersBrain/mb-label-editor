@@ -44,15 +44,15 @@
   .sheet :global(kbd) {
     margin-left: auto;
     padding-left: 1rem;
-    color: var(--mble-text-muted, #59635e);
-    font-family: var(--mble-font-mono, ui-monospace, monospace);
+    color: var(--mble-text-muted);
+    font-family: var(--mble-font-mono);
     font-size: 0.68rem;
   }
   .menu > summary {
     padding: 0.25rem 0.5rem;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
     list-style: none;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     white-space: nowrap;
   }
   .menu > summary::-webkit-details-marker {
@@ -60,8 +60,8 @@
   }
   .menu > summary:hover,
   .menu[open] > summary {
-    background: var(--mble-surface-sunken, #f0e9e3);
-    color: var(--mble-text, #17231c);
+    background: var(--mble-surface-sunken);
+    color: var(--mble-text);
   }
   .sheet {
     position: absolute;
@@ -73,10 +73,10 @@
     min-width: 12rem;
     max-width: calc(100vw - 1rem);
     padding: 0.35rem;
-    background: var(--mble-surface, #fff);
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-md, 6px);
-    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    background: var(--mble-surface);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-md);
+    box-shadow: var(--mble-shadow);
   }
   .sheet.end {
     left: auto;
@@ -110,11 +110,11 @@
     height: 1px;
     margin: 0.2rem 0;
     border: 0;
-    background: var(--mble-border, #e5dfd5);
+    background: var(--mble-border);
   }
   .sheet :global(p.group-label) {
     margin: 0.3rem 0 0.1rem 0.45rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.68rem;
   }
 </style>

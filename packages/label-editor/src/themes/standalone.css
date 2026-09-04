@@ -1,47 +1,86 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-/* Dependency-free defaults for embedding outside MakersBrain products. */
+/*
+ * Dependency-free theme for embedding outside MakersBrain products.
+ *
+ * Every value is a literal snapshot of the semantic tokens in
+ * @makersbrain/ui tokens.css (clay accent, sand neutrals), so the standalone
+ * editor and the mb-ui adapter render the same colours. This is the only file
+ * in the editor allowed to contain colour literals; components use the
+ * --mble-* tokens without fallbacks (tests/tokens.test.ts enforces both).
+ *
+ * --mble-paper and --mble-ink describe printed paper and are identical in
+ * both themes: the label preview shows what the printer produces.
+ */
 .mb-label-editor {
   color-scheme: light;
-  --mble-background: #f7f4ed;
-  --mble-surface: #fff;
-  --mble-surface-muted: #f7f4ed;
+  --mble-background: #f7f3ee;
+  --mble-surface: #ffffff;
+  --mble-surface-muted: #fbf8f6;
   --mble-surface-sunken: #f0e9e3;
-  --mble-text: #17231c;
-  --mble-text-muted: #59635e;
-  --mble-accent: #236447;
-  --mble-primary: #ed6146;
-  --mble-primary-text: #fff;
-  --mble-focus: #ed6146;
-  --mble-danger: #a21;
+  --mble-text: #1e1915;
+  --mble-text-muted: #64564c;
+  --mble-text-subtle: #7a6a5d;
+  --mble-accent: #a34a2c;
+  --mble-primary: #a34a2c;
+  --mble-primary-hover: #833a23;
+  --mble-primary-text: #ffffff;
+  --mble-primary-tint: #fdf1ec;
+  --mble-primary-border: #f0bfab;
+  --mble-focus: #c05f3d;
+  --mble-success: #2f6e56;
+  --mble-success-tint: #dfebe1;
   --mble-warning: #96600d;
-  --mble-guide: #46a8ed;
-  --mble-border: #e5dfd5;
-  --mble-border-strong: #aaa;
-  --mble-selection: #f5c8b9;
-  --mble-shadow: 0 8px 24px rgb(23 35 28 / 27%);
-  --mble-radius-sm: 4px;
-  --mble-radius-md: 6px;
+  --mble-warning-tint: #fceacc;
+  --mble-danger: #b03a2b;
+  --mble-danger-tint: #fbe4e0;
+  --mble-guide: #3b6584;
+  --mble-guide-tint: #dce7ef;
+  --mble-border: #e5dcd5;
+  --mble-border-strong: #948274;
+  --mble-selection: #fdf1ec;
+  --mble-scrim: rgb(30 25 21 / 45%);
+  --mble-paper: #ffffff;
+  --mble-ink: #1e1915;
+  --mble-shadow-sm: 0 1px 2px rgb(30 25 21 / 6%);
+  --mble-shadow: 0 2px 4px rgb(30 25 21 / 5%), 0 16px 40px rgb(30 25 21 / 10%);
+  --mble-radius-sm: 0.375rem;
+  --mble-radius-md: 0.5rem;
   --mble-radius-full: 999px;
-  --mble-font-ui: Inter, system-ui, sans-serif;
+  --mble-font-display: Bitter, Georgia, 'Times New Roman', serif;
+  --mble-font-ui: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mble-font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 [data-theme='dark'] .mb-label-editor {
   color-scheme: dark;
-  --mble-background: #17231c;
-  --mble-surface: #223128;
-  --mble-surface-muted: #1b2921;
-  --mble-surface-sunken: #101a14;
-  --mble-text: #f7f4ed;
-  --mble-text-muted: #bac6be;
-  --mble-accent: #73b995;
-  --mble-primary: #f1846d;
-  --mble-primary-text: #17231c;
-  --mble-focus: #f1846d;
-  --mble-danger: #ff9a86;
-  --mble-warning: #f5c877;
+  --mble-background: #130f0d;
+  --mble-surface: #1e1915;
+  --mble-surface-muted: #2a231e;
+  --mble-surface-sunken: #0d0a09;
+  --mble-text: #f4efeb;
+  --mble-text-muted: #b2a398;
+  --mble-text-subtle: #877669;
+  --mble-accent: #d27c5c;
+  --mble-primary: #d27c5c;
+  --mble-primary-hover: #e39c80;
+  --mble-primary-text: #130f0d;
+  --mble-primary-tint: #2e1d15;
+  --mble-primary-border: #5a3121;
+  --mble-focus: #e39c80;
+  --mble-success: #6fa98a;
+  --mble-success-tint: #17251e;
+  --mble-warning: #e09a2e;
+  --mble-warning-tint: #2a1e0c;
+  --mble-danger: #e08575;
+  --mble-danger-tint: #2c1614;
   --mble-guide: #7ea8c4;
-  --mble-border: #3d5145;
-  --mble-border-strong: #718378;
-  --mble-selection: #59463f;
-  --mble-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+  --mble-guide-tint: #142028;
+  --mble-border: #3a302a;
+  --mble-border-strong: #736558;
+  --mble-selection: #2e1d15;
+  --mble-scrim: rgb(0 0 0 / 55%);
+  --mble-paper: #ffffff;
+  --mble-ink: #1e1915;
+  --mble-shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --mble-shadow: 0 2px 4px rgb(0 0 0 / 35%), 0 16px 40px rgb(0 0 0 / 50%);
 }

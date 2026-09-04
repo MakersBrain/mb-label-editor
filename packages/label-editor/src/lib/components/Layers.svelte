@@ -291,7 +291,7 @@
   }
   h2 {
     margin: 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -303,41 +303,41 @@
     padding: 0;
     margin: 0;
     min-height: 1.5rem;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
   }
   ol.drop-root {
-    outline: 1px dashed var(--mble-accent, #d9724b);
+    outline: 1px dashed var(--mble-accent);
   }
   li {
     display: flex;
     align-items: center;
     gap: 0.1rem;
     padding-left: calc(var(--depth) * 0.9rem);
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
   }
   li.dragging {
     opacity: 0.5;
   }
   li.drop {
-    outline: 1px dashed var(--mble-accent, #d9724b);
+    outline: 1px dashed var(--mble-accent);
     outline-offset: -1px;
   }
   .selected {
-    background: var(--mble-selection, #f5c8b9);
+    background: var(--mble-selection);
   }
   .fold {
     width: 1.1rem;
     flex: none;
     padding: 0;
     text-align: center;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .type {
     flex: none;
     display: grid;
     place-items: center;
     width: 1.1rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .name {
     flex: 1;
@@ -359,12 +359,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.68rem;
   }
   .count {
     margin-left: 0.35rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.7rem;
   }
   .inherited {
@@ -377,17 +377,17 @@
     display: grid;
     place-items: center;
     padding: 0.2rem 0.3rem;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
     list-style: none;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .more > summary::-webkit-details-marker {
     display: none;
   }
   .more > summary:hover,
   .more[open] > summary {
-    background: var(--mble-surface-sunken, #f0e9e3);
-    color: var(--mble-text, #17231c);
+    background: var(--mble-surface-sunken);
+    color: var(--mble-text);
   }
   .sheet {
     position: absolute;
@@ -398,10 +398,10 @@
     gap: 0.1rem;
     min-width: 9rem;
     padding: 0.35rem;
-    background: var(--mble-surface, #fff);
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-md, 6px);
-    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    background: var(--mble-surface);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-md);
+    box-shadow: var(--mble-shadow);
   }
   .sheet button {
     display: flex;
@@ -412,18 +412,18 @@
     padding: 0.3rem 0.45rem;
   }
   .sheet kbd {
-    color: var(--mble-text-muted, #59635e);
-    font-family: var(--mble-font-mono, ui-monospace, monospace);
+    color: var(--mble-text-muted);
+    font-family: var(--mble-font-mono);
     font-size: 0.68rem;
   }
   .layer-count {
     margin: 0.4rem 0 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.68rem;
   }
   .hint {
     margin: 0.4rem 0 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.68rem;
   }
 </style>

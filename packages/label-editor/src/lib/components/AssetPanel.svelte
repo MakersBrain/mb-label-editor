@@ -854,8 +854,8 @@
   }
   .segmented {
     display: flex;
-    border: 1px solid var(--mble-border-strong, #bbb);
-    border-radius: var(--mble-radius-sm, 4px);
+    border: 1px solid var(--mble-border-strong);
+    border-radius: var(--mble-radius-sm);
     overflow: hidden;
   }
   .segmented button {
@@ -864,17 +864,17 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
   }
   .segmented button + button {
-    border-left: 1px solid var(--mble-border-strong, #bbb);
+    border-left: 1px solid var(--mble-border-strong);
   }
   .segmented button.active {
-    background: var(--mble-primary, #ed6146);
-    color: #fff;
+    background: var(--mble-primary);
+    color: var(--mble-primary-text);
   }
   .segmented button:disabled {
     opacity: 0.5;
@@ -890,17 +890,17 @@
   }
   .chip {
     padding: 0.15rem 0.5rem;
-    border: 1px solid var(--mble-border, #d8d0c3);
+    border: 1px solid var(--mble-border);
     border-radius: 999px;
-    background: var(--mble-surface, #fff);
-    color: var(--mble-text, #17231c);
+    background: var(--mble-surface);
+    color: var(--mble-text);
     font-size: 0.68rem;
     cursor: pointer;
   }
   .chip.active {
-    background: var(--mble-text, #17231c);
-    border-color: var(--mble-text, #17231c);
-    color: var(--mble-surface, #fff);
+    background: var(--mble-text);
+    border-color: var(--mble-text);
+    color: var(--mble-surface);
   }
   .chip .count {
     margin-left: 0.3rem;
@@ -909,7 +909,7 @@
   .status {
     min-height: 1em;
     margin: 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.7rem;
   }
   .grid {
@@ -930,19 +930,19 @@
     gap: 0.6rem;
     position: relative;
     padding: 0.35rem 2rem 0.35rem 0.5rem;
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-sm, 4px);
-    background: #fff;
-    color: #17231c;
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-sm);
+    background: var(--mble-paper);
+    color: var(--mble-ink);
     cursor: grab;
     text-align: left;
   }
   .font-row:hover {
-    border-color: var(--mble-border-strong, #948274);
+    border-color: var(--mble-border-strong);
   }
   .font-row.active {
-    border-color: var(--mble-primary, #ed6146);
-    box-shadow: 0 0 0 1px var(--mble-primary, #ed6146);
+    border-color: var(--mble-primary);
+    box-shadow: 0 0 0 1px var(--mble-primary);
   }
   .font-sample {
     display: flex;
@@ -971,10 +971,10 @@
     min-width: 0;
   }
   .font-meta .name {
-    color: #17231c;
+    color: var(--mble-ink);
   }
   .font-meta .sub {
-    color: #59635e;
+    color: var(--mble-text-muted);
   }
   .detail.font {
     grid-template-columns: 1fr;
@@ -999,22 +999,22 @@
     flex-direction: column;
     gap: 0.25rem;
     padding: 0.3rem;
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-sm, 4px);
-    background: var(--mble-surface, #fff);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-sm);
+    background: var(--mble-surface);
     color: inherit;
     cursor: pointer;
     text-align: left;
   }
   .tile:hover {
-    border-color: var(--mble-border-strong, #948274);
+    border-color: var(--mble-border-strong);
   }
   .tile:active {
     cursor: grabbing;
   }
   .tile.active {
-    border-color: var(--mble-primary, #ed6146);
-    box-shadow: 0 0 0 1px var(--mble-primary, #ed6146);
+    border-color: var(--mble-primary);
+    box-shadow: 0 0 0 1px var(--mble-primary);
   }
   .bundled {
     padding: 0 0.1rem 0.4rem;
@@ -1024,7 +1024,7 @@
     flex-direction: column;
     gap: 0.1rem;
     margin: 0.2rem 0 0.35rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.7rem;
     font-weight: 600;
   }
@@ -1041,15 +1041,15 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.25rem 0.45rem;
-    border: 1px solid var(--mble-border, #e5dfd5);
+    border: 1px solid var(--mble-border);
     border-radius: 3px;
-    background: var(--mble-surface, #fff);
+    background: var(--mble-surface);
     font: inherit;
     font-size: 0.72rem;
     cursor: pointer;
   }
   .bundled-font:hover {
-    border-color: var(--mble-border-strong, #948274);
+    border-color: var(--mble-border-strong);
   }
   .bundled-font .glyph {
     font-size: 0.9rem;
@@ -1058,7 +1058,7 @@
     display: grid;
     place-items: center;
     aspect-ratio: 1;
-    background: #fff;
+    background: var(--mble-paper);
     border-radius: 3px;
     overflow: hidden;
   }
@@ -1075,7 +1075,7 @@
   }
   .glyph {
     font-size: 1.4rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .name {
     overflow: hidden;
@@ -1086,7 +1086,7 @@
   }
   .sub {
     overflow: hidden;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.62rem;
     line-height: 1.2;
     white-space: nowrap;
@@ -1110,9 +1110,9 @@
     justify-content: space-between;
     margin: 0 0 0.5rem;
     padding: 0.4rem 0.5rem;
-    border: 1px solid var(--mble-danger, #a21);
-    border-radius: var(--mble-radius-sm, 4px);
-    color: var(--mble-danger, #a21);
+    border: 1px solid var(--mble-danger);
+    border-radius: var(--mble-radius-sm);
+    color: var(--mble-danger);
     font-size: 0.75rem;
   }
   .star {
@@ -1124,8 +1124,8 @@
     width: 1.3rem;
     height: 1.3rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--mble-surface, #fff) 85%, transparent);
-    color: var(--mble-border-strong, #948274);
+    background: color-mix(in srgb, var(--mble-surface) 85%, transparent);
+    color: var(--mble-border-strong);
     font-size: 0.85rem;
     line-height: 1;
     opacity: 0;
@@ -1142,7 +1142,7 @@
     }
   }
   .star.on {
-    color: var(--mble-primary, #ed6146);
+    color: var(--mble-primary);
   }
   .search-row {
     display: flex;
@@ -1155,10 +1155,10 @@
   .favorites-toggle {
     flex: none;
     padding: 0.2rem 0.45rem;
-    border: 1px solid var(--mble-border-strong, #bbb);
-    border-radius: var(--mble-radius-sm, 4px);
-    background: var(--mble-surface, #fff);
-    color: var(--mble-text-muted, #59635e);
+    border: 1px solid var(--mble-border-strong);
+    border-radius: var(--mble-radius-sm);
+    background: var(--mble-surface);
+    color: var(--mble-text-muted);
     cursor: pointer;
   }
   .favorites-toggle .count {
@@ -1166,14 +1166,14 @@
     font-size: 0.68rem;
   }
   .favorites-toggle.active {
-    background: var(--mble-primary, #ed6146);
-    border-color: var(--mble-primary, #ed6146);
-    color: #fff;
+    background: var(--mble-primary);
+    border-color: var(--mble-primary);
+    color: var(--mble-primary-text);
   }
   .empty,
   .hint {
     margin: 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.7rem;
   }
   .pager {
@@ -1182,22 +1182,22 @@
     justify-content: space-between;
     gap: 0.3rem;
     font-size: 0.7rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .detail {
     display: grid;
     grid-template-columns: 5.5rem minmax(0, 1fr);
     gap: 0.6rem;
     padding: 0.5rem;
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-sm, 4px);
-    background: var(--mble-background, #f7f4ed);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-sm);
+    background: var(--mble-background);
   }
   .preview {
     display: grid;
     place-items: center;
     aspect-ratio: 1;
-    background: #fff;
+    background: var(--mble-paper);
     border-radius: 3px;
     overflow: hidden;
   }
@@ -1218,7 +1218,7 @@
     white-space: nowrap;
   }
   .meta small {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.68rem;
   }
   .detail-actions {
@@ -1228,9 +1228,9 @@
     margin-top: 0.2rem;
   }
   .primary {
-    background: var(--mble-primary, #ed6146);
-    color: #fff;
-    border-color: var(--mble-primary, #ed6146);
+    background: var(--mble-primary);
+    color: var(--mble-primary-text);
+    border-color: var(--mble-primary);
   }
   .render-profile {
     display: flex;
@@ -1240,11 +1240,11 @@
   }
   .render-profile small {
     line-height: 1.35;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .import summary {
     cursor: pointer;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.72rem;
     font-weight: 600;
   }
@@ -1255,9 +1255,9 @@
     margin: 0.4rem 0;
   }
   .upload {
-    border: 1px solid var(--mble-border-strong, #bbb);
+    border: 1px solid var(--mble-border-strong);
     padding: 0.3rem;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
     cursor: pointer;
   }
   .upload input {

@@ -154,10 +154,10 @@
     align-items: center;
     gap: 0.15rem;
     padding: 0.2rem 0.3rem;
-    background: color-mix(in srgb, var(--mble-surface, #fff) 94%, transparent);
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-md, 6px);
-    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    background: color-mix(in srgb, var(--mble-surface) 94%, transparent);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-md);
+    box-shadow: var(--mble-shadow);
     font-size: 0.75rem;
     white-space: nowrap;
   }
@@ -173,7 +173,7 @@
     align-items: center;
     margin-left: 0.3rem;
     padding-left: 0.4rem;
-    border-left: 1px solid var(--mble-border, #d8d0c3);
+    border-left: 1px solid var(--mble-border);
   }
   .align-tools label {
     display: flex;
@@ -198,7 +198,7 @@
     place-items: center;
     width: 1.8rem;
     height: 1.7rem;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
     list-style: none;
   }
   .more > summary::-webkit-details-marker {
@@ -206,7 +206,7 @@
   }
   .more > summary:hover,
   .more[open] > summary {
-    background: var(--mble-surface-sunken, #f0e9e3);
+    background: var(--mble-surface-sunken);
   }
   .sheet {
     position: absolute;
@@ -215,10 +215,10 @@
     display: grid;
     gap: 0.3rem;
     padding: 0.4rem;
-    background: var(--mble-surface, #fff);
-    border: 1px solid var(--mble-border, #d8d0c3);
-    border-radius: var(--mble-radius-md, 6px);
-    box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    background: var(--mble-surface);
+    border: 1px solid var(--mble-border);
+    border-radius: var(--mble-radius-md);
+    box-shadow: var(--mble-shadow);
   }
   .sheet .group {
     margin: 0;

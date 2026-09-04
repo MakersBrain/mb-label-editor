@@ -50,7 +50,7 @@
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -83,7 +83,7 @@
   }
   .hint {
     margin: 0.6rem 0 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
   }
 </style>

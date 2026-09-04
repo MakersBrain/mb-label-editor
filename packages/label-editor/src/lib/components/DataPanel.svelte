@@ -189,7 +189,7 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   .sources {
     display: flex;
@@ -209,12 +209,12 @@
   }
   .section {
     margin-top: 0.6rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
     padding-top: 0.4rem;
   }
   .section summary {
     cursor: pointer;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.72rem;
     font-weight: 600;
   }
@@ -223,7 +223,7 @@
     font-size: 0.72rem;
   }
   .muted {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.72rem;
   }
   .empty {
@@ -240,15 +240,15 @@
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
   .upload {
     display: inline-block;
-    border: 1px solid var(--mble-border-strong, #bbb);
+    border: 1px solid var(--mble-border-strong);
     padding: 0.35rem;
-    border-radius: var(--mble-radius-sm, 4px);
+    border-radius: var(--mble-radius-sm);
   }
   .upload input {
     position: absolute;
@@ -268,21 +268,21 @@
     padding: 0.15rem;
   }
   .error {
-    color: var(--mble-danger, #a21);
+    color: var(--mble-danger);
   }
   .help {
     margin: 0 0 0.5rem;
     font-size: 0.75rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .help code {
-    font-family: var(--mble-font-mono, ui-monospace, monospace);
+    font-family: var(--mble-font-mono);
   }
   .link {
     padding: 0;
     background: none;
     border: 0;
-    color: var(--mble-primary, #ed6146);
+    color: var(--mble-primary);
     cursor: pointer;
     font-size: inherit;
   }

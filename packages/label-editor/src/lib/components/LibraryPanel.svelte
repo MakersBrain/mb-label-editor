@@ -71,11 +71,11 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -94,17 +94,17 @@
     grid-template-columns: 1fr auto;
     gap: 0.15rem 0.4rem;
     padding: 0.35rem 0;
-    border-bottom: 1px solid var(--mble-border, #eee);
+    border-bottom: 1px solid var(--mble-border);
   }
   li button {
     text-align: left;
   }
   small {
     grid-column: 1;
-    color: var(--mble-text-muted, #666);
+    color: var(--mble-text-muted);
   }
   li span {
     font-size: 0.68rem;
-    color: var(--mble-accent, #236447);
+    color: var(--mble-accent);
   }
 </style>

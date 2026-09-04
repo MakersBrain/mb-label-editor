@@ -345,7 +345,7 @@
   }
   .summary,
   .guidance {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   .preview-wrap {
     min-width: 0;
@@ -353,9 +353,9 @@
   .paper {
     position: relative;
     width: 100%;
-    background: #fff;
-    border: 1px solid var(--mble-border, #d8d0c3);
-    box-shadow: 0 2px 8px #17231c18;
+    background: var(--mble-paper);
+    border: 1px solid var(--mble-border);
+    box-shadow: var(--mble-shadow-sm);
   }
   .paper button {
     position: absolute;
@@ -363,22 +363,22 @@
     place-items: center;
     min-width: 0;
     padding: 0;
-    border: 1px solid #4a6755;
-    background: #d7eadc;
-    color: #24422e;
+    border: 1px solid var(--mble-success);
+    background: var(--mble-success-tint);
+    color: var(--mble-success);
     font-size: 0.62rem;
     overflow: hidden;
   }
   .paper button.unused {
-    background: #ece9e1;
-    color: #7b7770;
+    background: var(--mble-surface-sunken);
+    color: var(--mble-text-muted);
   }
   .paper button.occupied {
-    background: #b9ddc3;
+    background: color-mix(in srgb, var(--mble-success) 30%, var(--mble-success-tint));
   }
   .error {
     grid-column: 1/-1;
-    color: var(--mble-danger, #a22929);
+    color: var(--mble-danger);
   }
   .guidance,
   .actions {

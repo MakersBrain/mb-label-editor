@@ -904,7 +904,7 @@
     }
   }
   .offline {
-    color: var(--mb-kiln-300);
+    color: var(--mb-warning);
   }
   @media (max-width: 48rem) {
     .app :global(.appbar select) {

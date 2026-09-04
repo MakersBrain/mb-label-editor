@@ -91,17 +91,17 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
   .upload {
     display: block;
-    border: 1px solid var(--mble-border-strong, #bbb);
+    border: 1px solid var(--mble-border-strong);
     padding: 0.4rem;
   }
   .upload input {
@@ -119,7 +119,7 @@
   .slots label {
     display: flex;
     gap: 0.2rem;
-    background: var(--mble-surface-muted, #f7f4ed);
+    background: var(--mble-surface-muted);
     padding: 0.3rem;
   }
   .slots canvas {

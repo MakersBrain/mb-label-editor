@@ -595,11 +595,11 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -632,7 +632,7 @@
     gap: 0.5rem;
     margin: 0.75rem 0 0;
     padding: 0.65rem;
-    border: 1px solid var(--mble-border, #e5dfd5);
+    border: 1px solid var(--mble-border);
   }
   legend {
     font-size: 0.75rem;
@@ -649,7 +649,7 @@
   }
   .live {
     padding: 0.4rem;
-    background: var(--mble-surface-muted, #f5f3ef);
+    background: var(--mble-surface-muted);
     overflow-wrap: anywhere;
   }
   ul {
@@ -665,12 +665,12 @@
     flex-direction: column;
     gap: 0.1rem;
     padding: 0.35rem;
-    background: var(--mble-surface-muted, #f5f3ef);
+    background: var(--mble-surface-muted);
     font-size: 0.72rem;
     overflow-wrap: anywhere;
   }
   li span {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   dl {
     display: grid;
@@ -698,7 +698,7 @@
     font-weight: 600;
   }
   .wifi-configure {
-    background: var(--mble-surface-muted, #f5f3ef);
+    background: var(--mble-surface-muted);
   }
   .wifi-configure > p {
     margin: 0;
@@ -716,13 +716,13 @@
   }
   .review {
     padding: 0.5rem;
-    border: 1px solid var(--mble-border, #e5dfd5);
-    background: var(--mble-surface, #fff);
+    border: 1px solid var(--mble-border);
+    background: var(--mble-surface);
   }
   .danger {
-    background: #9b2c2c;
-    color: #fff;
-    border-color: #9b2c2c;
+    background: var(--mble-danger);
+    color: var(--mble-primary-text);
+    border-color: var(--mble-danger);
   }
   @media (max-width: 40rem) {
     .row,

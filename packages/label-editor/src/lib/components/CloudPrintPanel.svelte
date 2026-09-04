@@ -151,11 +151,11 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -183,7 +183,7 @@
     font-size: 0.75rem;
   }
   .warning {
-    color: var(--mble-danger, #a21);
+    color: var(--mble-danger);
   }
   dl {
     display: grid;
@@ -191,7 +191,7 @@
     gap: 0.15rem 0.6rem;
   }
   dt {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
   }
   dd {
     margin: 0;

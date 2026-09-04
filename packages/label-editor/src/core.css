@@ -13,38 +13,38 @@
 .mb-label-editor input,
 .mb-label-editor textarea,
 .mb-label-editor select {
-  font-family: var(--mble-font-ui, system-ui, sans-serif);
+  font-family: var(--mble-font-ui);
   font-size: 0.8125rem;
 }
 
 .mb-label-editor {
-  color: var(--mble-text, #17231c);
-  background: var(--mble-background, #f7f4ed);
+  color: var(--mble-text);
+  background: var(--mble-background);
 }
 
 .mb-label-editor button,
 .mb-label-editor input,
 .mb-label-editor textarea,
 .mb-label-editor select {
-  color: var(--mble-text, #17231c);
+  color: var(--mble-text);
 }
 
 /* Labels stay quiet; their controls carry the contrast. */
 .mb-label-editor label {
   min-width: 0;
-  color: var(--mble-text-muted, #59635e);
+  color: var(--mble-text-muted);
 }
 
 .mb-label-editor fieldset {
   min-width: 0;
-  border: 1px solid var(--mble-border, #e5dfd5);
-  border-radius: var(--mble-radius-sm, 4px);
+  border: 1px solid var(--mble-border);
+  border-radius: var(--mble-radius-sm);
   padding: 0.5rem;
 }
 
 .mb-label-editor legend {
   padding: 0 0.25rem;
-  color: var(--mble-text-muted, #59635e);
+  color: var(--mble-text-muted);
   font-size: 0.7rem;
 }
 
@@ -54,16 +54,16 @@
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--mble-border, #e5dfd5);
-  border-radius: var(--mble-radius-sm, 4px);
-  background: var(--mble-surface, #fff);
+  border: 1px solid var(--mble-border);
+  border-radius: var(--mble-radius-sm);
+  background: var(--mble-surface);
   padding: 0.25rem 0.4rem;
 }
 
 .mb-label-editor input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):hover,
 .mb-label-editor textarea:hover,
 .mb-label-editor select:hover {
-  border-color: var(--mble-border-strong, #948274);
+  border-color: var(--mble-border-strong);
 }
 
 .mb-label-editor button:disabled,
@@ -76,7 +76,7 @@
 /* Quiet by default: outline only on hover, so dense panels read as content. */
 .mb-label-editor button {
   border: 1px solid transparent;
-  border-radius: var(--mble-radius-sm, 4px);
+  border-radius: var(--mble-radius-sm);
   background: transparent;
   padding: 0.25rem 0.5rem;
   line-height: 1.35;
@@ -84,21 +84,28 @@
 }
 
 .mb-label-editor button:hover:not(:disabled):not(.element) {
-  background: var(--mble-surface-sunken, #f0e9e3);
-  border-color: var(--mble-border, #e5dfd5);
+  background: var(--mble-surface-sunken);
+  border-color: var(--mble-border);
 }
 
 .mb-label-editor button:active:not(:disabled):not(.element) {
-  border-color: var(--mble-border-strong, #948274);
+  border-color: var(--mble-border-strong);
 }
 
 .mb-label-editor button:disabled {
   cursor: default;
 }
 
+/* Destructive actions share one look wherever they appear. */
+.mb-label-editor button.danger:not(:disabled) {
+  border-color: var(--mble-danger);
+  background: var(--mble-danger);
+  color: var(--mble-primary-text);
+}
+
 .mb-label-editor :focus-visible,
 .mb-label-editor.dialog :focus-visible {
-  outline: 2px solid var(--mble-focus, #ed6146);
+  outline: 2px solid var(--mble-focus);
   outline-offset: 1px;
 }
 
@@ -109,7 +116,7 @@
 /* Section headings inside panels: small, muted, no shouting. */
 .mb-label-editor h2 {
   margin: 0 0 0.5rem;
-  color: var(--mble-text-muted, #59635e);
+  color: var(--mble-text-muted);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0;
@@ -140,6 +147,6 @@
 /* Without hover there is no hover state: affordances that only appear on hover stay visible. */
 @media (hover: none) {
   .mb-label-editor button:not(:disabled):not(.element) {
-    border-color: var(--mble-border, #e5dfd5);
+    border-color: var(--mble-border);
   }
 }

@@ -40,18 +40,18 @@
     padding: 0.15rem 0.35rem;
     border-color: transparent;
     background: transparent;
-    color: var(--mble-text, #17231c);
+    color: var(--mble-text);
     font-weight: 600;
     text-overflow: ellipsis;
   }
   input:hover,
   input:focus {
-    border-color: var(--mble-border, #d8d0c3);
-    background: var(--mble-surface, #fff);
+    border-color: var(--mble-border);
+    background: var(--mble-surface);
   }
   .save-state {
     padding-left: 0.4rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.66rem;
   }
 </style>

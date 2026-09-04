@@ -390,11 +390,11 @@
 <style>
   section {
     padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border, #e5dfd5);
+    border-top: 1px solid var(--mble-border);
   }
   h2 {
     margin: 0 0 0.5rem;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
     font-weight: 600;
   }
@@ -410,11 +410,11 @@
   }
   .hint {
     margin: 0.4rem 0 0;
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.72rem;
   }
   .warning {
-    color: var(--mble-danger, #a22929);
+    color: var(--mble-danger);
   }
   fieldset {
     margin: 0.5rem 0;
@@ -422,7 +422,7 @@
   output {
     min-height: 1.2rem;
     padding: 0.15rem 0.25rem;
-    border: 1px solid var(--mble-border, #d8d0c3);
-    background: var(--mble-surface-muted, #f7f4ed);
+    border: 1px solid var(--mble-border);
+    background: var(--mble-surface-muted);
   }
 </style>

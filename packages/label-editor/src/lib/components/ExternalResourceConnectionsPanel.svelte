@@ -175,7 +175,7 @@
   .intro,
   p,
   small {
-    color: var(--mble-text-muted, #59635e);
+    color: var(--mble-text-muted);
     font-size: 0.75rem;
   }
   ul {
@@ -188,12 +188,12 @@
     justify-content: space-between;
     gap: 0.7rem;
     padding: 0.5rem;
-    border: 1px solid var(--mble-border, #ddd);
+    border: 1px solid var(--mble-border);
     border-radius: 0.35rem;
     margin: 0.35rem 0;
   }
   li.active {
-    border-color: var(--mble-primary, #1c6647);
+    border-color: var(--mble-primary);
   }
   li label {
     display: flex;
@@ -223,7 +223,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
     padding-top: 0.65rem;
-    border-top: 1px solid var(--mble-border, #ddd);
+    border-top: 1px solid var(--mble-border);
   }
   form h3,
   .form-actions {
