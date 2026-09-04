@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import {cloneDocument,type Bounds,type LabelDocument,type LabelElement,type Point,type Zone}from'./model.js';
+import {cloneDocument,elementAncestry,indexDocument,type Bounds,type LabelDocument,type LabelElement,type Point,type Zone}from'./model.js';
 import{materializeRecord}from'./template/materialize.js';
 export const elementZone=(element:LabelElement)=>String(element.constraints?.find(item=>item.kind==='zone')?.value??'');
 /** Matches the SDK's nearest element-or-ancestor zone lookup. */
 export function effectiveElementZone(document:LabelDocument,element:LabelElement):string{
-  let current:LabelElement|undefined=element;const visited=new Set<string>();
-  while(current&&!visited.has(current.id)){visited.add(current.id);const zone=elementZone(current);if(zone)return zone;current=current.groupId?document.elements.find(item=>item.id===current!.groupId):undefined}
+  for(const item of elementAncestry(document,element)){const zone=elementZone(item);if(zone)return zone}
   return'';
 }
-export function elementRootOffset(document:LabelDocument,element:LabelElement):Point{const id=effectiveElementZone(document,element);const zone=document.media.zones?.find(item=>item.id===id);return{x:zone?.x??0,y:zone?.y??0}}
+export function elementRootOffset(document:LabelDocument,element:LabelElement):Point{const id=effectiveElementZone(document,element);const zone=id?indexDocument(document).zonesById.get(id):undefined;return{x:zone?.x??0,y:zone?.y??0}}
 export function elementRootBounds(document:LabelDocument,element:LabelElement):Bounds{const offset=elementRootOffset(document,element);return{x:element.transform.x+offset.x,y:element.transform.y+offset.y,width:element.transform.width,height:element.transform.height}}
 export function assignToZone(element:LabelElement,zoneId:string):LabelElement{const copy=structuredClone(element);copy.constraints=[...(copy.constraints??[]).filter(item=>item.kind!=='zone'),{kind:'zone',value:zoneId}];return copy}
 export function expandClonedZones(document:LabelDocument):LabelDocument{const copy=cloneDocument(document);const zones=copy.media.zones??[];const additions:LabelElement[]=[];for(const zone of zones.filter(item=>item.cloneOf)){const source=zones.find(item=>item.id===zone.cloneOf);if(!source)throw new Error(`Clone zone ${zone.id} references missing zone ${zone.cloneOf}`);for(const element of copy.elements.filter(item=>elementZone(item)===source.id)){const clone=assignToZone(element,zone.id);clone.id=`${element.id}@${zone.id}`;clone.name=`${element.name} (${zone.name})`;/* Coordinates remain zone-local; remove cloneOf below so the SDK does not expand this placement again. */additions.push(clone)}delete zone.cloneOf}copy.elements.push(...additions);return copy}

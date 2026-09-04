@@ -130,13 +130,51 @@ export function assertV4Document(value: unknown): asserts value is LabelDocument
   }
 }
 
-/** Walks an element and its enclosing groups; the element comes first. */
-export function elementAncestry(document: LabelDocument, element: LabelElement): LabelElement[] {
-  const chain: LabelElement[] = []; let current: LabelElement | undefined = element; const seen = new Set<Id>();
-  while (current && !seen.has(current.id)) { chain.push(current); seen.add(current.id); current = current.groupId ? document.elements.find((item) => item.id === current?.groupId) : undefined; }
+/**
+ * Per-document lookup tables. Built lazily and cached by document identity, so
+ * the ancestry, lock, visibility and zone helpers are O(depth) instead of
+ * scanning the element list. The cache is dropped when the element array is
+ * replaced or grows; commands also invalidate it explicitly after mutating.
+ */
+export interface DocumentIndex {
+  byId: Map<Id, LabelElement>;
+  zonesById: Map<string, Zone>;
+  /** Enclosing groups of an element, nearest first; excludes the element itself. */
+  parents: Map<Id, LabelElement[]>;
+  locked: Map<Id, boolean>;
+  visible: Map<Id, boolean>;
+}
+const indexes = new WeakMap<LabelDocument, { elements: LabelElement[]; length: number; index: DocumentIndex }>();
+export function indexDocument(document: LabelDocument): DocumentIndex {
+  const cached = indexes.get(document);
+  if (cached && cached.elements === document.elements && cached.length === document.elements.length) return cached.index;
+  const index: DocumentIndex = { byId: new Map(document.elements.map((item) => [item.id, item])), zonesById: new Map((document.media.zones ?? []).map((zone) => [zone.id, zone])), parents: new Map(), locked: new Map(), visible: new Map() };
+  indexes.set(document, { elements: document.elements, length: document.elements.length, index });
+  return index;
+}
+export function invalidateDocumentIndex(document: LabelDocument): void { indexes.delete(document); }
+function parentsOf(index: DocumentIndex, element: LabelElement): LabelElement[] {
+  let chain = index.parents.get(element.id);
+  if (!chain) {
+    chain = []; const seen = new Set<Id>([element.id]); let current = element.groupId ? index.byId.get(element.groupId) : undefined;
+    while (current && !seen.has(current.id)) { chain.push(current); seen.add(current.id); current = current.groupId ? index.byId.get(current.groupId) : undefined; }
+    index.parents.set(element.id, chain);
+  }
   return chain;
 }
+/** Walks an element and its enclosing groups; the element comes first. */
+export function elementAncestry(document: LabelDocument, element: LabelElement): LabelElement[] {
+  return [element, ...parentsOf(indexDocument(document), element)];
+}
 /** Locking a group locks everything inside it. */
-export const isEffectivelyLocked = (document: LabelDocument, element: LabelElement): boolean => elementAncestry(document, element).some((item) => item.locked);
+export function isEffectivelyLocked(document: LabelDocument, element: LabelElement): boolean {
+  const index = indexDocument(document); let value = index.locked.get(element.id);
+  if (value === undefined) { value = element.locked || parentsOf(index, element).some((item) => item.locked); index.locked.set(element.id, value); }
+  return value;
+}
 /** Hiding a group hides everything inside it. */
-export const isEffectivelyVisible = (document: LabelDocument, element: LabelElement): boolean => elementAncestry(document, element).every((item) => item.visible);
+export function isEffectivelyVisible(document: LabelDocument, element: LabelElement): boolean {
+  const index = indexDocument(document); let value = index.visible.get(element.id);
+  if (value === undefined) { value = element.visible && parentsOf(index, element).every((item) => item.visible); index.visible.set(element.id, value); }
+  return value;
+}

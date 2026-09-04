@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { Bounds, ElementBase, Id, LabelDocument, LabelElement, Point, Transform } from './model.js';
-import { documentsEqual, isEffectivelyLocked, uuid } from './model.js';
+import { documentsEqual, indexDocument, invalidateDocumentIndex, isEffectivelyLocked, uuid } from './model.js';
 import { elementRootBounds, elementRootOffset } from './zones.js';
 
 export interface Command {
@@ -22,16 +22,17 @@ export interface CreatedElementCommand extends Command {
  */
 const changed = (document: LabelDocument, mutate: (copy: LabelDocument) => void): LabelDocument => {
   const copy: LabelDocument = { ...document, media: structuredClone(document.media), elements: structuredClone(document.elements) };
-  mutate(copy); fitGroupsToChildren(copy);
+  mutate(copy); invalidateDocumentIndex(copy); fitGroupsToChildren(copy);
   if (documentsEqual(document, copy)) return document;
   copy.modifiedAt = new Date().toISOString(); return copy;
 };
 /** Group bounds are derived state: refit every group to its children after each command, innermost groups first. */
 function fitGroupsToChildren(document: LabelDocument): void {
-  const depth = (element: LabelElement): number => { let level = 0; let current = element; while (current.groupId) { const parent = document.elements.find((item) => item.id === current.groupId); if (!parent) break; level++; current = parent; } return level; };
+  const { byId } = indexDocument(document);
+  const depth = (element: LabelElement): number => { let level = 0; let current = element; while (current.groupId) { const parent = byId.get(current.groupId); if (!parent) break; level++; current = parent; } return level; };
   const groups = document.elements.filter((element) => element.type === 'group').map((group) => ({ group, depth: depth(group) })).sort((a, b) => b.depth - a.depth);
   for (const { group } of groups) {
-    const children = group.childIds.flatMap((id) => document.elements.filter((item) => item.id === id));
+    const children = group.childIds.flatMap((id) => { const child = byId.get(id); return child ? [child] : []; });
     if (!children.length) { group.transform = { ...group.transform, width: 0, height: 0 }; continue; }
     const bounds = children.map((item) => elementRootBounds(document, item));
     const x = Math.min(...bounds.map((item) => item.x)); const y = Math.min(...bounds.map((item) => item.y));
@@ -41,7 +42,7 @@ function fitGroupsToChildren(document: LabelDocument): void {
   }
 }
 const elementById = (doc: LabelDocument, id: Id): LabelElement => {
-  const item = doc.elements.find((element) => element.id === id);
+  const item = indexDocument(doc).byId.get(id);
   if (!item) throw new Error(`Unknown element ${id}`); return item;
 };
 
