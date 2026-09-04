@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { Bounds, ElementBase, Id, LabelDocument, LabelElement, Point, Transform } from './model.js';
-import { cloneDocument, isEffectivelyLocked, uuid } from './model.js';
+import { documentsEqual, isEffectivelyLocked, uuid } from './model.js';
 import { elementRootBounds, elementRootOffset } from './zones.js';
 
 export interface Command {
@@ -13,8 +13,18 @@ export interface CreatedElementCommand extends Command {
   /** Stable identity allocated when the command is created, for post-command selection. */
   readonly createdId: Id;
 }
+/**
+ * Applies a mutation to a copy of the document. Elements and media are cloned;
+ * resources, fonts, template and extensions are shared by reference and must
+ * be replaced wholesale by the commands that change them, so undo entries do
+ * not duplicate embedded images and fonts. Returns the original document when
+ * nothing changed so history can skip the command.
+ */
 const changed = (document: LabelDocument, mutate: (copy: LabelDocument) => void): LabelDocument => {
-  const copy = cloneDocument(document); mutate(copy); fitGroupsToChildren(copy); copy.modifiedAt = new Date().toISOString(); return copy;
+  const copy: LabelDocument = { ...document, media: structuredClone(document.media), elements: structuredClone(document.elements) };
+  mutate(copy); fitGroupsToChildren(copy);
+  if (documentsEqual(document, copy)) return document;
+  copy.modifiedAt = new Date().toISOString(); return copy;
 };
 /** Group bounds are derived state: refit every group to its children after each command, innermost groups first. */
 function fitGroupsToChildren(document: LabelDocument): void {
@@ -267,7 +277,7 @@ export const ungroup = (groupId: Id): Command => ({ label: 'Ungroup elements', a
   copy.elements = copy.elements.filter((item) => item.id !== groupId);
   assertGroupInvariants(copy);
 }) });
-export const updateDocument = (patch: Partial<Omit<LabelDocument, 'version' | 'elements' | 'resources' | 'fonts'>>): Command => ({ label: 'Edit document', apply: (doc) => changed(doc, (copy) => Object.assign(copy, structuredClone(patch))) });
+export const updateDocument = (patch: Partial<Omit<LabelDocument, 'version' | 'elements' | 'resources' | 'fonts'>>, coalesceKey?: string): Command => ({ label: 'Edit document', coalesceKey, apply: (doc) => changed(doc, (copy) => Object.assign(copy, structuredClone(patch))) });
 
 function topLevelSelection(document: LabelDocument, ids: Iterable<Id>): Id[] {
   const selected = new Set(ids);
@@ -303,5 +313,5 @@ function elementBounds(items: LabelElement[]): Bounds {
 // Resource references are ID-based. Two imports may intentionally share bytes
 // while using different IDs, so content-hash deduplication would leave a newly
 // placed element pointing at a resource that was never inserted.
-export const addResource = (resource: LabelDocument['resources'][number]): Command => ({label:'Import asset',apply:(doc)=>changed(doc,copy=>{if(!copy.resources.some(item=>item.id===resource.id))copy.resources.push(structuredClone(resource))})});
-export const addFont = (font: LabelDocument['fonts'][number]): Command => ({label:'Import font',apply:(doc)=>changed(doc,copy=>{if(!copy.fonts.some(item=>item.sha256===font.sha256))copy.fonts.push(structuredClone(font))})});
+export const addResource = (resource: LabelDocument['resources'][number]): Command => ({label:'Import asset',apply:(doc)=>changed(doc,copy=>{if(!copy.resources.some(item=>item.id===resource.id))copy.resources=[...copy.resources,structuredClone(resource)]})});
+export const addFont = (font: LabelDocument['fonts'][number]): Command => ({label:'Import font',apply:(doc)=>changed(doc,copy=>{if(!copy.fonts.some(item=>item.sha256===font.sha256))copy.fonts=[...copy.fonts,structuredClone(font)]})});

@@ -86,6 +86,37 @@ export function defaultDocument(now = new Date().toISOString()): LabelDocument {
 }
 
 export const cloneDocument = (doc: LabelDocument): LabelDocument => structuredClone(doc);
+/** Structural equality with an identity fast path; `modifiedAt` is ignored because commands stamp it. */
+export function documentsEqual(a: LabelDocument, b: LabelDocument): boolean {
+  if (a === b) return true;
+  for (const key of Object.keys({ ...a, ...b }) as (keyof LabelDocument)[]) {
+    if (key === 'modifiedAt') continue;
+    if (!deepEqual(a[key], b[key])) return false;
+  }
+  return true;
+}
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) return a.length === (b as unknown[]).length && a.every((item, index) => deepEqual(item, (b as unknown[])[index]));
+  const left = a as Record<string, unknown>; const right = b as Record<string, unknown>;
+  const keys = Object.keys(left).filter((key) => left[key] !== undefined);
+  if (keys.length !== Object.keys(right).filter((key) => right[key] !== undefined).length) return false;
+  return keys.every((key) => deepEqual(left[key], right[key]));
+}
+const isDev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
+/** In development, freezes a document so accidental mutation of history state throws instead of corrupting undo. */
+export function freezeDocument(doc: LabelDocument): LabelDocument {
+  if (!isDev) return doc;
+  const freeze = (value: unknown): void => {
+    if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return;
+    Object.freeze(value);
+    for (const item of Object.values(value)) freeze(item);
+  };
+  freeze(doc);
+  return doc;
+}
 export function assertV4Document(value: unknown): asserts value is LabelDocument {
   if (!value || typeof value !== 'object') throw new Error('Document must be an object');
   const doc = value as Partial<LabelDocument>;

@@ -8,11 +8,11 @@
   export let onChange: (template: TemplateData) => void = () => {};
   let newField = '';
   $: template = $editor.document.template;
-  function commit(next: TemplateData) { editor.execute(updateDocument({ template: next })); onChange(next); }
+  function commit(next: TemplateData, coalesceKey?: string) { editor.execute(updateDocument({ template: next }, coalesceKey)); onChange(next); }
   function setCell(row: number, field: string, value: string) {
     if (!template) return; const record = template.records[row];
     if (!record || (record[field] ?? '') === value) return;
-    commit({ ...template, records: template.records.map((item, index) => index === row ? { ...item, [field]: value } : item) });
+    commit({ ...template, records: template.records.map((item, index) => index === row ? { ...item, [field]: value } : item) }, `cell:${row}:${field}`);
   }
   function selectRow(row: number) { if (template && template.currentRecord !== row) commit({ ...template, currentRecord: row }); }
   function addRow() {

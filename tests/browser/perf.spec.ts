@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
  */
 const budget = {
   longTaskMs: 250,
-  idbWriteTransactions: 2, // autosave plus the template save; 1 once commands stop re-cloning an untouched template
+  idbWriteTransactions: 1,
   sdkRenders: 150,
   sdkMeasures: 150,
 };
