@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import { moveElements, resizeElements, rotateElements } from '../commands.js';
+  import { moveElements, resizeElements, rotateElements, type Command } from '../commands.js';
   import { mediaBounds, snapModeForModifiers, snapMove } from '../snapping.js';
   import { elementRootBounds, elementRootOffset } from '../zones.js';
   import { continuousSettings } from '../continuous-media.js';
@@ -22,6 +22,9 @@
   const resizeHandles:ResizeHandle[]=['nw','n','ne','e','se','s','sw','w'];
   let drag: { kind: 'move' | 'resize' | 'rotate'; at: Point; current: Point; ids: string[]; element?: LabelElement; bounds?: Bounds; handle?:ResizeHandle } | undefined;
   let dragPreviewDelta:Point={x:0,y:0};
+  /** Document with the in-progress resize or rotation applied, so the canvas shows the result before the pointer is released. */
+  let dragPreview:import('../model.js').LabelDocument|undefined;
+  let mediaElement:HTMLElement|undefined;
   const pxPerMm = 3.7795275591;
   const gestures=new GestureTracker();
   function startDrag(event: PointerEvent, element: LabelElement) {
@@ -32,9 +35,9 @@
   function startResize(event: PointerEvent,handle:ResizeHandle) { if (!selectionBounds) return; (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); drag = { kind:'resize', at:{x:event.clientX,y:event.clientY}, current:{x:event.clientX,y:event.clientY}, ids:[...$editor.selection], bounds:structuredClone(selectionBounds),handle }; event.stopPropagation(); }
   function startRotate(event: PointerEvent, element: LabelElement) { (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); drag = { kind:'rotate', at:{x:event.clientX,y:event.clientY}, current:{x:event.clientX,y:event.clientY}, ids:[element.id], element:structuredClone(element) }; event.stopPropagation(); }
   function gestureStart(event:PointerEvent){if(event.target!==event.currentTarget&&!(event.target as HTMLElement).classList.contains('media'))return;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);gestures.start(event.pointerId,{x:event.clientX,y:event.clientY})}
-  function moveDrag(event: PointerEvent) { if (!drag){const update=gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});if(update)editor.setView({zoom:Math.max(.25,Math.min(4,$editor.view.zoom*update.zoomFactor)),pan:{x:$editor.view.pan.x+update.panDelta.x,y:$editor.view.pan.y+update.panDelta.y}});return} drag = {...drag,current:{x:event.clientX,y:event.clientY}}; if(drag.kind==='move'){const raw=dragDelta(event);const result=$editor.view.snapping?snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),snapOptions(event),$editor.document):{delta:raw,guides:[]};dragPreviewDelta=result.delta;editor.setView({guides:result.guides})} }
+  function moveDrag(event: PointerEvent) { if (!drag){const update=gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});if(update)editor.setView({zoom:Math.max(.25,Math.min(4,$editor.view.zoom*update.zoomFactor)),pan:{x:$editor.view.pan.x+update.panDelta.x,y:$editor.view.pan.y+update.panDelta.y}});return} drag = {...drag,current:{x:event.clientX,y:event.clientY}}; if(drag.kind==='move'){const raw=dragDelta(event);const result=$editor.view.snapping?snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),snapOptions(event),$editor.document):{delta:raw,guides:[]};dragPreviewDelta=result.delta;editor.setView({guides:result.guides})}else{const command=transformCommand(event);dragPreview=command?command.apply($editor.document):undefined} }
   function gestureEnd(event:PointerEvent){gestures.end(event.pointerId)}
-  function cancelInteraction(event:PointerEvent){gestures.end(event.pointerId);if(drag?.kind==='move')editor.setView({guides:[]});drag=undefined;dragPreviewDelta={x:0,y:0}}
+  function cancelInteraction(event:PointerEvent){gestures.end(event.pointerId);if(drag?.kind==='move')editor.setView({guides:[]});drag=undefined;dragPreviewDelta={x:0,y:0};dragPreview=undefined}
   function clearSelection(event: MouseEvent) {
     if (!(event.target as Element).closest('.element,.selection-box')) editor.clearSelection();
   }
@@ -69,9 +72,16 @@
   function finishDrag(event: PointerEvent) { if (!drag) return;
     const raw = dragDelta(event);
     if (drag.kind === 'move') { const snapped = $editor.view.snapping ? snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),snapOptions(event),$editor.document) : {delta:raw,guides:[]}; if(snapped.delta.x||snapped.delta.y)editor.execute(moveElements(drag.ids,snapped.delta)); editor.setView({guides:[]}); }
-    else if (drag.kind === 'resize' && drag.bounds&&drag.handle) {const selected=$editor.document.elements.filter(item=>drag?.ids.includes(item.id));const constrained=selected.some(item=>item.constraints?.some(value=>value.kind==='aspect'));const preserve=event.shiftKey?!constrained:constrained;editor.execute(resizeElements(drag.ids,resizedBounds(drag.bounds,raw,preserve,drag.handle)));}
-    else if (drag.kind === 'rotate' && drag.element) { const root=elementRootBounds($editor.document,drag.element);const center={x:root.x+root.width/2,y:root.y+root.height/2}; const page=(event.currentTarget as HTMLElement).closest('.media')!.getBoundingClientRect(); const degrees=Math.atan2(event.clientY-page.top-center.y*pxPerMm*$editor.view.zoom,event.clientX-page.left-center.x*pxPerMm*$editor.view.zoom)*180/Math.PI+90; editor.execute(rotateElements([drag.element.id],event.shiftKey?Math.round(degrees/15)*15:degrees)); }
-    drag = undefined; dragPreviewDelta={x:0,y:0};
+    else { const command=transformCommand(event); if(command)editor.execute(command); }
+    drag = undefined; dragPreviewDelta={x:0,y:0}; dragPreview=undefined;
+  }
+  /** Resize or rotation command for the current pointer position, shared by the live preview and the final commit. */
+  function transformCommand(event:PointerEvent):Command|undefined{
+    if(!drag)return;
+    const raw=dragDelta(event);
+    if(drag.kind==='resize'&&drag.bounds&&drag.handle){const selected=$editor.document.elements.filter(item=>drag?.ids.includes(item.id));const constrained=selected.some(item=>item.constraints?.some(value=>value.kind==='aspect'));const preserve=event.shiftKey?!constrained:constrained;return resizeElements(drag.ids,resizedBounds(drag.bounds,raw,preserve,drag.handle))}
+    if(drag.kind==='rotate'&&drag.element&&mediaElement){const root=elementRootBounds($editor.document,drag.element);const center={x:root.x+root.width/2,y:root.y+root.height/2};const page=mediaElement.getBoundingClientRect();const degrees=Math.atan2(event.clientY-page.top-center.y*pxPerMm*$editor.view.zoom,event.clientX-page.left-center.x*pxPerMm*$editor.view.zoom)*180/Math.PI+90;return rotateElements([drag.element.id],event.shiftKey?Math.round(degrees/15)*15:degrees)}
+    return;
   }
   function movesWithDrag(element:LabelElement):boolean{if(drag?.kind!=='move')return false;const moved=new Set(drag.ids);let current:LabelElement|undefined=element;while(current){if(moved.has(current.id))return true;current=current.groupId?$editor.document.elements.find(item=>item.id===current?.groupId):undefined}return false}
   const styleFor = (element: LabelElement,offset:Point,preview:Point|undefined) => {const delta=preview??{x:0,y:0};return `left:${(element.transform.x+offset.x+delta.x)*pxPerMm}px;top:${(element.transform.y+offset.y+delta.y)*pxPerMm}px;width:${element.transform.width*pxPerMm}px;height:${element.transform.height*pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${element.zIndex}`};
@@ -85,8 +95,9 @@
     const x=west?bounds.x+bounds.width-width:east?bounds.x:bounds.x+(bounds.width-width)/2;const y=north?bounds.y+bounds.height-height:south?bounds.y:bounds.y+(bounds.height-height)/2;
     return{x,y,width,height};
   }
-  function boundsOf(elements:LabelElement[]):Bounds|undefined{if(!elements.length)return;const roots=elements.map(item=>elementRootBounds($editor.document,item));const x=Math.min(...roots.map(item=>item.x));const y=Math.min(...roots.map(item=>item.y));const right=Math.max(...roots.map(item=>item.x+item.width));const bottom=Math.max(...roots.map(item=>item.y+item.height));return{x,y,width:right-x,height:bottom-y}}
-  $: selectionBounds=boundsOf($editor.selectedElements.filter(item=>!item.locked));
+  function boundsOf(elements:LabelElement[],document=$editor.document):Bounds|undefined{if(!elements.length)return;const roots=elements.map(item=>elementRootBounds(document,item));const x=Math.min(...roots.map(item=>item.x));const y=Math.min(...roots.map(item=>item.y));const right=Math.max(...roots.map(item=>item.x+item.width));const bottom=Math.max(...roots.map(item=>item.y+item.height));return{x,y,width:right-x,height:bottom-y}}
+  $: displayDocument=dragPreview??$editor.document;
+  $: selectionBounds=boundsOf(displayDocument.elements.filter(item=>$editor.selection.has(item.id)&&!item.locked),displayDocument);
   $: rotateElement=$editor.selectedElements.length===1&&$editor.selectedElements[0].type!=='group'?$editor.selectedElements[0]:undefined;
   $: rollSettings=continuousSettings($editor.document);
   $: { $editor.document; rollSettings.lengthMode; rollSettings.fixedLengthMm; rollSettings.leadingMarginMm; rollSettings.trailingMarginMm; printer?.id; void preparePreview(); }
@@ -98,13 +109,13 @@
 <div class="viewport" class:with-rulers={$editor.view.showRulers} on:click={clearSelection} on:wheel|nonpassive={wheel} on:pointerdown={gestureStart} on:pointermove={moveDrag} on:pointerup={gestureEnd} on:pointercancel={cancelInteraction} role="application" aria-label="Label canvas">
   {#if $editor.view.showRulers}<div class="ruler horizontal"></div><div class="ruler vertical"></div>{/if}
   <div class="pan" style={`transform:translate(calc(-50% + ${$editor.view.pan.x}px),calc(-50% + ${$editor.view.pan.y}px)) scale(${$editor.view.zoom})`}>
-    <div class:grid={$editor.view.showGrid} class:continuous={$editor.document.media.shape==='continuous'} class="media" style={`width:${$editor.document.media.width * pxPerMm}px;height:${displayHeight * pxPerMm}px;--grid:${$editor.view.gridSize * pxPerMm}px;border-radius:${$editor.document.media.shape === 'round' ? '50%' : '3px'}`}>
+    <div bind:this={mediaElement} class:grid={$editor.view.showGrid} class:continuous={$editor.document.media.shape==='continuous'} class="media" style={`width:${$editor.document.media.width * pxPerMm}px;height:${displayHeight * pxPerMm}px;--grid:${$editor.view.gridSize * pxPerMm}px;border-radius:${$editor.document.media.shape === 'round' ? '50%' : '3px'}`}>
       {#if $editor.document.media.shape==='continuous'}<div class="safe-margin leading" style={`height:${rollSettings.leadingMarginMm*pxPerMm}px`}></div><div class="safe-margin trailing" style={`height:${rollSettings.trailingMarginMm*pxPerMm}px`}></div><div class="cut-line"><span>Cut at {displayHeight.toFixed(2)} mm</span></div>{/if}
       {#if sdk&&previewDocument}<ThermalPreview {sdk} document={previewDocument} zoom={$editor.view.zoom}/>{:else if previewError}<span class="preview-error" title={previewError}>Fit preview unavailable</span>{/if}
       {#if previewWarning}<span class="preview-warning" role="status" title={previewWarning}>{previewWarning}</span>{/if}
-      {#each [...$editor.document.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
+      {#each [...displayDocument.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
         {#if element.visible && element.type !== 'group'}
-          <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={element.locked} class:exact={!!sdk} class="element {element.type}" style={styleFor(element,elementRootOffset($editor.document,element),movesWithDrag(element)?dragPreviewDelta:undefined)} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} aria-label={element.name}>
+          <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={element.locked} class:exact={!!sdk} class="element {element.type}" style={styleFor(element,elementRootOffset(displayDocument,element),movesWithDrag(element)?dragPreviewDelta:undefined)} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} aria-label={element.name}>
             {#if element.type === 'text'}<span style={`font-family:${element.fontFamily};font-size:${element.fontSize}px;text-align:${element.horizontalAlign}`}>{element.text}</span>
             {:else if element.type === 'barcode'}<span class="placeholder">▥ {element.value}</span>
             {:else if element.type === 'qr'}<span class="placeholder">▦</span>
