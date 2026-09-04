@@ -4,6 +4,8 @@
 @import '@makersbrain/ui/fonts.css';
 @import '@makersbrain/ui/base.css';
 @import '@makersbrain/ui/adapters/shadcn.css';
+/* Pattern classes (panels, tabs, notices, badges, tables) come from mb-ui here and from a snapshot in standalone.css. */
+@import '@makersbrain/ui/patterns.css';
 
 .mb-label-editor {
   --mble-background: var(--background);

@@ -88,3 +88,13 @@ product branding and generic component-library choices outside editor logic.
 
 Copyright MakersBrain contributors. Licensed under AGPL-3.0-or-later; the full
 license is included as `LICENSE`.
+
+## Styles
+
+Import `core.css` plus one theme. `themes/standalone.css` is dependency-free:
+its tokens and its pattern classes (`mb-panel`, `mb-tabs`, `mb-notice`,
+`mb-badge`, `mb-empty`, `mb-table-wrap`, `mb-datalist`) are a literal
+snapshot of `@makersbrain/ui` 0.2.0, so the editor looks the same with either
+theme. `themes/mb-ui.css` instead imports the mb-ui tokens, fonts, base and
+pattern stylesheets and maps them onto the editor's `--mble-*` tokens; it
+requires `@makersbrain/ui` in the host application. Never import both.

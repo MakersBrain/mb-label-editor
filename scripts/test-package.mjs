@@ -47,6 +47,26 @@ try {
   if (!adapter.includes('@makersbrain/ui/adapters/shadcn.css')) {
     throw new Error('MB UI adapter must consume the canonical Shadcn token bridge');
   }
+  // Both themes must provide the pattern classes: mb-ui by importing patterns.css, standalone by its snapshot.
+  const standalone = await readFile(join(output, 'dist/themes/standalone.css'), 'utf8');
+  for (const className of [
+    '.mb-panel',
+    '.mb-tab',
+    '.mb-notice',
+    '.mb-badge',
+    '.mb-empty',
+    '.mb-table-wrap',
+    '.mb-datalist',
+  ]) {
+    if (
+      !standalone.includes(`${className} `) &&
+      !standalone.includes(`${className}{`) &&
+      !standalone.includes(`${className},`)
+    )
+      throw new Error(`standalone theme is missing the ${className} pattern snapshot`);
+  }
+  if (!adapter.includes('@makersbrain/ui/patterns.css'))
+    throw new Error('MB UI theme must import the mb-ui pattern classes');
   for (const name of ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']) {
     await readFile(join(output, name), 'utf8');
   }

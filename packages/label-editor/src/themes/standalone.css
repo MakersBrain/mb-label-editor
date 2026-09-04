@@ -126,3 +126,175 @@
   --mble-shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --mble-shadow: 0 2px 4px rgb(0 0 0 / 35%), 0 16px 40px rgb(0 0 0 / 50%);
 }
+
+/* ==========================================================================
+   Pattern classes, snapshot of @makersbrain/ui patterns.css 0.2.0
+   --------------------------------------------------------------------------
+   Only the classes the editor uses, with the same selectors and the mb-ui
+   values rewritten to --mble-* tokens. themes/mb-ui.css imports the real
+   patterns.css instead, so the two themes never both define these.
+   ========================================================================== */
+
+.mb-label-editor .mb-panel {
+  padding-top: 1rem;
+  border-top: 1px solid var(--mble-border);
+}
+.mb-label-editor .mb-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.mb-label-editor .mb-panel-title {
+  margin: 0;
+  font-family: var(--mble-font-display);
+  font-size: var(--mble-text-h4);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  color: var(--mble-text);
+}
+.mb-label-editor .mb-panel-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: var(--mble-text-small);
+  color: var(--mble-text-muted);
+}
+.mb-label-editor .mb-panel-note {
+  margin-top: 0.75rem;
+  font-size: var(--mble-text-small);
+  line-height: 1.55;
+  color: var(--mble-text-subtle);
+  max-width: 62ch;
+}
+
+.mb-label-editor .mb-datalist {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  font-size: var(--mble-text-small);
+}
+.mb-label-editor .mb-datalist dt {
+  margin: 0;
+  color: var(--mble-text-muted);
+}
+.mb-label-editor .mb-datalist dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--mble-text);
+}
+
+.mb-label-editor .mb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--mble-radius-full);
+  font-size: var(--mble-text-micro);
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.mb-label-editor .mb-badge .mb-dot {
+  width: 0.4em;
+  height: 0.4em;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.mb-label-editor .mb-badge.good {
+  background: var(--mble-success-tint);
+  color: var(--mble-success);
+}
+.mb-label-editor .mb-badge.warn {
+  background: var(--mble-warning-tint);
+  color: var(--mble-warning);
+}
+.mb-label-editor .mb-badge.bad {
+  background: var(--mble-danger-tint);
+  color: var(--mble-danger);
+}
+.mb-label-editor .mb-badge.info {
+  background: var(--mble-guide-tint);
+  color: var(--mble-guide);
+}
+.mb-label-editor .mb-badge.busy {
+  background: var(--mble-primary-tint);
+  color: var(--mble-primary);
+}
+.mb-label-editor .mb-badge.neutral {
+  background: var(--mble-surface-sunken);
+  color: var(--mble-text-muted);
+}
+
+.mb-label-editor .mb-notice {
+  border-left: 3px solid var(--mble-guide);
+  background: var(--mble-guide-tint);
+  border-radius: var(--mble-radius-md);
+  padding: 0.75rem 1rem;
+  font-size: var(--mble-text-small);
+  color: var(--mble-text);
+}
+.mb-label-editor .mb-notice.good {
+  border-left-color: var(--mble-success);
+  background: var(--mble-success-tint);
+}
+.mb-label-editor .mb-notice.warn {
+  border-left-color: var(--mble-warning);
+  background: var(--mble-warning-tint);
+}
+.mb-label-editor .mb-notice.bad {
+  border-left-color: var(--mble-danger);
+  background: var(--mble-danger-tint);
+}
+
+.mb-label-editor .mb-table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--mble-border);
+}
+
+.mb-label-editor .mb-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: var(--mble-text-small);
+  color: var(--mble-text-muted);
+}
+.mb-label-editor .mb-empty-title {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: var(--mble-text);
+}
+
+.mb-label-editor .mb-tabs {
+  display: flex;
+  min-width: 0;
+  gap: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.mb-label-editor .mb-tabs::-webkit-scrollbar {
+  display: none;
+}
+.mb-label-editor .mb-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid transparent;
+  color: var(--mble-text-muted);
+  font-size: var(--mble-text-small);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.mb-label-editor .mb-tab:hover {
+  color: var(--mble-text);
+}
+.mb-label-editor .mb-tab[aria-current] {
+  color: var(--mble-text);
+  font-weight: 600;
+  border-bottom-color: var(--mble-primary);
+}
