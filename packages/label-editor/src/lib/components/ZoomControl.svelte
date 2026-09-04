@@ -141,7 +141,7 @@
   @media (pointer: coarse) {
     .zoom-control > button,
     .presets > summary {
-      min-height: 2.25rem;
+      min-height: 2.75rem;
     }
   }
 </style>

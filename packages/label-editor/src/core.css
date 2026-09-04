@@ -119,12 +119,16 @@
 /* Touch targets: every control reaches 44px on coarse pointers. Label elements on the canvas keep their true size. */
 @media (pointer: coarse) {
   .mb-label-editor button:not(.element):not(.star):not(.handle),
-  .mb-label-editor input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  .mb-label-editor input:not([type='checkbox']):not([type='radio']):not([type='file']),
   .mb-label-editor select,
   .mb-label-editor textarea,
   .mb-label-editor summary,
   .mb-label-editor [role='tab'] {
     min-height: 2.75rem;
+  }
+  .mb-label-editor button:not(.element):not(.star):not(.handle),
+  .mb-label-editor summary {
+    min-width: 2.75rem;
   }
   .mb-label-editor input[type='checkbox'],
   .mb-label-editor input[type='radio'] {

@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { Snippet } from 'svelte';
   import type { EditorStore } from '../store.svelte.js';
   import { ZOOM_STEP } from '../view.js';
@@ -76,7 +77,19 @@
   const narrow = new MediaQuery('(max-width: 64rem)');
   /** Below 40rem the menus collapse behind one Menu button. */
   const phone = new MediaQuery('(max-width: 40rem)');
-  let sidebarOpen = $state(true);
+  /** Below 48rem the side panel overlays the label: a right drawer on tablets, a bottom sheet on phones. */
+  const tablet = new MediaQuery('(max-width: 48rem)');
+  /** From 90rem the layers and properties get their own pinned rail. */
+  const wide = new MediaQuery('(min-width: 90rem)');
+  const layout = $derived<'phone' | 'tablet' | 'desktop' | 'wide'>(
+    phone.current ? 'phone' : tablet.current ? 'tablet' : wide.current ? 'wide' : 'desktop',
+  );
+  /** Overlays start closed so the label is visible first; side-by-side layouts start open. Kept per layout. */
+  const openByLayout = $state({ phone: false, tablet: false, desktop: true, wide: true });
+  const sidebarOpen = $derived(openByLayout[layout]);
+  function setSidebarOpen(open: boolean) {
+    openByLayout[layout] = open;
+  }
   let dialog = $state('');
   const activeResourceProvider = $derived(resourceProvider ?? assetCatalog);
   const selectedPrinter = $derived(printers.find((item) => item.id === printerId));
@@ -104,7 +117,6 @@
     })(),
   );
   /** From 90rem the layers and properties get their own permanent rail beside the tabbed one. */
-  const wide = new MediaQuery('(min-width: 90rem)');
   /** The record sheet can leave the side panel: a region under the label on desktop, a dialog on small screens. */
   let sheetDocked = $state(false);
   const sheetOpen = $derived(sheetDocked && !!editor.document.template);
@@ -130,24 +142,38 @@
   function openPanel(name: string) {
     if (name === 'assets' || name === 'data') {
       selectSidebarTab(name);
-      sidebarOpen = true;
+      setSidebarOpen(true);
     } else dialog = name;
   }
   const sidebarWidthKey = 'mb-label-editor:sidebar-width';
   const defaultSidebarWidth = 304;
   const minSidebarWidth = 240;
   /** Width in pixels; wider panels let the asset grid grow more columns and keep font rows from wrapping. */
+  /** Never more than half the window, and capped so the label keeps room: 480px on desktop, 720px with two rails. */
+  const maxSidebarWidth = () =>
+    Math.max(
+      minSidebarWidth,
+      Math.min(
+        untrack(() => (wide.current ? 720 : 480)),
+        Math.round((globalThis.innerWidth || 1200) * 0.5),
+      ),
+    );
   let sidebarWidth: number = $state(
     (() => {
       try {
         const saved = Number(globalThis.localStorage?.getItem(sidebarWidthKey));
-        return Number.isFinite(saved) && saved >= minSidebarWidth ? saved : defaultSidebarWidth;
+        return Number.isFinite(saved) && saved >= minSidebarWidth
+          ? Math.min(saved, maxSidebarWidth())
+          : defaultSidebarWidth;
       } catch {
         return defaultSidebarWidth;
       }
     })(),
   );
-  const maxSidebarWidth = () => Math.max(minSidebarWidth, Math.round((globalThis.innerWidth || 1200) * 0.6));
+  /** A smaller window re-clamps a remembered width instead of squeezing the label. */
+  function reclampSidebar() {
+    if (sidebarWidth > maxSidebarWidth()) sidebarWidth = maxSidebarWidth();
+  }
   function setSidebarWidth(width: number) {
     sidebarWidth = Math.round(Math.min(maxSidebarWidth(), Math.max(minSidebarWidth, width)));
     try {
@@ -304,7 +330,7 @@
   }
 </script>
 
-<svelte:window onkeydown={keys} />
+<svelte:window onkeydown={keys} onresize={reclampSidebar} />
 <div class="editor mb-label-editor">
   {#snippet layersStack()}
     <!-- Layers scroll on their own so the properties below never leave the screen. -->
@@ -321,7 +347,7 @@
   {/snippet}
   {#snippet menus()}
     {@render menuStart?.()}
-    <EditorMenus {editor} {sidebarOpen} onOpen={openPanel} onToggleSidebar={() => (sidebarOpen = !sidebarOpen)} />
+    <EditorMenus {editor} {sidebarOpen} onOpen={openPanel} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
     <HistoryButtons {editor} />
     {@render menuEnd?.()}
   {/snippet}
@@ -341,7 +367,12 @@
     >
     <div class="appbar-actions">{@render actions?.()}</div>
   </header>
-  <main class:sidebar-closed={!sidebarOpen} class:wide={wide.current} style={`--sidebar-width:${sidebarWidth}px`}>
+  <main
+    class:sidebar-closed={!sidebarOpen}
+    class:wide={wide.current}
+    class:overlay={tablet.current}
+    style={`--sidebar-width:${sidebarWidth}px`}
+  >
     <ToolRail {editor} orientation={narrow.current ? 'horizontal' : 'vertical'} />
     <div class="canvas">
       <div class="canvas-area">
@@ -375,7 +406,7 @@
         onkeydown={sidebarResizeKeys}
         ondblclick={() => setSidebarWidth(defaultSidebarWidth)}
       ></div>{/if}
-    <aside class:open={sidebarOpen}>
+    <aside id="side-panels" class:open={sidebarOpen}>
       <div class="tabs" role="tablist" aria-label="Side panels">
         {#if !wide.current}<button
             type="button"
@@ -455,6 +486,22 @@
       </div>
     </aside>
     {#if wide.current}<aside class="pinned" aria-label="Layers and properties">{@render layersStack()}</aside>{/if}
+    {#if tablet.current}
+      {#if sidebarOpen}<button
+          type="button"
+          class="scrim"
+          tabindex="-1"
+          aria-label="Close side panels"
+          onclick={() => setSidebarOpen(false)}
+        ></button>{/if}
+      <button
+        type="button"
+        class="panels-toggle"
+        aria-expanded={sidebarOpen}
+        aria-controls="side-panels"
+        onclick={() => setSidebarOpen(!sidebarOpen)}>{sidebarOpen ? 'Close panels' : 'Panels'}</button
+      >
+    {/if}
   </main>
   <Modal open={dialog === 'media'} title={dialogTitles.media} onClose={() => (dialog = '')}
     ><MediaPanel {editor} {sdk} {materializer} {printers} {printerId} {onPrinter} /></Modal
@@ -765,6 +812,7 @@
       flex-basis: 100%;
     }
   }
+  /* Tablet: the side panel is a drawer over the right of the label. */
   @media (max-width: 48rem) {
     .sidebar-resizer {
       display: none;
@@ -772,16 +820,55 @@
     main,
     main.sidebar-closed {
       grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(16rem, 1fr) minmax(0, 42dvh);
-    }
-    main.sidebar-closed {
       grid-template-rows: auto minmax(0, 1fr);
     }
-    aside {
-      display: block;
-      max-height: none;
+    main.overlay aside {
+      position: absolute;
+      z-index: 9;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(22rem, 80vw);
+      box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    }
+    main.overlay.sidebar-closed aside {
+      display: none;
+    }
+    .scrim {
+      position: absolute;
+      z-index: 8;
+      inset: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: #17231c55;
+    }
+    .panels-toggle {
+      position: absolute;
+      z-index: 7;
+      left: 0.6rem;
+      bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
+      min-height: 2.75rem;
+      padding: 0 0.9rem;
+      border-color: var(--mble-border-strong, #948274);
+      background: var(--mble-surface, #fff);
+      box-shadow: var(--mble-shadow, 0 8px 24px #17231c22);
+    }
+    main.overlay:not(.sidebar-closed) .panels-toggle {
+      z-index: 10;
+    }
+  }
+  /* Phone: the same panel rises from the bottom as a sheet. */
+  @media (max-width: 40rem) {
+    main.overlay aside {
+      top: auto;
+      left: 0;
+      right: 0;
+      width: auto;
+      height: 70dvh;
       border-left: 0;
       border-top: 1px solid var(--mble-border, #d8d0c3);
+      border-radius: var(--mble-radius-md, 6px) var(--mble-radius-md, 6px) 0 0;
     }
   }
 </style>
