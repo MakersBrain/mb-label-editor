@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import type { EditorStore } from '../store.svelte.js';
   import type { MediaPreset, PrinterDefinition, PrinterSdk } from '../print/types.js';
   import { updateDocument } from '../commands.js';
@@ -14,6 +15,8 @@
 
   import { untrack } from 'svelte';
   interface Props {
+    /** Heading text; pass undefined when the host names the region (a dialog title). */
+    title?: string;
     editor: EditorStore;
     sdk?: PrinterSdk;
     materializer?: Pick<DocumentMaterializer, 'materializeRecord'>;
@@ -21,7 +24,15 @@
     printerId?: string;
     onPrinter?: (id: string) => void;
   }
-  let { editor, sdk, materializer, printers = [], printerId = '', onPrinter = () => {} }: Props = $props();
+  let {
+    title = 'Media & zones',
+    editor,
+    sdk,
+    materializer,
+    printers = [],
+    printerId = '',
+    onPrinter = () => {},
+  }: Props = $props();
 
   const presets = [
     ['50 × 30', 50, 30, 203, 'rectangle'],
@@ -220,8 +231,7 @@
       >
       <p class="hint">Selecting stock sets the exact label size and media type used for preview and printing.</p>{/if}
   </section>{/if}
-<section>
-  <h2>Media & zones</h2>
+<Panel {title}>
   <label
     >Generic preset<select onchange={(event) => preset(event.currentTarget.value)}
       ><option value="">Custom</option>{#each presets as item, index}<option value={index}>{item[0]}</option
@@ -385,18 +395,12 @@
       </div>
       <button onclick={() => remove(zone.id)}>Remove</button>
     </fieldset>{/each}
-</section>
+</Panel>
 
 <style>
   section {
     padding: 0.7rem 0.75rem;
     border-top: 1px solid var(--mble-border);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
   }
   .grid {
     display: grid;

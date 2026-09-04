@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import { onDestroy, untrack } from 'svelte';
   import { downloadBytes } from '../browser-files.js';
   import type { DocumentMaterializer, ZoneBatchPlacement } from '../materialization.js';
@@ -14,6 +15,8 @@
     type DocumentMeasurement,
   } from '../continuous-media.js';
   interface Props {
+    /** Heading text; pass undefined when the host names the region (a dialog title). */
+    title?: string;
     document: LabelDocument;
     sdk: PrinterSdk;
     materializer: DocumentMaterializer;
@@ -22,6 +25,7 @@
     continuous?: ContinuousPrintOptions;
   }
   let {
+    title = 'Batch',
     document,
     sdk,
     materializer,
@@ -234,8 +238,7 @@
   const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 </script>
 
-<section>
-  <h2>Batch</h2>
+<Panel {title}>
   <p>{document.template?.records.length ?? 0} records</p>
   <label
     >Batch zone layout<select bind:value={zone} disabled={busy}
@@ -297,19 +300,9 @@
     >Print batch</button
   >{#if busy && controller}<button onclick={() => controller?.abort()}>Stop batch</button>{/if}
   <p aria-live="polite">{status}</p>
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   label {
     display: flex;
     flex-direction: column;

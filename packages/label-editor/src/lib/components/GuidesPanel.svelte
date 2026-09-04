@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import type { EditorStore } from '../store.svelte.js';
-  let { editor }: { editor: EditorStore } = $props();
+  let { title = 'Guides', editor }: { title?: string; editor: EditorStore } = $props();
   let axis: 'x' | 'y' = $state('x');
   let guideValue = $state(10);
   function addGuide() {
@@ -18,8 +19,7 @@
   }
 </script>
 
-<section>
-  <h2>Guides</h2>
+<Panel {title}>
   <div class="row">
     <label>Axis<select bind:value={axis}><option value="x">X</option><option value="y">Y</option></select></label><label
       >Position (mm)<input type="number" step=".1" bind:value={guideValue} /></label
@@ -42,18 +42,9 @@
     <strong>Drag modifiers:</strong> Shift snaps only to the grid, Ctrl/Cmd snaps only to other elements, and Alt temporarily
     disables snapping. On any resize handle, Shift toggles the selection's aspect-ratio lock.
   </p>
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   .row {
     display: flex;
     gap: 0.4rem;

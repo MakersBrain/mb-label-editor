@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import {
     exportLaPostePdf,
     inspectLaPosteSheet,
@@ -16,11 +17,16 @@
     type RasterPreview,
   } from '../print/types.js';
   let {
+    title = 'La Poste sheets',
     sdk,
     route,
     printRequest,
-  }: { sdk: PrinterSdk; route: PrintRoute | undefined; printRequest: Omit<PrintRequest, 'document'> | undefined } =
-    $props();
+  }: {
+    title?: string;
+    sdk: PrinterSdk;
+    route: PrintRoute | undefined;
+    printRequest: Omit<PrintRequest, 'document'> | undefined;
+  } = $props();
   let format: LaPosteFormat = $state('L24A');
   let inspection: LaPosteInspection | undefined = $state.raw();
   let status = $state('');
@@ -63,8 +69,7 @@
   }
 </script>
 
-<section>
-  <h2>La Poste sheets</h2>
+<Panel {title}>
   <label
     >Format<select bind:value={format}
       >{#each LA_POSTE_FORMATS.filter((item) => item !== 'SHEET') as item}<option>{item}</option>{/each}</select
@@ -86,19 +91,9 @@
       disabled={!inspection.selected.size || !route || !printRequest}
       >Print selected via {route?.label ?? 'selected route'}</button
     >{/if}
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   .upload {
     display: block;
     border: 1px solid var(--mble-border-strong);

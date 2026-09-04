@@ -1,11 +1,12 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import { editorShortcuts, primaryModifier, shortcutLabel } from '../shortcuts.js';
   const modifier = primaryModifier();
+  let { title = 'Keyboard shortcuts' }: { title?: string } = $props();
 </script>
 
-<section class="shortcuts">
-  <h2>Keyboard shortcuts</h2>
+<Panel {title}>
   {#each editorShortcuts as group}
     <h3>{group.title}</h3>
     <dl>
@@ -19,12 +20,9 @@
       {/each}
     </dl>
   {/each}
-</section>
+</Panel>
 
 <style>
-  .shortcuts {
-    padding: 0.25rem 0.85rem 0.85rem;
-  }
   h3 {
     margin: 0.85rem 0 0.35rem;
     color: var(--mble-text-muted);

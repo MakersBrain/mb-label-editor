@@ -147,10 +147,4 @@
     overflow: auto;
     overscroll-behavior: contain;
   }
-  .body :global(section) {
-    border-top: 0;
-  }
-  .body :global(section > h2) {
-    display: none;
-  }
 </style>

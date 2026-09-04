@@ -1,8 +1,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import type { EditorStore } from '../store.svelte.js';
   import { evaluateTemplate } from '../template/evaluate.js';
-  let { editor }: { editor: EditorStore } = $props();
+  let { title = 'Template syntax', editor }: { title?: string; editor: EditorStore } = $props();
   /** Sample fields let the tester work before any CSV is loaded. */
   const sample: Record<string, string> = {
     name: 'Blueberry jam',
@@ -61,8 +62,7 @@
   ];
 </script>
 
-<section class="syntax">
-  <h2>Template syntax</h2>
+<Panel {title}>
   <p>
     Text, barcode, and QR values can contain expressions. Each expression names a data field and optional transforms
     separated by <code>|</code>, applied left to right. The preview on the canvas and the printer evaluate them the same
@@ -98,13 +98,9 @@
   <p class="output" aria-live="polite">
     {#if result.error}<span class="error">{result.error}</span>{:else}<output>{result.value}</output>{/if}
   </p>
-</section>
+</Panel>
 
 <style>
-  .syntax {
-    padding: 0.25rem 0.85rem 0.85rem;
-    font-size: var(--mble-text-body);
-  }
   h3 {
     margin: 0.85rem 0 0.35rem;
     color: var(--mble-text-muted);

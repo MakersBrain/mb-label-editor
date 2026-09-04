@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import { onMount } from 'svelte';
   import type { EditorStore } from '../store.svelte.js';
   import { patchElement, updateDocument } from '../commands.js';
@@ -11,11 +12,18 @@
   import { SAMPLE_CSV, documentFields } from '../template/placeholders.js';
   /** `docked` means the host shows the sheet beside the canvas, so the panel only offers to collapse it. */
   let {
+    title = 'Data',
     editor,
     onSyntaxHelp = () => {},
     docked = false,
     onDock = () => {},
-  }: { editor: EditorStore; onSyntaxHelp?: () => void; docked?: boolean; onDock?: () => void } = $props();
+  }: {
+    title?: string;
+    editor: EditorStore;
+    onSyntaxHelp?: () => void;
+    docked?: boolean;
+    onDock?: () => void;
+  } = $props();
   const labelFields = $derived(documentFields(editor.document));
   const database = new EditorDatabase();
   let error = $state('');
@@ -83,8 +91,7 @@
   }
 </script>
 
-<section class="data">
-  <h2>Data</h2>
+<Panel {title} class="data">
   <p class="help">
     Each record fills the label once. Values such as <code>{'{{'}price | number:2{'}}'}</code> are evaluated per record.
     <button type="button" class="link" onclick={onSyntaxHelp}>Template syntax reference</button>
@@ -184,13 +191,9 @@
       <button type="button" onclick={loadSample}>Load sample CSV</button>
     </div>
   {/if}
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border);
-  }
   .sources {
     display: flex;
     flex-wrap: wrap;
@@ -237,12 +240,6 @@
     align-items: center;
     margin-bottom: 0.5rem;
     font-size: var(--mble-text-small);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
   }
   .upload {
     display: inline-block;

@@ -1,8 +1,13 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import { JobJournal } from '../jobs.js';
   import type { EditorDatabase, PersistedJob } from '../persistence/database.js';
-  let { database, onRetry = () => {} }: { database: EditorDatabase; onRetry?: (job: PersistedJob) => void } = $props();
+  let {
+    title = 'Recover print jobs',
+    database,
+    onRetry = () => {},
+  }: { title?: string; database: EditorDatabase; onRetry?: (job: PersistedJob) => void } = $props();
   let jobs: PersistedJob[] = $state.raw([]);
   let loaded = $state(false);
   async function refresh() {
@@ -21,8 +26,7 @@
   }
 </script>
 
-<section>
-  <h2>Recover print jobs</h2>
+<Panel {title}>
   {#if !loaded}<button onclick={refresh}>Check interrupted jobs</button>{:else if !jobs.length}<p>
       No ambiguous jobs.
     </p>{:else}<ul>
@@ -37,19 +41,9 @@
             <button onclick={() => retry(job)}>Inspect & explicitly retry</button>{/if}
         </li>{/each}
     </ul>{/if}
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   ul {
     list-style: none;
     padding: 0;

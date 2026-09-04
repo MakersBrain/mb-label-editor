@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import { onMount } from 'svelte';
   import type { CloudPrintClient, CloudPrintJob, CloudPrinter } from '../cloud-print/client.js';
   import type { CloudPrintRoute } from '../print/cloud.js';
@@ -7,6 +8,8 @@
   import type { PrinterDefinition } from '../print/types.js';
 
   interface Props {
+    /** Heading text; pass undefined when the host names the region (a dialog title). */
+    title?: string;
     client: CloudPrintClient;
     route: CloudPrintRoute;
     document: LabelDocument;
@@ -14,7 +17,15 @@
     selectedId?: string;
     onPrinter?: (printer: CloudPrinter | undefined) => void;
   }
-  let { client, route, document, printer, selectedId = $bindable(''), onPrinter = () => {} }: Props = $props();
+  let {
+    title = 'Cloud printers',
+    client,
+    route,
+    document,
+    printer,
+    selectedId = $bindable(''),
+    onPrinter = () => {},
+  }: Props = $props();
 
   let printers: CloudPrinter[] = $state.raw([]);
   let current: CloudPrintJob | undefined = $state.raw();
@@ -94,8 +105,7 @@
   const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 </script>
 
-<section>
-  <h2>Cloud printers</h2>
+<Panel {title}>
   <div class="row">
     <label
       >Published printer
@@ -146,19 +156,9 @@
       </p>{/if}
   {/if}
   <p aria-live="polite">{status}</p>
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   .row {
     display: flex;
     align-items: end;

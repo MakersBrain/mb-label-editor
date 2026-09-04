@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import { onMount } from 'svelte';
   import { defaultDocument, type LabelDocument } from '../model.js';
   import type { EditorStore } from '../store.svelte.js';
   import { EditorDatabase, type RecentItem } from '../persistence/database.js';
-  let { editor }: { editor: EditorStore } = $props();
+  let { title = 'Document library', editor }: { title?: string; editor: EditorStore } = $props();
   const database = new EditorDatabase();
   let documents: LabelDocument[] = $state.raw([]);
   let recent: RecentItem[] = $state.raw([]);
@@ -45,8 +46,7 @@
   }
 </script>
 
-<section>
-  <h2>Document library</h2>
+<Panel {title}>
   <div class="actions">
     <button onclick={create}>New label</button><button onclick={save}>Save to browser</button><button onclick={refresh}
       >Refresh</button
@@ -66,19 +66,9 @@
           >{#if recent.some((item) => item.kind === 'document' && item.id === document.id)}<span>recent</span>{/if}
         </li>{/each}
     </ul>{:else}<p>No explicitly saved browser documents yet. Autosave recovery remains active.</p>{/if}
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   .actions {
     display: flex;
     gap: 0.35rem;

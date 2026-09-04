@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import type { EditorStore } from '../store.svelte.js';
   import { patchElement } from '../commands.js';
   /** `title` is the panel heading; pass undefined when the host already names the panel. */
@@ -18,8 +19,7 @@
   }
 </script>
 
-<section id="inspector">
-  {#if title !== undefined}<h2>{title}</h2>{/if}
+<Panel {title} id="inspector">
   {#if editor.selectedElements.length === 1}{#each editor.selectedElements as element}
       <label
         >Name <input value={element.name} onchange={(e) => patch(element.id, { name: e.currentTarget.value })} /></label
@@ -277,19 +277,9 @@
         ? `${editor.selectedElements.length} elements selected`
         : 'Select an element to inspect it.'}
     </p>{/if}
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   .grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

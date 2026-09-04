@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import type { EditorStore } from '../store.svelte.js';
   import { isEffectivelyLocked, isEffectivelyVisible, type LabelDocument, type LabelElement } from '../model.js';
@@ -160,11 +161,10 @@
   }
 </script>
 
-<section>
-  <div class="heading">
-    {#if title !== undefined}<h2>{title}</h2>{:else}<span></span>{/if}
+<Panel {title}>
+  {#snippet actions()}
     <button class="add" onclick={addGroup} title="Add an empty group; drag layers onto it to nest them">+ Group</button>
-  </div>
+  {/snippet}
   <ol
     ondragover={(e) => dragOver(e, undefined)}
     ondrop={(e) => drop(e, undefined)}
@@ -277,24 +277,9 @@
     Drag a layer onto a group to nest it, or onto a top-level layer to take it out. Double-click a name to rename it;
     Alt+Arrow keys move it through the stack.
   </p>
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-  }
-  .heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 0 0 0.5rem;
-  }
-  h2 {
-    margin: 0;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   .add {
     font-size: var(--mble-text-micro);
   }

@@ -132,6 +132,33 @@
   cursor: pointer;
 }
 
+/*
+ * Tabs use the mb-ui pattern; the editor's tabs are buttons with
+ * aria-selected rather than links with aria-current, so bridge both.
+ */
+.mb-label-editor button.mb-tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.mb-label-editor button.mb-tab:hover:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--mble-text);
+}
+.mb-label-editor .mb-tab[aria-selected='true'] {
+  color: var(--mble-text);
+  font-weight: 600;
+  border-bottom-color: var(--mble-primary);
+}
+
+/* Panel titles in the editor stay compact: the sidebar is dense and the display face is reserved for dialogs. */
+.mb-label-editor .mb-panel-title {
+  font-size: var(--mble-text-body);
+}
+
 /* Section headings inside panels: small, muted, no shouting. */
 .mb-label-editor h2 {
   margin: 0 0 0.5rem;

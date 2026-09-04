@@ -1,15 +1,18 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import { untrack } from 'svelte';
   import type { ExternalResourceConnection } from '../external-resources/types.js';
   import type { ExternalResourceConnectionManager } from '../external-resources/manager.js';
 
   interface Props {
+    /** Heading text; pass undefined when the host names the region (a dialog title). */
+    title?: string;
     manager: ExternalResourceConnectionManager;
     onChange?: (connections: ExternalResourceConnection[]) => void;
     onSelect?: (id: string) => void;
   }
-  let { manager, onChange = () => {}, onSelect = () => {} }: Props = $props();
+  let { title = 'External resource connections', manager, onChange = () => {}, onSelect = () => {} }: Props = $props();
 
   // The form seeds itself from the manager once; refresh() re-reads it after every change.
   let connections = $state.raw(untrack(() => manager.connections()));
@@ -91,8 +94,7 @@
   const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 </script>
 
-<section>
-  <h2>External resource connections</h2>
+<Panel {title}>
   <p class="intro">Connect asset and font services. Credentials stay in memory for this page session.</p>
 
   {#if connections.length}
@@ -156,18 +158,11 @@
     </div>
   </form>
   <p aria-live="polite">{status}</p>
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.8rem;
-  }
-  h2,
   h3 {
     margin: 0 0 0.45rem;
-  }
-  h2 {
-    font-size: var(--mble-text-h4);
   }
   h3 {
     font-size: var(--mble-text-body);
@@ -249,9 +244,6 @@
     width: auto;
   }
   @media (max-width: 40rem) {
-    section {
-      min-width: 0;
-    }
     form {
       grid-template-columns: 1fr;
     }

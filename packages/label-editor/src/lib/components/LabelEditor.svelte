@@ -407,10 +407,11 @@
         ondblclick={() => setSidebarWidth(defaultSidebarWidth)}
       ></div>{/if}
     <aside id="side-panels" class:open={sidebarOpen}>
-      <div class="tabs" role="tablist" aria-label="Side panels">
+      <div class="tabs mb-tabs" role="tablist" aria-label="Side panels">
         {#if !wide.current}<button
             type="button"
             role="tab"
+            class="mb-tab"
             id="sidebar-tab-layers"
             aria-selected={activeTab === 'layers'}
             aria-controls="sidebar-panel-layers"
@@ -421,6 +422,7 @@
         <button
           type="button"
           role="tab"
+          class="mb-tab"
           id="sidebar-tab-assets"
           aria-selected={activeTab === 'assets'}
           aria-controls="sidebar-panel-assets"
@@ -431,6 +433,7 @@
         <button
           type="button"
           role="tab"
+          class="mb-tab"
           id="sidebar-tab-data"
           aria-selected={activeTab === 'data'}
           aria-controls="sidebar-panel-data"
@@ -441,6 +444,7 @@
         <button
           type="button"
           role="tab"
+          class="mb-tab"
           id="sidebar-tab-printer"
           aria-selected={activeTab === 'printer'}
           aria-controls="sidebar-panel-printer"
@@ -504,19 +508,19 @@
     {/if}
   </main>
   <Modal open={dialog === 'media'} title={dialogTitles.media} onClose={() => (dialog = '')}
-    ><MediaPanel {editor} {sdk} {materializer} {printers} {printerId} {onPrinter} /></Modal
+    ><MediaPanel title={undefined} {editor} {sdk} {materializer} {printers} {printerId} {onPrinter} /></Modal
   >
   <Modal open={dialog === 'library'} title={dialogTitles.library} onClose={() => (dialog = '')}
-    ><LibraryPanel {editor} /></Modal
+    ><LibraryPanel title={undefined} {editor} /></Modal
   >
   <Modal open={dialog === 'guides'} title={dialogTitles.guides} onClose={() => (dialog = '')}
-    ><GuidesPanel {editor} /></Modal
+    ><GuidesPanel title={undefined} {editor} /></Modal
   >
   <Modal open={dialog === 'shortcuts'} title={dialogTitles.shortcuts} onClose={() => (dialog = '')}
-    ><ShortcutsPanel /></Modal
+    ><ShortcutsPanel title={undefined} /></Modal
   >
   <Modal open={dialog === 'syntax'} title={dialogTitles.syntax} onClose={() => (dialog = '')}
-    ><TemplateSyntaxPanel {editor} /></Modal
+    ><TemplateSyntaxPanel title={undefined} {editor} /></Modal
   >
   <Modal open={sheetOpen && narrow.current} title="Data records" size="lg" onClose={() => (sheetDocked = false)}
     ><DataSheet {editor} /></Modal
@@ -776,21 +780,14 @@
     background: var(--mble-background);
     border-bottom: 1px solid var(--mble-border);
   }
+  .tabs {
+    gap: 0;
+  }
   .tabs [role='tab'] {
     flex: 1;
-    padding: 0.5rem 0.75rem;
-    border: 0;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    background: transparent;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
+    justify-content: center;
+    padding-inline: 0.75rem;
     font-weight: 600;
-    cursor: pointer;
-  }
-  .tabs [role='tab'][aria-selected='true'] {
-    color: var(--mble-text);
-    border-bottom-color: var(--mble-primary);
   }
   aside [role='tabpanel'][hidden] {
     display: none;

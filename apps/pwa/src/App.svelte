@@ -728,6 +728,7 @@
   </footer>
   <Modal open={dialog === 'service'} title="Local service" onClose={() => (dialog = '')}
     ><LocalServicePanel
+      title={undefined}
       route={localRoute}
       onToken={acceptToken}
       onConnection={acceptConnection}
@@ -738,6 +739,7 @@
   >
   <Modal open={dialog === 'external-resources'} title="External resources" size="lg" onClose={() => (dialog = '')}
     ><ExternalResourceConnectionsPanel
+      title={undefined}
       manager={resourceManager}
       onChange={storeResourceConnections}
       onSelect={selectResourceConnection}
@@ -756,6 +758,7 @@
   >
   <Modal open={dialog === 'cloud'} title="Cloud printers" onClose={() => (dialog = '')}
     >{#if cloudClient && cloudRoute}<CloudPrintPanel
+        title={undefined}
         client={cloudClient}
         route={cloudRoute}
         document={editor.document}
@@ -765,13 +768,14 @@
       />{:else}<p class="pending">Connect a cloud print session first.</p>{/if}</Modal
   >
   <Modal open={dialog === 'jobs'} title="Recover print jobs" onClose={() => (dialog = '')}
-    ><JobRecoveryPanel {database} onRetry={retryRecovered} /></Modal
+    ><JobRecoveryPanel title={undefined} {database} onRetry={retryRecovered} /></Modal
   >
   <Modal open={dialog === 'batch'} title="Batch printing" size="lg" onClose={() => (dialog = '')}
     >{#if selectedRoute.id === 'cloud-api' && !cloudPrinter?.online}<p class="pending">
         Cloud batch printing requires the selected printer to be online. Queue only one current label while it is
         offline.
       </p>{/if}{#if sdk}<BatchPanel
+        title={undefined}
         document={editor.document}
         {sdk}
         materializer={sdk}
@@ -796,6 +800,7 @@
         Cloud La Poste printing requires the selected printer to be online. Queue only one current label while it is
         offline.
       </p>{/if}{#if sdk}<LaPostePanel
+        title={undefined}
         {sdk}
         route={selectedRoute.id === 'cloud-api' && !cloudPrinter?.online ? undefined : selectedRoute}
         printRequest={printers.find((item) => item.id === printerId)

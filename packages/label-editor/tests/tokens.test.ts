@@ -43,7 +43,8 @@ const mapped = declared(adapter);
 /** Theme-independent scales (type, z-index) are declared in core.css and need no dark or adapter values. */
 const scales = declared(readFileSync(join(root, 'packages/label-editor/src/core.css'), 'utf8'));
 const referenced = new Map<string, string[]>();
-for (const file of sources) {
+// The pattern snapshot in the standalone theme references tokens too.
+for (const file of [...sources, standalonePath]) {
   const text = readFileSync(file, 'utf8');
   for (const match of text.matchAll(/var\((--mble-[a-z0-9-]+)/g)) {
     const list = referenced.get(match[1]) ?? [];
@@ -74,16 +75,7 @@ describe('design tokens', () => {
   });
   it('declares no token nothing references', () => {
     // Declared ahead of the pattern adoption (type scale, tinted notices and badges); emptied as those land.
-    const adoptedLater = new Set([
-      '--mble-text-subtle',
-      '--mble-primary-hover',
-      '--mble-primary-tint',
-      '--mble-primary-border',
-      '--mble-danger-tint',
-      '--mble-guide-tint',
-      '--mble-radius-full',
-      '--mble-font-display',
-    ]);
+    const adoptedLater = new Set(['--mble-primary-hover', '--mble-primary-border']);
     const unused = [...light, ...scales].filter((token) => !referenced.has(token) && !adoptedLater.has(token));
     expect(unused).toEqual([]);
   });

@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import Panel from './Panel.svelte';
   import type {
     BrotherWifiConfigureRequest,
     LocalApiBrotherReport,
@@ -15,6 +16,8 @@
   import { untrack } from 'svelte';
   /** `active` is toggled by the parent with the modal so sensitive fields do not survive reopening. */
   interface Props {
+    /** Heading text; pass undefined when the host names the region (a dialog title). */
+    title?: string;
     route: LocalApiPrintRoute;
     onToken?: (token: string) => void;
     onConnection?: (connection: LocalApiConnection | undefined) => void;
@@ -23,6 +26,7 @@
     active?: boolean;
   }
   let {
+    title = 'Local service',
     route,
     onToken = () => {},
     onConnection = () => {},
@@ -319,8 +323,7 @@
   }
 </script>
 
-<section>
-  <h2>Local service</h2>
+<Panel {title}>
   <div class="row">
     <label>One-time pairing secret<input type="password" bind:value={secret} autocomplete="off" /></label>
     <button onclick={pair} disabled={!secret}>Pair on localhost</button>
@@ -590,19 +593,9 @@
   <p>Printing is enabled only after the service has probed and persisted a physical printer connection.</p>
   {#if diagnosticStatus}<p class="live" aria-live="polite">{diagnosticStatus}</p>{/if}
   <p aria-live="polite">{status}</p>
-</section>
+</Panel>
 
 <style>
-  section {
-    padding: 0.7rem 0.75rem;
-    border-top: 1px solid var(--mble-border);
-  }
-  h2 {
-    margin: 0 0 0.5rem;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    font-weight: 600;
-  }
   label {
     display: flex;
     flex: 1;
