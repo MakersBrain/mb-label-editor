@@ -310,8 +310,9 @@ test('a group can be dragged by its selection box and clicking a child selects t
   await page.locator('.viewport').click({ position: { x: 5, y: 5 } });
   await rectangle.click({ force: true });
   await expect(page.getByLabel('Name')).toHaveValue('Group');
-  await rectangle.dblclick({ force: true });
-  await expect(page.getByLabel('Name')).toHaveValue('Rectangle');
+  // Both shapes were inserted at the same spot, so the topmost one under the pointer is the ellipse.
+  await ellipse.dblclick({ force: true });
+  await expect(page.getByLabel('Name')).toHaveValue('Ellipse');
 });
 
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
