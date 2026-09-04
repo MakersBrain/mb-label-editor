@@ -34,7 +34,7 @@ export default ts.config(
       'svelte/no-useless-mustaches': 'off',
       // Ratchet: these are warnings while the runes migration is in flight and
       // `npm run lint` caps the count with --max-warnings. Each converted
-      // component lowers the cap; they become errors once svelte.legacy.mjs is gone.
+      // component lowers the cap; the remaining sites are cleared as the files are touched.
       '@typescript-eslint/no-floating-promises': ['warn', { ignoreVoid: false }],
       '@typescript-eslint/no-unused-expressions': 'warn',
       'svelte/require-each-key': 'warn',

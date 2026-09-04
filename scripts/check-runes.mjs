@@ -2,7 +2,7 @@
 // Runes policy: every Svelte component is written in Svelte 5 runes mode.
 // The compiler only errors on some legacy syntax (export let, $:) and merely
 // warns on the rest (on: directives, <slot>), so this check covers the whole
-// contract and keeps the transition allow-list in svelte.legacy.mjs honest.
+// contract; a transition allow-list (svelte.legacy.mjs) is honoured only while it exists.
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, join, relative } from 'node:path';
 
