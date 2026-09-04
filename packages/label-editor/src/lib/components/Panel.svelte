@@ -2,9 +2,10 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   /**
-   * A titled region using the mb-ui panel pattern. Pass `title={undefined}`
-   * when the host already names the region (a dialog header, a tab), so the
-   * heading is not repeated. Extra attributes reach the section.
+   * A titled region using the mb-ui panel pattern. Pass `title=""` when the
+   * host already names the region (a dialog header, a tab), so the heading is
+   * not repeated; an explicit undefined would fall back to the default title.
+   * Extra attributes reach the section.
    */
   let {
     title,
@@ -26,10 +27,10 @@
 </script>
 
 <section class={`mb-panel panel ${className}`} {id} {...rest}>
-  {#if title !== undefined || actions}
+  {#if title || actions}
     <header class="mb-panel-head">
       <div>
-        {#if title !== undefined}<h2 class="mb-panel-title">{title}</h2>{/if}
+        {#if title}<h2 class="mb-panel-title">{title}</h2>{/if}
         {#if subtitle}<p class="mb-panel-subtitle">{subtitle}</p>{/if}
       </div>
       {@render actions?.()}

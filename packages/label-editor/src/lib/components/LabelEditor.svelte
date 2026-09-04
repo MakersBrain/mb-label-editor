@@ -337,11 +337,11 @@
     <div class="stack">
       <section class="layers-pane" aria-label="Layers">
         <h3 class="pane-title">Layers</h3>
-        <Layers {editor} title={undefined} />
+        <Layers {editor} title="" />
       </section>
       <section class="props-pane" aria-label="Properties">
         <h3 class="pane-title">Properties</h3>
-        <Inspector {editor} title={undefined} />
+        <Inspector {editor} title="" />
       </section>
     </div>
   {/snippet}
@@ -508,19 +508,19 @@
     {/if}
   </main>
   <Modal open={dialog === 'media'} title={dialogTitles.media} onClose={() => (dialog = '')}
-    ><MediaPanel title={undefined} {editor} {sdk} {materializer} {printers} {printerId} {onPrinter} /></Modal
+    ><MediaPanel title="" {editor} {sdk} {materializer} {printers} {printerId} {onPrinter} /></Modal
   >
   <Modal open={dialog === 'library'} title={dialogTitles.library} onClose={() => (dialog = '')}
-    ><LibraryPanel title={undefined} {editor} /></Modal
+    ><LibraryPanel title="" {editor} /></Modal
   >
   <Modal open={dialog === 'guides'} title={dialogTitles.guides} onClose={() => (dialog = '')}
-    ><GuidesPanel title={undefined} {editor} /></Modal
+    ><GuidesPanel title="" {editor} /></Modal
   >
   <Modal open={dialog === 'shortcuts'} title={dialogTitles.shortcuts} onClose={() => (dialog = '')}
-    ><ShortcutsPanel title={undefined} /></Modal
+    ><ShortcutsPanel title="" /></Modal
   >
   <Modal open={dialog === 'syntax'} title={dialogTitles.syntax} onClose={() => (dialog = '')}
-    ><TemplateSyntaxPanel title={undefined} {editor} /></Modal
+    ><TemplateSyntaxPanel title="" {editor} /></Modal
   >
   <Modal open={sheetOpen && narrow.current} title="Data records" size="lg" onClose={() => (sheetDocked = false)}
     ><DataSheet {editor} /></Modal
@@ -553,12 +553,15 @@
     display: flex;
     align-items: center;
   }
+  /* One row: a menubar that wraps pushes the canvas down; when space runs out it scrolls instead. */
   .menubar {
     display: flex;
     gap: 0.1rem;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
   .appbar-actions {
     display: flex;
@@ -605,7 +608,8 @@
     border-radius: var(--mble-radius-md);
     box-shadow: var(--mble-shadow);
   }
-  @media (max-width: 64rem) {
+  /* The chip is a convenience; the menubar and the print controls come first when the row is tight. */
+  @media (max-width: 90rem) {
     .media-chip {
       display: none;
     }
