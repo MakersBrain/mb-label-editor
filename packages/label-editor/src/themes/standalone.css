@@ -10,6 +10,12 @@
  *
  * --mble-paper and --mble-ink describe printed paper and are identical in
  * both themes: the label preview shows what the printer produces.
+ *
+ * Three-state theming, mirroring mb-ui: the bare selector carries the light
+ * palette; the prefers-color-scheme block is guarded with
+ * :not([data-theme='light']) so an explicit light choice beats a dark OS; and
+ * [data-theme='dark'] repeats the dark values so the toggle wins the other
+ * way. The two dark blocks are kept identical by tests/tokens.test.ts.
  */
 .mb-label-editor {
   color-scheme: light;
@@ -51,7 +57,43 @@
   --mble-font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-[data-theme='dark'] .mb-label-editor {
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .mb-label-editor {
+    color-scheme: dark;
+    --mble-background: #130f0d;
+    --mble-surface: #1e1915;
+    --mble-surface-muted: #2a231e;
+    --mble-surface-sunken: #0d0a09;
+    --mble-text: #f4efeb;
+    --mble-text-muted: #b2a398;
+    --mble-text-subtle: #877669;
+    --mble-accent: #d27c5c;
+    --mble-primary: #d27c5c;
+    --mble-primary-hover: #e39c80;
+    --mble-primary-text: #130f0d;
+    --mble-primary-tint: #2e1d15;
+    --mble-primary-border: #5a3121;
+    --mble-focus: #e39c80;
+    --mble-success: #6fa98a;
+    --mble-success-tint: #17251e;
+    --mble-warning: #e09a2e;
+    --mble-warning-tint: #2a1e0c;
+    --mble-danger: #e08575;
+    --mble-danger-tint: #2c1614;
+    --mble-guide: #7ea8c4;
+    --mble-guide-tint: #142028;
+    --mble-border: #3a302a;
+    --mble-border-strong: #736558;
+    --mble-selection: #2e1d15;
+    --mble-scrim: rgb(0 0 0 / 55%);
+    --mble-paper: #ffffff;
+    --mble-ink: #1e1915;
+    --mble-shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --mble-shadow: 0 2px 4px rgb(0 0 0 / 35%), 0 16px 40px rgb(0 0 0 / 50%);
+  }
+}
+
+:root[data-theme='dark'] .mb-label-editor {
   color-scheme: dark;
   --mble-background: #130f0d;
   --mble-surface: #1e1915;

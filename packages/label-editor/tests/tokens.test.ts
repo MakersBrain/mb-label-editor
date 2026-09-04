@@ -31,9 +31,14 @@ const adapter = readFileSync(adapterPath, 'utf8');
 
 /** Token names declared in one CSS block. */
 const declared = (css: string) => new Set([...css.matchAll(/(--mble-[a-z0-9-]+):/g)].map((match) => match[1]));
-const [lightBlock, darkBlock] = standalone.split("[data-theme='dark']");
+const [lightBlock, systemDarkBlock, chosenDarkBlock] = standalone.split(
+  /@media \(prefers-color-scheme: dark\)|:root\[data-theme='dark'\]/,
+);
 const light = declared(lightBlock);
-const dark = declared(darkBlock);
+const dark = declared(systemDarkBlock);
+/** Declarations of one block as `name: value` lines, for comparing the two dark blocks. */
+const declarations = (css: string) =>
+  [...css.matchAll(/(--mble-[a-z0-9-]+):\s*([^;]+);/g)].map((match) => `${match[1]}: ${match[2].trim()}`).sort();
 const mapped = declared(adapter);
 const referenced = new Map<string, string[]>();
 for (const file of sources) {
@@ -53,6 +58,11 @@ describe('design tokens', () => {
     const missingAdapter = [...referenced.keys()].filter((token) => !mapped.has(token));
     expect(missingLight).toEqual([]);
     expect(missingAdapter).toEqual([]);
+  });
+  it('repeats the same dark values for the system preference and the explicit choice', () => {
+    expect(systemDarkBlock).toContain(":root:not([data-theme='light']) .mb-label-editor");
+    expect(declarations(chosenDarkBlock)).toEqual(declarations(systemDarkBlock));
+    expect(declarations(chosenDarkBlock).length).toBeGreaterThan(20);
   });
   it('redefines every colour token for dark mode', () => {
     const missingDark = [...light].filter((token) => !themeIndependent.test(token) && !dark.has(token));
