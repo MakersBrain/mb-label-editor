@@ -23,6 +23,30 @@
   $effect(() => {
     paint(canvas, zoom);
   });
+  // The shown size and the device pixel ratio both change the resample target: a resized
+  // viewport, a window dragged to another screen, or a browser zoom all repaint.
+  $effect(() => {
+    const target = canvas;
+    if (!target || typeof ResizeObserver === 'undefined') return;
+    const repaint = () => paint(target, zoom);
+    const observer = new ResizeObserver(repaint);
+    observer.observe(target);
+    let media: MediaQueryList | undefined;
+    const onRatioChange = () => {
+      repaint();
+      arm();
+    };
+    const arm = () => {
+      media?.removeEventListener('change', onRatioChange);
+      media = globalThis.matchMedia?.(`(resolution: ${globalThis.devicePixelRatio || 1}dppx)`);
+      media?.addEventListener('change', onRatioChange);
+    };
+    arm();
+    return () => {
+      observer.disconnect();
+      media?.removeEventListener('change', onRatioChange);
+    };
+  });
   async function draw(target: LabelDocument, isCancelled: () => boolean) {
     try {
       const preview = await sdk.render(target, { exactThermal: true, record: target.template?.currentRecord });

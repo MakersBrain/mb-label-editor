@@ -736,7 +736,7 @@
       active={dialog === 'service'}
     /></Modal
   >
-  <Modal open={dialog === 'external-resources'} title="External resources" onClose={() => (dialog = '')}
+  <Modal open={dialog === 'external-resources'} title="External resources" size="lg" onClose={() => (dialog = '')}
     ><ExternalResourceConnectionsPanel
       manager={resourceManager}
       onChange={storeResourceConnections}
@@ -767,7 +767,7 @@
   <Modal open={dialog === 'jobs'} title="Recover print jobs" onClose={() => (dialog = '')}
     ><JobRecoveryPanel {database} onRetry={retryRecovered} /></Modal
   >
-  <Modal open={dialog === 'batch'} title="Batch printing" onClose={() => (dialog = '')}
+  <Modal open={dialog === 'batch'} title="Batch printing" size="lg" onClose={() => (dialog = '')}
     >{#if selectedRoute.id === 'cloud-api' && !cloudPrinter?.online}<p class="pending">
         Cloud batch printing requires the selected printer to be online. Queue only one current label while it is
         offline.
@@ -780,7 +780,7 @@
         continuous={continuousPrint}
       />{:else}<p class="pending">Select a printer model to load the printer SDK first.</p>{/if}</Modal
   >
-  <Modal open={dialog === 'sheet'} title="Label sheet" onClose={() => (dialog = '')}
+  <Modal open={dialog === 'sheet'} title="Label sheet" size="lg" onClose={() => (dialog = '')}
     >{#if sdk}<SheetPanel
         document={editor.document}
         exporter={sdk}
@@ -791,7 +791,7 @@
         onStatus={(value) => (status = value)}
       />{:else}<p class="pending">Loading sheet export support…</p>{/if}</Modal
   >
-  <Modal open={dialog === 'laposte'} title="La Poste sheets" onClose={() => (dialog = '')}
+  <Modal open={dialog === 'laposte'} title="La Poste sheets" size="lg" onClose={() => (dialog = '')}
     >{#if selectedRoute.id === 'cloud-api' && !cloudPrinter?.online}<p class="pending">
         Cloud La Poste printing requires the selected printer to be online. Queue only one current label while it is
         offline.
@@ -876,19 +876,32 @@
     color: var(--mb-text-muted);
   }
   footer {
-    padding: 0.35rem 1rem;
+    display: flex;
+    gap: 1rem;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0.35rem calc(1rem + env(safe-area-inset-right, 0px)) calc(0.35rem + env(safe-area-inset-bottom, 0px))
+      calc(1rem + env(safe-area-inset-left, 0px));
     background: var(--mb-bg);
     color: var(--mb-text-muted);
     border-top: var(--mb-border);
     font-size: 0.75rem;
     white-space: nowrap;
     overflow: hidden;
+  }
+  footer > :first-child {
+    min-width: 0;
+    overflow: hidden;
     text-overflow: ellipsis;
   }
   footer .build {
-    float: right;
-    margin-left: 1rem;
+    flex: none;
     font-family: monospace;
+  }
+  @media (max-width: 40rem) {
+    footer .build {
+      display: none;
+    }
   }
   .offline {
     color: var(--mb-kiln-300);

@@ -471,7 +471,7 @@
   <Modal open={dialog === 'syntax'} title={dialogTitles.syntax} onClose={() => (dialog = '')}
     ><TemplateSyntaxPanel {editor} /></Modal
   >
-  <Modal open={sheetOpen && narrow.current} title="Data records" onClose={() => (sheetDocked = false)}
+  <Modal open={sheetOpen && narrow.current} title="Data records" size="lg" onClose={() => (sheetDocked = false)}
     ><DataSheet {editor} /></Modal
   >
 </div>
@@ -493,7 +493,8 @@
     align-items: center;
     min-width: 0;
     flex: none;
-    padding: 0.3rem 0.5rem;
+    padding: calc(0.3rem + env(safe-area-inset-top, 0px)) calc(0.5rem + env(safe-area-inset-right, 0px)) 0.3rem
+      calc(0.5rem + env(safe-area-inset-left, 0px));
     border-bottom: 1px solid var(--mble-border, #d8d0c3);
   }
   .brand {
@@ -584,6 +585,22 @@
     width: 2px;
     background: transparent;
     transition: background 0.12s;
+  }
+  /* A finger needs a wider strip and a visible grip. */
+  @media (pointer: coarse) {
+    .sidebar-resizer {
+      width: 16px;
+      margin: 0 -8px;
+    }
+    .sidebar-resizer::after {
+      left: 7px;
+      top: 50%;
+      bottom: auto;
+      height: 3rem;
+      transform: translateY(-50%);
+      border-radius: 2px;
+      background: var(--mble-border-strong, #948274);
+    }
   }
   .sidebar-resizer:hover::after,
   .sidebar-resizer:focus-visible::after {
@@ -755,7 +772,7 @@
     main,
     main.sidebar-closed {
       grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(16rem, 1fr) minmax(0, 42vh);
+      grid-template-rows: auto minmax(16rem, 1fr) minmax(0, 42dvh);
     }
     main.sidebar-closed {
       grid-template-rows: auto minmax(0, 1fr);

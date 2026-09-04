@@ -161,7 +161,6 @@
 <style>
   section {
     padding: 0.8rem;
-    min-width: min(34rem, 80vw);
   }
   h2,
   h3 {

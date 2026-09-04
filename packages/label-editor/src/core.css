@@ -115,3 +115,27 @@
   letter-spacing: 0;
   text-transform: none;
 }
+
+/* Touch targets: every control reaches 44px on coarse pointers. Label elements on the canvas keep their true size. */
+@media (pointer: coarse) {
+  .mb-label-editor button:not(.element):not(.star):not(.handle),
+  .mb-label-editor input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  .mb-label-editor select,
+  .mb-label-editor textarea,
+  .mb-label-editor summary,
+  .mb-label-editor [role='tab'] {
+    min-height: 2.75rem;
+  }
+  .mb-label-editor input[type='checkbox'],
+  .mb-label-editor input[type='radio'] {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+}
+
+/* Without hover there is no hover state: affordances that only appear on hover stay visible. */
+@media (hover: none) {
+  .mb-label-editor button:not(:disabled):not(.element) {
+    border-color: var(--mble-border, #e5dfd5);
+  }
+}
