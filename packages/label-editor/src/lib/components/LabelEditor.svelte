@@ -305,8 +305,8 @@
         aria-labelledby="sidebar-tab-layers"
         hidden={sidebarTab !== 'layers'}
       >
-        <details open><summary>Layers</summary><Layers {editor} /></details>
-        <details open><summary>Properties</summary><Inspector {editor} /></details>
+        <details open><summary>Layers</summary><Layers {editor} title={undefined} /></details>
+        <details open><summary>Properties</summary><Inspector {editor} title={undefined} /></details>
       </div>
       <div
         id="sidebar-panel-assets"
@@ -504,9 +504,6 @@
   }
   aside :global(details > section) {
     border-top: 0;
-  }
-  aside :global(details > section > h2) {
-    display: none;
   }
   @media (max-width: 800px) {
     .appbar {

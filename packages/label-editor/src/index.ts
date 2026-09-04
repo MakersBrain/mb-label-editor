@@ -3,6 +3,7 @@ export * from './lib/model.js';
 export * from './lib/commands.js';
 export * from './lib/history.js';
 export * from './lib/view.js';
+export * from './lib/layers.js';
 export * from './lib/store.svelte.js';
 export * from './lib/files.js';
 export * from './lib/snapping.js';

@@ -2,7 +2,8 @@
 <script lang="ts">
   import type { EditorStore } from '../store.svelte.js';
   import { patchElement } from '../commands.js';
-  let { editor }: { editor: EditorStore } = $props();
+  /** `title` is the panel heading; pass undefined when the host already names the panel. */
+  let { editor, title = 'Inspector' }: { editor: EditorStore; title?: string } = $props();
   const number = (value: string) => (Number.isFinite(Number(value)) ? Number(value) : 0);
   const patch = (id: string, value: Record<string, unknown>) => editor.execute(patchElement(id, value));
   /** Binding the face by id keeps the printed font exact: family alone cannot tell two weights of one family apart. */
@@ -17,8 +18,8 @@
   }
 </script>
 
-<section>
-  <h2>Inspector</h2>
+<section id="inspector">
+  {#if title !== undefined}<h2>{title}</h2>{/if}
   {#if editor.selectedElements.length === 1}{#each editor.selectedElements as element}
       <label
         >Name <input value={element.name} onchange={(e) => patch(element.id, { name: e.currentTarget.value })} /></label

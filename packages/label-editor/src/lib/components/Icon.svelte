@@ -15,7 +15,13 @@
       | 'redo'
       | 'delete'
       | 'group'
-      | 'ungroup';
+      | 'ungroup'
+      | 'image'
+      | 'svg'
+      | 'more'
+      | 'raise'
+      | 'lower'
+      | 'duplicate';
   } = $props();
   const paths: Record<string, string> = {
     text: 'M3 3.75h10M8 3.75v8.5M5.75 12.25h4.5',
@@ -30,6 +36,12 @@
     delete: 'M3.25 4.75h9.5M6.5 4.75V3.25h3v1.5M5 4.75l.6 8.5h4.8l.6-8.5',
     group: 'M2.75 2.75h4v4h-4zM9.25 9.25h4v4h-4zM6.75 4.75h3.5v6.5',
     ungroup: 'M2.75 2.75h4v4h-4zM9.25 9.25h4v4h-4z',
+    image: 'M2.75 3.25h10.5v9.5H2.75zM2.75 10.5l3-3 2.5 2.5 2-2 3 3M10.5 6a.75.75 0 110-1.5.75.75 0 010 1.5z',
+    svg: 'M3 12.75c3-9 7-9 10-3M3 12.75h10',
+    more: 'M4 8h.01M8 8h.01M12 8h.01',
+    raise: 'M8 12.5v-8M4.75 7.75L8 4.5l3.25 3.25',
+    lower: 'M8 3.5v8M4.75 8.25L8 11.5l3.25-3.25',
+    duplicate: 'M5.75 5.75h7.5v7.5h-7.5zM2.75 10.25v-7.5h7.5',
   };
 </script>
 

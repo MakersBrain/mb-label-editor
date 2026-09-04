@@ -1912,3 +1912,31 @@ test('inserting the same kind twice cascades the second element by one grid step
     expect(box.y).toBeGreaterThanOrEqual(media.y - 1);
   }
 });
+
+test('layers can be renamed inline, reordered from the keyboard and duplicated from their menu', async ({ page }) => {
+  await page.goto('/');
+  const tools = page.getByRole('navigation', { name: 'Drawing tools' });
+  await tools.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await tools.getByRole('button', { name: 'Ellipse', exact: true }).click();
+  const rows = page.locator('aside ol > li');
+  await expect(rows).toHaveCount(2);
+  await expect(page.locator('aside .layer-count')).toHaveText('2 layers');
+  await expect(rows.first().locator('.meta')).toHaveText('12 × 12 mm');
+  await rows.first().getByRole('button', { name: 'Ellipse', exact: true }).dblclick();
+  const rename = page.getByLabel('Rename layer');
+  await expect(rename).toBeFocused();
+  await rename.fill('Logo');
+  await rename.press('Enter');
+  await expect(page.getByLabel('Name')).toHaveValue('Logo');
+  await expect(rows.first().getByRole('button', { name: 'Logo', exact: true })).toBeVisible();
+  const layerField = page.getByLabel('Layer', { exact: true });
+  const before = Number(await layerField.inputValue());
+  await rows.first().getByRole('button', { name: 'Logo', exact: true }).focus();
+  await page.keyboard.press('Alt+ArrowDown');
+  expect(Number(await layerField.inputValue())).toBeLessThan(before);
+  await rows.first().getByRole('button', { name: 'Lower' }).click();
+  await page.getByTitle('More actions').first().click();
+  await page.getByRole('button', { name: 'Duplicate' }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(page.locator('aside .layer-count')).toHaveText('3 layers');
+});
