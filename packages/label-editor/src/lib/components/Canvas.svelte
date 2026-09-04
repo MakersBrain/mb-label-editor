@@ -18,7 +18,8 @@
   import { GestureTracker } from '../gestures.js';
   import { onDestroy, untrack } from 'svelte';
   import type { EditorStore } from '../store.svelte.js';
-  import { fitToView, labelToScreen, rulerTicks, RULER_SIZE } from '../view.js';
+  import { fitToView, labelToScreen, rulerTicks, PX_PER_MM, RULER_SIZE } from '../view.js';
+  import { patchElement } from '../commands.js';
   import ZoomControl from './ZoomControl.svelte';
   import SelectionBar from './SelectionBar.svelte';
   import type { PrinterDefinition, PrinterSdk } from '../print/types.js';
@@ -537,6 +538,66 @@
     const bottom = labelToScreen({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height }, editor.view, media);
     return { above: { x: top.x, y: top.y - clearance }, below: { x: bottom.x, y: bottom.y + clearance } };
   });
+  /** Text element being edited in place, with its draft. The textarea lives in the unscaled chrome layer over the element. */
+  let editingText = $state<string | undefined>();
+  let textDraft = $state('');
+  const editingElement = $derived(
+    editingText
+      ? (editor.document.elements.find((item) => item.id === editingText && item.type === 'text') as
+          Extract<LabelElement, { type: 'text' }> | undefined)
+      : undefined,
+  );
+  const editingRect = $derived.by(() => {
+    const element = editingElement;
+    if (!element) return undefined;
+    const media = { width: editor.document.media.width, height: displayHeight };
+    const root = elementRootBounds(editor.document, element);
+    const origin = labelToScreen({ x: root.x, y: root.y }, editor.view, media);
+    return {
+      left: origin.x,
+      top: origin.y,
+      width: root.width * PX_PER_MM * editor.view.zoom,
+      height: root.height * PX_PER_MM * editor.view.zoom,
+    };
+  });
+  function startTextEdit(element: LabelElement) {
+    if (element.type !== 'text') return;
+    editingText = element.id;
+    textDraft = element.text;
+    editor.select([element.id]);
+    requestAnimationFrame(() => {
+      const area = document.querySelector<HTMLTextAreaElement>('textarea.inline-edit');
+      area?.focus();
+      area?.select();
+    });
+  }
+  function commitTextEdit() {
+    const id = editingText;
+    if (!id) return;
+    editingText = undefined;
+    const element = editor.document.elements.find((item) => item.id === id);
+    if (element?.type === 'text' && element.text !== textDraft) editor.execute(patchElement(id, { text: textDraft }));
+  }
+  function textEditKeys(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      editingText = undefined;
+    } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      commitTextEdit();
+    }
+  }
+  /** Double-click edits a text element that is already selectable on its own; inside a group it first selects the child. */
+  function activateElement(event: MouseEvent, element: LabelElement) {
+    if (element.type === 'text' && (!element.groupId || editor.selection.has(element.id))) {
+      event.stopPropagation();
+      startTextEdit(element);
+    } else enterElement(event, element);
+  }
+  /** Screen anchors for the informational chrome, which is not scaled with the label. */
+  const chromeAt = $derived((point: { x: number; y: number }) =>
+    labelToScreen(point, editor.view, { width: editor.document.media.width, height: displayHeight }),
+  );
   const verticalTicks = $derived(
     rulerTicks(editor.view.zoom, rulerOrigin.y - RULER_SIZE, Math.max(0, editor.view.viewport.height - RULER_SIZE)),
   );
@@ -645,20 +706,8 @@
           style={`height:${rollSettings.leadingMarginMm * pxPerMm}px`}
         ></div>
         <div class="safe-margin trailing" style={`height:${rollSettings.trailingMarginMm * pxPerMm}px`}></div>
-        <div class="cut-line"><span>Cut at {displayHeight.toFixed(2)} mm</span></div>{/if}
-      {#if sdk && previewDocument}<ThermalPreview
-          {sdk}
-          document={previewDocument}
-          zoom={editor.view.zoom}
-        />{:else if previewError}<span class="preview-error" title={previewError}>Fit preview unavailable</span>{/if}
-      {#if previewWarning}<span class="preview-warning" role="status" title={previewWarning}>{previewWarning}</span
-        >{/if}
-      {#if editor.document.template?.records.length}<span
-          class="record-badge"
-          role="status"
-          title="Values from this record are shown; pick another row in the Data tab"
-          >Record {editor.document.template.currentRecord + 1} of {editor.document.template.records.length}</span
-        >{/if}
+        <div class="cut-line"><span class="visually-hidden">Cut at {displayHeight.toFixed(2)} mm</span></div>{/if}
+      {#if sdk && previewDocument}<ThermalPreview {sdk} document={previewDocument} zoom={editor.view.zoom} />{/if}
       {#each sortedElements as element (element.id)}
         {#if element.type !== 'group' && isEffectivelyVisible(displayDocument, element)}
           <button
@@ -675,7 +724,7 @@
             )}
             onpointerdown={(event) => startDrag(event, element)}
             onpointerup={finishDrag}
-            ondblclick={(event) => enterElement(event, element)}
+            ondblclick={(event) => activateElement(event, element)}
             aria-label={element.name}
           >
             {#if element.type === 'text'}<span style={textBoxStyle(element)}
@@ -697,7 +746,7 @@
       {/each}
       {#if selectionBounds}<div
           class="selection-box"
-          style={boundsStyle(selectionBounds, drag?.kind === 'move' ? dragPreviewDelta : undefined)}
+          style={`${boundsStyle(selectionBounds, drag?.kind === 'move' ? dragPreviewDelta : undefined)};--inverse-zoom:${1 / editor.view.zoom}`}
         >
           {#if selectionHasGroup}<div
               class="selection-move"
@@ -732,6 +781,50 @@
       >
         <span>continuous roll</span>
       </div>{/if}
+  </div>
+  <div class="chrome" aria-live="polite">
+    {#if editor.document.media.shape === 'continuous'}
+      {@const cut = chromeAt({ x: editor.document.media.width, y: displayHeight })}
+      <span class="cut-label" style={`left:${cut.x}px;top:${cut.y}px`}>Cut at {displayHeight.toFixed(2)} mm</span>
+    {/if}
+    {#if editor.document.template?.records.length}
+      {@const origin = chromeAt({ x: 0, y: 0 })}
+      <span
+        class="record-badge"
+        role="status"
+        style={`left:${origin.x + 6}px;top:${origin.y + 6}px`}
+        title="Values from this record are shown; pick another row in the Data tab"
+        >Record {editor.document.template.currentRecord + 1} of {editor.document.template.records.length}</span
+      >
+    {/if}
+    {#if previewWarning}
+      {@const corner = chromeAt({ x: 0, y: displayHeight })}
+      <span
+        class="preview-warning"
+        role="status"
+        style={`left:${corner.x + 6}px;top:${corner.y - 6}px`}
+        title={previewWarning}>{previewWarning}</span
+      >
+    {/if}
+    {#if previewError && !previewDocument}
+      {@const corner = chromeAt({ x: editor.document.media.width, y: displayHeight })}
+      <span class="preview-error" style={`left:${corner.x - 6}px;top:${corner.y - 6}px`} title={previewError}
+        >Fit preview unavailable</span
+      >
+    {/if}
+    {#if !editor.document.elements.length}
+      <p class="empty-hint">Add text or a shape from the tools on the left, or drop an asset here.</p>
+    {/if}
+    {#if editingRect}
+      <textarea
+        class="inline-edit"
+        aria-label="Edit text"
+        style={`left:${editingRect.left}px;top:${editingRect.top}px;width:${editingRect.width}px;height:${editingRect.height}px;font-size:${(editingElement?.fontSize ?? 4) * PX_PER_MM * editor.view.zoom}px`}
+        value={textDraft}
+        oninput={(event) => (textDraft = event.currentTarget.value)}
+        onblur={commitTextEdit}
+        onkeydown={textEditKeys}></textarea>
+    {/if}
   </div>
   {#if selectionBounds && !drag}
     <SelectionBar
@@ -834,6 +927,18 @@
     border: 1px solid var(--mble-primary, #ed6146);
     pointer-events: auto;
     z-index: 20;
+    /* Handles keep their screen size at any zoom and carry a hit area larger than they look. */
+    transform: scale(var(--inverse-zoom, 1));
+  }
+  .handle::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+  @media (pointer: coarse) {
+    .handle::before {
+      inset: -12px;
+    }
   }
   .handle.resize.nw {
     left: -5px;
@@ -1001,18 +1106,6 @@
     border-bottom: 2px dashed var(--mble-danger, #a22929);
     pointer-events: none;
   }
-  .cut-line span {
-    position: absolute;
-    right: 2px;
-    bottom: 2px;
-    width: auto;
-    height: auto;
-    padding: 1px 3px;
-    background: #fff;
-    color: var(--mble-danger, #a22929);
-    font-size: 8px;
-    white-space: nowrap;
-  }
   .roll-continuation {
     position: absolute;
     left: 0;
@@ -1033,38 +1126,77 @@
     margin-top: 30px;
     opacity: 0.65;
   }
-  .preview-error {
+  .chrome {
     position: absolute;
-    right: 0.3rem;
-    bottom: 0.3rem;
-    z-index: 10002;
-    padding: 2px 4px;
-    background: #fff;
-    color: var(--mble-danger, #a21);
-    font-size: 9px;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    font-size: 0.7rem;
+  }
+  .chrome > span {
+    position: absolute;
+    max-width: 40%;
+    padding: 2px 5px;
+    border-radius: var(--mble-radius-sm, 4px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cut-label {
+    transform: translate(-100%, -100%);
+    background: var(--mble-surface, #fff);
+    color: var(--mble-danger, #a22929);
   }
   .record-badge {
-    position: absolute;
-    left: 0.3rem;
-    top: 0.3rem;
-    z-index: 10002;
-    padding: 2px 5px;
     border-radius: 999px;
     background: var(--mble-primary, #ed6146);
-    color: #fff;
-    font-size: 9px;
+    color: var(--mble-primary-text, #fff);
     font-weight: 600;
-    pointer-events: none;
   }
   .preview-warning {
-    position: absolute;
-    left: 0.3rem;
-    bottom: 0.3rem;
-    z-index: 10002;
-    max-width: 80%;
-    padding: 2px 4px;
+    transform: translateY(-100%);
     background: #fff7df;
     color: var(--mble-danger, #a21);
-    font-size: 9px;
+  }
+  .preview-error {
+    transform: translate(-100%, -100%);
+    background: var(--mble-surface, #fff);
+    color: var(--mble-danger, #a21);
+  }
+  .empty-hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    max-width: 18rem;
+    margin: 0;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--mble-text-muted, #59635e);
+    font-size: 0.8rem;
+  }
+  .inline-edit {
+    position: absolute;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--mble-primary, #ed6146);
+    background: #fff;
+    color: #111;
+    font-family: inherit;
+    line-height: 1.2;
+    resize: none;
+    pointer-events: auto;
+    z-index: 7;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

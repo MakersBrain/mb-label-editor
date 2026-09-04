@@ -1995,3 +1995,29 @@ test('the header shows an editable document title and the saved state', async ({
   expect((await download).suggestedFilename()).toBe('Shelf tags.mb-label.json');
   await expect(page.locator('.appbar .media-chip')).toContainText('50 × 30 mm');
 });
+
+test('canvas chrome stays unscaled, the empty label shows a hint and text edits inline', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.empty-hint')).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'Drawing tools' })
+    .getByRole('button', { name: 'Text', exact: true })
+    .click();
+  await expect(page.locator('.empty-hint')).toHaveCount(0);
+  const text = page.locator('.element.text');
+  await text.dblclick();
+  const area = page.getByLabel('Edit text');
+  await expect(area).toBeFocused();
+  await area.fill('Blueberry jam');
+  await area.press('Control+Enter');
+  await expect(area).toHaveCount(0);
+  await expect(text.locator('span.text-body')).toHaveText('Blueberry jam');
+  await expect(page.locator('#inspector').getByLabel('Text', { exact: true })).toHaveValue('Blueberry jam');
+  const handle = page.locator('.selection-box .handle.resize.se');
+  const before = (await handle.boundingBox())!;
+  await page
+    .getByRole('application', { name: 'Label canvas' })
+    .dispatchEvent('wheel', { deltaY: 240, clientX: 400, clientY: 300 });
+  const after = (await handle.boundingBox())!;
+  expect(Math.abs(after.width - before.width)).toBeLessThan(1.5);
+});
