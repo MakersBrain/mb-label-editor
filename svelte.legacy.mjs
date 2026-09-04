@@ -18,7 +18,6 @@ export const legacyComponents = new Set([
   'ExternalResourceConnectionsPanel.svelte',
   'GuidesPanel.svelte',
   'JobRecoveryPanel.svelte',
-  'LabelEditor.svelte',
   'LaPostePanel.svelte',
   'LibraryPanel.svelte',
   'LocalServicePanel.svelte',

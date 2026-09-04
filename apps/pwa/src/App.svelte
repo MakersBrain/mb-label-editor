@@ -68,8 +68,8 @@
 <svelte:window on:online={()=>online=true} on:offline={()=>online=false}/>
 <div class="app">
   <LabelEditor {editor} {sdk} materializer={sdk} {resourceProvider} {printers} {printerId} onPrinter={selectPrinter}>
-    <BrandLockup slot="brand" product="Label Editor" href="./"/>
-    <Menu slot="menu-start" label="File">
+    {#snippet brand()}<BrandLockup product="Label Editor" href="./"/>{/snippet}
+    {#snippet menuStart()}<Menu label="File">
       <button on:click={()=>open()}>Open picker</button>
       <label class="file">Upload<input type="file" accept=".mb-label.json,application/json" on:change={open}></label>
       <button on:click={save} disabled={!!outputSettingsError} title={outputSettingsError||undefined}>Save</button>
@@ -84,8 +84,8 @@
       <hr>
       <button on:click={()=>dialog='external-resources'}>External resources…</button>
       {#if updateAvailable}<button on:click={()=>location.reload()}>Update application</button>{/if}
-    </Menu>
-    <Menu slot="menu-end" label="Print">
+    </Menu>{/snippet}
+    {#snippet menuEnd()}<Menu label="Print">
       <button on:click={print} disabled={printing||!printAvailable||!!outputSettingsError} title={outputSettingsError||undefined}>{primaryPrintLabel} current label via {selectedRoute.label}</button>
       <button on:click={()=>dialog='batch'}>Batch printing…</button>
       <button on:click={()=>dialog='sheet'}>Label sheet…</button>
@@ -95,14 +95,14 @@
       <button on:click={()=>dialog=cloudRoute?'cloud':'cloud-connect'}>Cloud printers…</button>
       {#if cloudRoute}<button on:click={endCloudSession}>End cloud session</button>{/if}
       <button on:click={()=>dialog='jobs'}>Recover print jobs…</button>
-    </Menu>
-    <svelte:fragment slot="actions">
+    </Menu>{/snippet}
+    {#snippet actions()}
       <span class="media-chip">{$editor.document.media.width} × {$editor.document.media.height} mm · {$editor.document.media.shape}</span>
       <select value={selectedRoute.id} on:change={event=>chooseRoute(event.currentTarget.value)} aria-label="Print route"><option value="local-api">Local service</option>{#if directRoute}<option value={directRoute.id}>Direct browser</option>{/if}{#if cloudRoute}<option value="cloud-api">Cloud</option>{/if}</select>
       <select value={printerId} on:change={event=>selectPrinter(event.currentTarget.value)} on:focus={()=>void ensureSdk()} aria-label="Printer model"><option value="">Printer model</option>{#each printers as printer}<option value={printer.id}>{printer.displayName}</option>{/each}</select>
       <button class="primary" on:click={print} disabled={printing||!printAvailable||!!outputSettingsError} title={outputSettingsError||undefined}>{primaryPrintLabel}</button>
-    </svelte:fragment>
-    <svelte:fragment slot="sidebar">{#if sdk}<DirectPrintPanel document={$editor.document} {sdk} materializer={sdk} printer={printers.find(item=>item.id===printerId)} {database} localRoute={localRoute} {localConnection} initialContinuous={continuousPrint} onContinuous={acceptContinuousPrint} onLocalConnection={acceptConnection} onConfigureLocal={()=>dialog='service'} onSelectLocal={()=>chooseRoute('local-api')} onRoute={acceptRoute} onMedia={applyPrinterMedia}/>{:else}<p class="pending">Loading printer support…</p>{/if}</svelte:fragment>
+    {/snippet}
+    {#snippet sidebar()}{#if sdk}<DirectPrintPanel document={$editor.document} {sdk} materializer={sdk} printer={printers.find(item=>item.id===printerId)} {database} localRoute={localRoute} {localConnection} initialContinuous={continuousPrint} onContinuous={acceptContinuousPrint} onLocalConnection={acceptConnection} onConfigureLocal={()=>dialog='service'} onSelectLocal={()=>chooseRoute('local-api')} onRoute={acceptRoute} onMedia={applyPrinterMedia}/>{:else}<p class="pending">Loading printer support…</p>{/if}{/snippet}
   </LabelEditor>
   <footer aria-live="polite"><span class:offline={!online}>{online?'Online':'Offline — local editing and export remain available'}</span> · {status}{#if progress} · action {progress.action}/{progress.actions}, {progress.bytesSent}/{progress.totalBytes} bytes{/if}<span class="build"><span title="Editor build">tag-{__MB_BUILD_TAG__}</span> · {#if sdk}<span title={`Printer SDK ${sdk.buildInfo.name} ${sdk.buildInfo.version}, commit ${sdk.buildInfo.commit}${sdk.buildInfo.dirty?" (modified tree)":""}`}>sdk-{sdkBuildLabel(sdk.buildInfo)}</span>{:else}<span title="Printer SDK (WebAssembly)">sdk-loading</span>{/if}</span></footer>
   <Modal open={dialog==='service'} title="Local service" onClose={()=>dialog=''}><LocalServicePanel route={localRoute} onToken={acceptToken} onConnection={acceptConnection} selectedId={connectionId} paired={!!apiToken} active={dialog==='service'}/></Modal>

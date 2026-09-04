@@ -1,55 +1,72 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<script lang="ts">import type { EditorStore } from '../store.svelte.js';import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import type{DocumentMaterializer}from'../materialization.js';import type{AssetCatalogClient}from'../asset-catalog/client.js';import type{ExternalResourceProvider}from'../external-resources/types.js'; import {addElement,groupElements,moveElements,removeElements,ungroup} from '../commands.js';import {copyElements,pasteElements} from '../clipboard.js'; import Canvas from './Canvas.svelte';import ShortcutsPanel from './ShortcutsPanel.svelte';import TemplateSyntaxPanel from './TemplateSyntaxPanel.svelte';import Inspector from './Inspector.svelte';import Layers from './Layers.svelte';import DataPanel from './DataPanel.svelte';import AssetPanel from './AssetPanel.svelte';import MediaPanel from './MediaPanel.svelte';import LibraryPanel from './LibraryPanel.svelte';import GuidesPanel from './GuidesPanel.svelte';import Toolbar from './Toolbar.svelte';import EditorMenus from './EditorMenus.svelte';import Modal from './Modal.svelte'; export let editor:EditorStore;export let sdk:PrinterSdk|undefined=undefined;export let materializer:Pick<DocumentMaterializer,'materializeRecord'>|undefined=undefined;export let resourceProvider:ExternalResourceProvider|undefined=undefined;/** @deprecated Pass resourceProvider instead. */export let assetCatalog:AssetCatalogClient|undefined=undefined;export let printers:PrinterDefinition[]=[];export let printerId='';export let onPrinter:(id:string)=>void=()=>{};let sidebarOpen=true;let dialog='';$: activeResourceProvider=resourceProvider??assetCatalog;
+<script lang="ts">import type { Snippet } from 'svelte';import type { EditorStore } from '../store.svelte.js';import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import type{DocumentMaterializer}from'../materialization.js';import type{AssetCatalogClient}from'../asset-catalog/client.js';import type{ExternalResourceProvider}from'../external-resources/types.js'; import {addElement,groupElements,moveElements,removeElements,ungroup} from '../commands.js';import {copyElements,pasteElements} from '../clipboard.js'; import Canvas from './Canvas.svelte';import ShortcutsPanel from './ShortcutsPanel.svelte';import TemplateSyntaxPanel from './TemplateSyntaxPanel.svelte';import Inspector from './Inspector.svelte';import Layers from './Layers.svelte';import DataPanel from './DataPanel.svelte';import AssetPanel from './AssetPanel.svelte';import MediaPanel from './MediaPanel.svelte';import LibraryPanel from './LibraryPanel.svelte';import GuidesPanel from './GuidesPanel.svelte';import Toolbar from './Toolbar.svelte';import EditorMenus from './EditorMenus.svelte';import Modal from './Modal.svelte';
+interface Props {
+  editor: EditorStore;
+  sdk?: PrinterSdk;
+  materializer?: Pick<DocumentMaterializer, 'materializeRecord'>;
+  resourceProvider?: ExternalResourceProvider;
+  /** @deprecated Pass resourceProvider instead. */
+  assetCatalog?: AssetCatalogClient;
+  printers?: PrinterDefinition[];
+  printerId?: string;
+  onPrinter?: (id: string) => void;
+  /** Host-provided regions of the shell: brand lockup, extra menus, header actions and the printer tab. */
+  brand?: Snippet; menuStart?: Snippet; menuEnd?: Snippet; actions?: Snippet; sidebar?: Snippet;
+}
+let { editor, sdk, materializer, resourceProvider, assetCatalog, printers = [], printerId = '', onPrinter = () => {}, brand, menuStart, menuEnd, actions, sidebar }: Props = $props();
+let sidebarOpen=$state(true);let dialog=$state('');
+const activeResourceProvider=$derived(resourceProvider??assetCatalog);
+const selectedPrinter=$derived(printers.find(item=>item.id===printerId));
 const dialogTitles:Record<string,string>={media:'Media & zones',data:'Data',assets:'Assets',library:'Library',guides:'Guides',shortcuts:'Keyboard shortcuts',syntax:'Template syntax'};
 type SidebarTab='layers'|'assets'|'data'|'printer';const sidebarTabs:SidebarTab[]=['layers','assets','data','printer'];const sidebarTabKey='mb-label-editor:sidebar-tab';
 /** The chosen tab survives reloads; storage may be unavailable in private windows. */
-let sidebarTab:SidebarTab=(()=>{try{const saved=globalThis.localStorage?.getItem(sidebarTabKey);return sidebarTabs.includes(saved as SidebarTab)?saved as SidebarTab:'layers'}catch{return 'layers'}})();
+let sidebarTab:SidebarTab=$state((()=>{try{const saved=globalThis.localStorage?.getItem(sidebarTabKey);return sidebarTabs.includes(saved as SidebarTab)?saved as SidebarTab:'layers'}catch{return 'layers'}})());
 function selectSidebarTab(tab:SidebarTab){sidebarTab=tab;try{globalThis.localStorage?.setItem(sidebarTabKey,tab)}catch{/* storage unavailable */}}
 function tabKeys(event:KeyboardEvent){if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();const index=sidebarTabs.indexOf(sidebarTab);const next=sidebarTabs[(index+(event.key==='ArrowRight'?1:sidebarTabs.length-1))%sidebarTabs.length];selectSidebarTab(next);(document.getElementById(`sidebar-tab-${next}`) as HTMLElement|null)?.focus()}
 /** Assets live in the sidebar; the Label menu entry reveals that tab instead of a dialog. */
 function openPanel(name:string){if(name==='assets'||name==='data'){selectSidebarTab(name);sidebarOpen=true}else dialog=name}
 const sidebarWidthKey='mb-label-editor:sidebar-width';const defaultSidebarWidth=304;const minSidebarWidth=240;
 /** Width in pixels; wider panels let the asset grid grow more columns and keep font rows from wrapping. */
-let sidebarWidth:number=(()=>{try{const saved=Number(globalThis.localStorage?.getItem(sidebarWidthKey));return Number.isFinite(saved)&&saved>=minSidebarWidth?saved:defaultSidebarWidth}catch{return defaultSidebarWidth}})();
+let sidebarWidth:number=$state((()=>{try{const saved=Number(globalThis.localStorage?.getItem(sidebarWidthKey));return Number.isFinite(saved)&&saved>=minSidebarWidth?saved:defaultSidebarWidth}catch{return defaultSidebarWidth}})());
 const maxSidebarWidth=()=>Math.max(minSidebarWidth,Math.round((globalThis.innerWidth||1200)*0.6));
 function setSidebarWidth(width:number){sidebarWidth=Math.round(Math.min(maxSidebarWidth(),Math.max(minSidebarWidth,width)));try{globalThis.localStorage?.setItem(sidebarWidthKey,String(sidebarWidth))}catch{/* storage unavailable */}}
-let resizing:{pointerId:number;startX:number;startWidth:number}|undefined;
+let resizing:{pointerId:number;startX:number;startWidth:number}|undefined=$state();
 function startSidebarResize(event:PointerEvent){if(event.button!==0)return;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);resizing={pointerId:event.pointerId,startX:event.clientX,startWidth:sidebarWidth};event.preventDefault()}
 function moveSidebarResize(event:PointerEvent){if(!resizing||event.pointerId!==resizing.pointerId)return;setSidebarWidth(resizing.startWidth+(resizing.startX-event.clientX))}
 function endSidebarResize(event:PointerEvent){if(resizing&&event.pointerId===resizing.pointerId)resizing=undefined}
 function sidebarResizeKeys(event:KeyboardEvent){const step=event.shiftKey?64:16;if(event.key==='ArrowLeft'){event.preventDefault();setSidebarWidth(sidebarWidth+step)}else if(event.key==='ArrowRight'){event.preventDefault();setSidebarWidth(sidebarWidth-step)}else if(event.key==='Home'){event.preventDefault();setSidebarWidth(maxSidebarWidth())}else if(event.key==='End'){event.preventDefault();setSidebarWidth(minSidebarWidth)}}
-function groupSelected(){if($editor.selection.size<2)return;const command=groupElements($editor.selection);editor.execute(command);editor.select([command.createdId])}
+function groupSelected(){if(editor.selection.size<2)return;const command=groupElements(editor.selection);editor.execute(command);editor.select([command.createdId])}
 function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if(['INPUT','TEXTAREA','SELECT'].includes(target.tagName))return;const modifier=event.ctrlKey||event.metaKey;
   if(modifier&&event.key.toLowerCase()==='z'){event.preventDefault();event.shiftKey?editor.redo():editor.undo()}else if(modifier&&event.key.toLowerCase()==='y'){event.preventDefault();editor.redo()}
-  else if(modifier&&event.key.toLowerCase()==='a'){event.preventDefault();editor.select($editor.document.elements.map(e=>e.id))}else if(modifier&&event.key.toLowerCase()==='c'){event.preventDefault();copyElements($editor.document.elements,$editor.selection)}
+  else if(modifier&&event.key.toLowerCase()==='a'){event.preventDefault();editor.select(editor.document.elements.map(e=>e.id))}else if(modifier&&event.key.toLowerCase()==='c'){event.preventDefault();copyElements(editor.document.elements,editor.selection)}
   else if(modifier&&event.key.toLowerCase()==='v'){event.preventDefault();const items=pasteElements();for(const item of items)editor.execute(addElement(item));editor.select(items.map(i=>i.id))}
-  else if(modifier&&event.key.toLowerCase()==='g'){event.preventDefault();if(event.shiftKey){for(const item of $editor.selectedElements)if(item.type==='group')editor.execute(ungroup(item.id))}else groupSelected()}
+  else if(modifier&&event.key.toLowerCase()==='g'){event.preventDefault();if(event.shiftKey){for(const item of editor.selectedElements)if(item.type==='group')editor.execute(ungroup(item.id))}else groupSelected()}
   else if(event.key==='?'&&!modifier){event.preventDefault();dialog=dialog==='shortcuts'?'':'shortcuts'}
-  else if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();editor.execute(removeElements($editor.selection));editor.clearSelection()}
-  else if($editor.selection.size&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();const step=event.shiftKey?1:.1;editor.execute(moveElements($editor.selection,{x:event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0,y:event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0}))}}
+  else if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();editor.execute(removeElements(editor.selection));editor.clearSelection()}
+  else if(editor.selection.size&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();const step=event.shiftKey?1:.1;editor.execute(moveElements(editor.selection,{x:event.key==='ArrowLeft'?-step:event.key==='ArrowRight'?step:0,y:event.key==='ArrowUp'?-step:event.key==='ArrowDown'?step:0}))}}
 </script>
-<svelte:window on:keydown={keys}/>
+<svelte:window onkeydown={keys}/>
 <div class="editor mb-label-editor">
   <header class="appbar">
-    <div class="brand"><slot name="brand"/></div>
+    <div class="brand">{@render brand?.()}</div>
     <nav class="menubar" aria-label="Editor menus">
-      <slot name="menu-start"/>
+      {@render menuStart?.()}
       <EditorMenus {editor} {sidebarOpen} onOpen={openPanel} onToggleSidebar={()=>sidebarOpen=!sidebarOpen}/>
-      <slot name="menu-end"/>
+      {@render menuEnd?.()}
     </nav>
-    <div class="appbar-actions"><slot name="actions"/></div>
+    <div class="appbar-actions">{@render actions?.()}</div>
   </header>
   <Toolbar {editor}/>
   <main class:sidebar-closed={!sidebarOpen} style={`--sidebar-width:${sidebarWidth}px`}>
-    <div class="canvas"><Canvas {editor} {sdk} {materializer} printer={printers.find(item=>item.id===printerId)}/></div>
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex a11y_no_noninteractive_element_interactions -->
-    {#if sidebarOpen}<div class="sidebar-resizer" role="separator" aria-orientation="vertical" aria-label="Resize side panel" aria-valuemin={minSidebarWidth} aria-valuemax={maxSidebarWidth()} aria-valuenow={sidebarWidth} tabindex="0" title="Drag to resize the side panel" on:pointerdown={startSidebarResize} on:pointermove={moveSidebarResize} on:pointerup={endSidebarResize} on:pointercancel={endSidebarResize} on:keydown={sidebarResizeKeys} on:dblclick={()=>setSidebarWidth(defaultSidebarWidth)}></div>{/if}
+    <div class="canvas"><Canvas {editor} {sdk} {materializer} printer={selectedPrinter}/></div>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+    {#if sidebarOpen}<div class="sidebar-resizer" role="separator" aria-orientation="vertical" aria-label="Resize side panel" aria-valuemin={minSidebarWidth} aria-valuemax={maxSidebarWidth()} aria-valuenow={sidebarWidth} tabindex="0" title="Drag to resize the side panel" onpointerdown={startSidebarResize} onpointermove={moveSidebarResize} onpointerup={endSidebarResize} onpointercancel={endSidebarResize} onkeydown={sidebarResizeKeys} ondblclick={()=>setSidebarWidth(defaultSidebarWidth)}></div>{/if}
     <aside class:open={sidebarOpen}>
       <div class="tabs" role="tablist" aria-label="Side panels">
-        <button type="button" role="tab" id="sidebar-tab-layers" aria-selected={sidebarTab==='layers'} aria-controls="sidebar-panel-layers" tabindex={sidebarTab==='layers'?0:-1} on:click={()=>selectSidebarTab('layers')} on:keydown={tabKeys}>Layers</button>
-        <button type="button" role="tab" id="sidebar-tab-assets" aria-selected={sidebarTab==='assets'} aria-controls="sidebar-panel-assets" tabindex={sidebarTab==='assets'?0:-1} on:click={()=>selectSidebarTab('assets')} on:keydown={tabKeys}>Assets</button>
-        <button type="button" role="tab" id="sidebar-tab-data" aria-selected={sidebarTab==='data'} aria-controls="sidebar-panel-data" tabindex={sidebarTab==='data'?0:-1} on:click={()=>selectSidebarTab('data')} on:keydown={tabKeys}>Data</button>
-        <button type="button" role="tab" id="sidebar-tab-printer" aria-selected={sidebarTab==='printer'} aria-controls="sidebar-panel-printer" tabindex={sidebarTab==='printer'?0:-1} on:click={()=>selectSidebarTab('printer')} on:keydown={tabKeys}>Printer</button>
+        <button type="button" role="tab" id="sidebar-tab-layers" aria-selected={sidebarTab==='layers'} aria-controls="sidebar-panel-layers" tabindex={sidebarTab==='layers'?0:-1} onclick={()=>selectSidebarTab('layers')} onkeydown={tabKeys}>Layers</button>
+        <button type="button" role="tab" id="sidebar-tab-assets" aria-selected={sidebarTab==='assets'} aria-controls="sidebar-panel-assets" tabindex={sidebarTab==='assets'?0:-1} onclick={()=>selectSidebarTab('assets')} onkeydown={tabKeys}>Assets</button>
+        <button type="button" role="tab" id="sidebar-tab-data" aria-selected={sidebarTab==='data'} aria-controls="sidebar-panel-data" tabindex={sidebarTab==='data'?0:-1} onclick={()=>selectSidebarTab('data')} onkeydown={tabKeys}>Data</button>
+        <button type="button" role="tab" id="sidebar-tab-printer" aria-selected={sidebarTab==='printer'} aria-controls="sidebar-panel-printer" tabindex={sidebarTab==='printer'?0:-1} onclick={()=>selectSidebarTab('printer')} onkeydown={tabKeys}>Printer</button>
       </div>
       <div id="sidebar-panel-layers" role="tabpanel" aria-labelledby="sidebar-tab-layers" hidden={sidebarTab!=='layers'}>
         <details open><summary>Layers</summary><Layers {editor}/></details>
@@ -62,7 +79,7 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
         <DataPanel {editor} onSyntaxHelp={()=>dialog='syntax'}/>
       </div>
       <div id="sidebar-panel-printer" role="tabpanel" aria-labelledby="sidebar-tab-printer" hidden={sidebarTab!=='printer'}>
-        <slot name="sidebar"/>
+        {@render sidebar?.()}
       </div>
     </aside>
   </main>
