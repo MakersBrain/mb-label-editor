@@ -6,20 +6,16 @@
   import type { LabelDocument } from '../model.js';
   import type { PrinterDefinition } from '../print/types.js';
 
-  export let client: CloudPrintClient;
-  export let route: CloudPrintRoute;
-  export let document: LabelDocument;
-  export let printer: PrinterDefinition | undefined;
-  export let selectedId = '';
-  export let onPrinter: (printer: CloudPrinter | undefined) => void = () => {};
+  interface Props { client: CloudPrintClient; route: CloudPrintRoute; document: LabelDocument; printer: PrinterDefinition | undefined; selectedId?: string; onPrinter?: (printer: CloudPrinter | undefined) => void }
+  let { client, route, document, printer, selectedId = $bindable(''), onPrinter = () => {} }: Props = $props();
 
-  let printers: CloudPrinter[] = [];
-  let current: CloudPrintJob | undefined;
-  let status = '';
-  let busy = false;
-  let printing = false;
-  let cancelling = false;
-  $: selectedPrinter = printers.find(item => item.id === selectedId);
+  let printers: CloudPrinter[] = $state.raw([]);
+  let current: CloudPrintJob | undefined = $state.raw();
+  let status = $state('');
+  let busy = $state(false);
+  let printing = $state(false);
+  let cancelling = $state(false);
+  const selectedPrinter = $derived(printers.find(item => item.id === selectedId));
 
   onMount(() => {
     const unsubscribe = route.controller.subscribe(job => current = job);
@@ -72,23 +68,23 @@
   <h2>Cloud printers</h2>
   <div class="row">
     <label>Published printer
-      <select bind:value={selectedId} on:change={event => choose(event.currentTarget.value)}>
+      <select bind:value={selectedId} onchange={event => choose(event.currentTarget.value)}>
         <option value="">Select a cloud printer</option>
         {#each printers as item}
           <option value={item.id}>{item.displayName} · {item.model} · {item.enabled ? (item.online ? 'Online' : 'Offline') : 'Disabled'}</option>
         {/each}
       </select>
     </label>
-    <button on:click={refresh} disabled={busy}>Refresh</button>
+    <button onclick={refresh} disabled={busy}>Refresh</button>
   </div>
   {#if selectedPrinter}
     <p class:warning={!selectedPrinter.online || !selectedPrinter.enabled}><strong>{selectedPrinter.displayName}</strong> · {selectedPrinter.model} · {selectedPrinter.enabled ? (selectedPrinter.online ? 'Online' : 'Offline — this label will queue') : 'Disabled'}</p>
     {#if selectedPrinter.model !== printer?.id}<p class="warning">Unsupported or mismatched printer model. Select the matching SDK model before printing.</p>{/if}
-    <button on:click={print} disabled={printing || !selectedPrinter.enabled || selectedPrinter.model !== printer?.id}>{selectedPrinter.online ? 'Print current label' : 'Queue current label'}</button>
+    <button onclick={print} disabled={printing || !selectedPrinter.enabled || selectedPrinter.model !== printer?.id}>{selectedPrinter.online ? 'Print current label' : 'Queue current label'}</button>
   {/if}
   {#if current}
     <dl><dt>Job</dt><dd>{current.id}</dd><dt>State</dt><dd>{current.terminalOutcome ?? current.state}</dd><dt>Progress</dt><dd>{current.bytesSent}/{current.totalBytes} bytes</dd></dl>
-    {#if !terminal(current)}<button on:click={cancel} disabled={cancelling}>Cancel job</button>{/if}
+    {#if !terminal(current)}<button onclick={cancel} disabled={cancelling}>Cancel job</button>{/if}
     {#if current.writeMayHaveOccurred && ['failed','cancelled-partial','outcome-unknown'].includes(current.terminalOutcome ?? current.state)}<p class="warning">The printer may have produced output. Inspect it before printing again.</p>{/if}
   {/if}
   <p aria-live="polite">{status}</p>
