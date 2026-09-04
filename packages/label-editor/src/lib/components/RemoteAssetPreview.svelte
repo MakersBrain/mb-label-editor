@@ -1,16 +1,13 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { ExternalResourceProvider } from '../external-resources/types.js';
-  export let provider: ExternalResourceProvider;
-  export let path: string;
-  export let alt = '';
-  /** Catalogue previews often carry large transparent margins; trimming lets the artwork fill its tile. */
-  export let trim = true;
-  let source = '';
-  let failed = false;
-  onMount(() => {
+  /** `trim` crops large transparent margins that catalogue previews often carry, so the artwork fills its tile. */
+  let { provider, path, alt = '', trim = true }: { provider: ExternalResourceProvider; path: string; alt?: string; trim?: boolean } = $props();
+  let source = $state('');
+  let failed = $state(false);
+  $effect(() => {
     let active = true;
+    source = ''; failed = false;
     let objectUrl = '';
     void provider.fetchBlob(path).then(async blob => {
       if (!active) return;

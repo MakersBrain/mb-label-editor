@@ -17,6 +17,5 @@ export const legacyComponents = new Set([
   'LaPostePanel.svelte',
   'LocalServicePanel.svelte',
   'MediaPanel.svelte',
-  'RemoteAssetPreview.svelte',
   'SheetPanel.svelte',
 ]);
