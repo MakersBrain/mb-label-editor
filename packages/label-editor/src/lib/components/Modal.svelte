@@ -7,18 +7,57 @@
     onClose = () => {},
     children,
   }: { open?: boolean; title?: string; onClose?: () => void; children?: Snippet } = $props();
+  let dialog: HTMLElement | undefined = $state.raw();
+  const focusable = () =>
+    [
+      ...(dialog?.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),summary,[tabindex]:not([tabindex="-1"])',
+      ) ?? []),
+    ].filter((item) => item.offsetParent !== null || item === document.activeElement);
   function key(event: KeyboardEvent) {
-    if (event.key === 'Escape' && open) {
+    if (!open) return;
+    if (event.key === 'Escape') {
       event.stopPropagation();
       onClose();
+    } else if (event.key === 'Tab') {
+      // Keep keyboard focus inside the dialog, wrapping at both ends.
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !dialog?.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !dialog?.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   }
+  // Move focus into the dialog when it opens and hand it back when it closes.
+  $effect(() => {
+    if (!open || !dialog) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const target = focusable().find((item) => !item.classList.contains('scrim')) ?? dialog;
+    target.focus();
+    return () => {
+      if (previous && previous.isConnected) previous.focus();
+    };
+  });
 </script>
 
 <svelte:window onkeydown={key} />
 {#if open}
   <button type="button" class="scrim" tabindex="-1" aria-label={`Dismiss ${title}`} onclick={onClose}></button>
-  <div class="dialog mb-label-editor" role="dialog" aria-modal="true" aria-label={title}>
+  <div
+    class="dialog mb-label-editor"
+    role="dialog"
+    aria-modal="true"
+    aria-label={title}
+    tabindex="-1"
+    bind:this={dialog}
+  >
     <header>
       <h2>{title}</h2>
       <button onclick={onClose} aria-label={`Close ${title}`}>✕</button>

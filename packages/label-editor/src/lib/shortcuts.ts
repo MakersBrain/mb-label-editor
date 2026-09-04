@@ -36,6 +36,10 @@ export const editorShortcuts: ShortcutGroup[] = [
       { keys: ['Mod+Shift+G'], action: 'Ungroup the selected groups' },
       { keys: ['Arrow keys'], action: 'Nudge the selection by 0.1 mm' },
       { keys: ['Shift+Arrow keys'], action: 'Nudge the selection by 1 mm' },
+      { keys: ['Mod+Arrow keys'], action: 'Resize the selection by 0.1 mm' },
+      { keys: ['Mod+Shift+Arrow keys'], action: 'Resize the selection by 1 mm' },
+      { keys: ['[', ']'], action: 'Rotate the element by 15 degrees' },
+      { keys: ['Shift+[', 'Shift+]', 'Mod+Alt+Arrow keys'], action: 'Rotate the element by 1 degree' },
     ],
   },
   {

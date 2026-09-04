@@ -88,11 +88,8 @@
   cursor: default;
 }
 
-.mb-label-editor button:focus-visible,
-.mb-label-editor input:focus-visible,
-.mb-label-editor textarea:focus-visible,
-.mb-label-editor select:focus-visible,
-.mb-label-editor summary:focus-visible {
+.mb-label-editor :focus-visible,
+.mb-label-editor.dialog :focus-visible {
   outline: 2px solid var(--mble-focus, #ed6146);
   outline-offset: 1px;
 }

@@ -104,3 +104,16 @@ export function materializeZonePages(document: LabelDocument, zones: Zone[]): La
   }
   return [...pages.values()];
 }
+/** Union of the root-coordinate bounds of the given elements, or undefined when none match. */
+export function selectionBounds(document: LabelDocument, ids: Iterable<string>): Bounds | undefined {
+  const wanted = new Set(ids);
+  const roots = document.elements
+    .filter((item) => wanted.has(item.id))
+    .map((item) => elementRootBounds(document, item));
+  if (!roots.length) return undefined;
+  const x = Math.min(...roots.map((item) => item.x));
+  const y = Math.min(...roots.map((item) => item.y));
+  const right = Math.max(...roots.map((item) => item.x + item.width));
+  const bottom = Math.max(...roots.map((item) => item.y + item.height));
+  return { x, y, width: right - x, height: bottom - y };
+}

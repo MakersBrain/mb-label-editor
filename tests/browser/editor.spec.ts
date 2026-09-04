@@ -2021,3 +2021,39 @@ test('canvas chrome stays unscaled, the empty label shows a hint and text edits 
   const after = (await handle.boundingBox())!;
   expect(Math.abs(after.width - before.width)).toBeLessThan(1.5);
 });
+
+test('keyboard resizes and rotates the selection', async ({ page }) => {
+  await page.goto('/');
+  await page
+    .getByRole('navigation', { name: 'Drawing tools' })
+    .getByRole('button', { name: 'Rectangle', exact: true })
+    .click();
+  const element = page.locator('.element.rectangle');
+  await element.click();
+  const width = Number(await page.getByLabel('Width').inputValue());
+  await page.keyboard.press('Control+ArrowRight');
+  expect(Number(await page.getByLabel('Width').inputValue())).toBeCloseTo(width + 0.1, 6);
+  await page.keyboard.press('Control+Shift+ArrowDown');
+  expect(Number(await page.getByLabel('Height').inputValue())).toBeCloseTo(13, 6);
+  await page.keyboard.press(']');
+  await expect(page.getByLabel('Rotation')).toHaveValue('15');
+  await page.keyboard.press('Shift+[');
+  await expect(page.getByLabel('Rotation')).toHaveValue('14');
+});
+
+test('dialogs move focus inside, trap Tab and hand focus back on close', async ({ page }) => {
+  await page.goto('/');
+  await page.getByText('Help', { exact: true }).click();
+  await page.getByRole('button', { name: 'Keyboard shortcuts…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  await expect(dialog).toBeVisible();
+  await expect.poll(async () => dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+  for (let step = 0; step < 12; step++) {
+    await page.keyboard.press('Tab');
+    expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+  }
+  await page.keyboard.press('Shift+Tab');
+  expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+});

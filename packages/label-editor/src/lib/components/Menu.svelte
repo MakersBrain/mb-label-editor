@@ -7,6 +7,23 @@
     const next = event.relatedTarget as Node | null;
     if (!next || !menu.contains(next)) menu.open = false;
   }
+  function keys(event: KeyboardEvent) {
+    const menu = event.currentTarget as HTMLDetailsElement;
+    if (event.key === 'Escape' && menu.open) {
+      event.preventDefault();
+      menu.open = false;
+      menu.querySelector<HTMLElement>('summary')?.focus();
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    const items = [...menu.querySelectorAll<HTMLElement>('.sheet button:not([disabled]), .sheet input, .sheet select')];
+    if (!items.length) return;
+    event.preventDefault();
+    if (!menu.open) menu.open = true;
+    const index = items.indexOf(document.activeElement as HTMLElement);
+    const next = event.key === 'ArrowDown' ? (index + 1) % items.length : (index - 1 + items.length) % items.length;
+    items[next]?.focus();
+  }
   function pick(event: MouseEvent) {
     if ((event.target as HTMLElement).closest('button'))
       (event.currentTarget as HTMLElement).closest('details')!.removeAttribute('open');
@@ -14,10 +31,10 @@
 </script>
 
 <details class="menu" onfocusout={dismiss}>
-  <summary>{label}</summary>
+  <summary onkeydown={keys}>{label}</summary>
   <!-- The sheet only observes clicks that bubble from its own buttons, which stay keyboard-operable themselves. -->
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="sheet" class:end={align === 'end'} onclick={pick}>{@render children?.()}</div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="sheet" class:end={align === 'end'} onclick={pick} onkeydown={keys}>{@render children?.()}</div>
 </details>
 
 <style>

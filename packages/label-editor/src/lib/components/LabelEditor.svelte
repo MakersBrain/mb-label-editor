@@ -7,7 +7,17 @@
   import type { DocumentMaterializer } from '../materialization.js';
   import type { AssetCatalogClient } from '../asset-catalog/client.js';
   import type { ExternalResourceProvider } from '../external-resources/types.js';
-  import { addElement, groupElements, moveElements, removeElements, ungroup } from '../commands.js';
+  import {
+    addElement,
+    groupElements,
+    moveElements,
+    removeElements,
+    resizeElements,
+    rotateElements,
+    ungroup,
+  } from '../commands.js';
+  import { isEffectivelyLocked } from '../model.js';
+  import { selectionBounds } from '../zones.js';
   import { copyElements, pasteElements } from '../clipboard.js';
   import Canvas from './Canvas.svelte';
   import ShortcutsPanel from './ShortcutsPanel.svelte';
@@ -177,6 +187,28 @@
     editor.execute(command);
     editor.select([command.createdId]);
   }
+  /** Keyboard resize grows or shrinks the selection's bounding box from its top-left, mirroring the south-east handle. */
+  function resizeSelection(dw: number, dh: number) {
+    const ids = [...editor.selection].filter((id) => {
+      const item = editor.document.elements.find((element) => element.id === id);
+      return item && !isEffectivelyLocked(editor.document, item);
+    });
+    const bounds = selectionBounds(editor.document, ids);
+    if (!bounds) return;
+    editor.execute(
+      resizeElements(ids, {
+        ...bounds,
+        width: Math.max(0.1, Math.round((bounds.width + dw) * 100) / 100),
+        height: Math.max(0.1, Math.round((bounds.height + dh) * 100) / 100),
+      }),
+    );
+  }
+  /** Keyboard rotation applies to a single non-group element, like the rotate handle. */
+  function rotateSelection(delta: number) {
+    const [only] = editor.selectedElements;
+    if (editor.selectedElements.length !== 1 || !only || only.type === 'group') return;
+    editor.execute(rotateElements([only.id], (((only.transform.rotation + delta) % 360) + 360) % 360));
+  }
   function keys(event: KeyboardEvent) {
     const target = event.target as HTMLElement;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
@@ -225,6 +257,28 @@
       event.preventDefault();
       editor.execute(removeElements(editor.selection));
       editor.clearSelection();
+    } else if (editor.selection.size && (event.key === '[' || event.key === ']')) {
+      event.preventDefault();
+      rotateSelection((event.key === ']' ? 1 : -1) * (event.shiftKey ? 1 : 15));
+    } else if (
+      editor.selection.size &&
+      modifier &&
+      event.altKey &&
+      ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)
+    ) {
+      event.preventDefault();
+      rotateSelection(event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1);
+    } else if (
+      editor.selection.size &&
+      modifier &&
+      ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)
+    ) {
+      event.preventDefault();
+      const step = event.shiftKey ? 1 : 0.1;
+      resizeSelection(
+        event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0,
+        event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0,
+      );
     } else if (editor.selection.size && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
       event.preventDefault();
       const step = event.shiftKey ? 1 : 0.1;
