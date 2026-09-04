@@ -1,5 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Structural editor styles. Supply standalone.css or another token adapter. */
+/*
+ * Breakpoint scale. Every width media query in the editor and the PWA uses one
+ * of these values (scripts/check-breakpoints.mjs enforces it):
+ *   40rem (640px)  phone: single column, bottom sheet, full-screen dialogs
+ *   48rem (768px)  tablet: stacked shell, drawer side panel
+ *   64rem (1024px) desktop: side-by-side shell, compact selection bar below
+ *   90rem (1440px) wide: pinned inspector rail
+ */
 .mb-label-editor,
 .mb-label-editor button,
 .mb-label-editor input,

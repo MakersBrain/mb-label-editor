@@ -724,7 +724,7 @@
     color: #fff;
     border-color: #9b2c2c;
   }
-  @media (max-width: 36rem) {
+  @media (max-width: 40rem) {
     .row,
     .grid {
       align-items: stretch;

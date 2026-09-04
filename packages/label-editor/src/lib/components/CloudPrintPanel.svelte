@@ -197,7 +197,7 @@
     margin: 0;
     overflow-wrap: anywhere;
   }
-  @media (max-width: 36rem) {
+  @media (max-width: 40rem) {
     .row {
       align-items: stretch;
       flex-direction: column;

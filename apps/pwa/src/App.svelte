@@ -893,7 +893,7 @@
   .offline {
     color: var(--mb-kiln-300);
   }
-  @media (max-width: 800px) {
+  @media (max-width: 48rem) {
     .app :global(.appbar select) {
       max-width: 7.5rem;
     }

@@ -389,7 +389,7 @@
     justify-content: flex-end;
     gap: 0.5rem;
   }
-  @media (max-width: 600px) {
+  @media (max-width: 40rem) {
     .sheet-panel {
       grid-template-columns: 1fr;
     }

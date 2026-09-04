@@ -730,7 +730,7 @@
   aside [role='tabpanel'][hidden] {
     display: none;
   }
-  @media (max-width: 800px) {
+  @media (max-width: 48rem) {
     .appbar {
       flex-wrap: wrap;
       gap: 0.35rem;
@@ -748,7 +748,7 @@
       flex-basis: 100%;
     }
   }
-  @media (max-width: 760px) {
+  @media (max-width: 48rem) {
     .sidebar-resizer {
       display: none;
     }
