@@ -13,7 +13,6 @@ export const legacyComponents = new Set([
   'Canvas.svelte',
   'CloudPrintPanel.svelte',
   'DataPanel.svelte',
-  'DataSheet.svelte',
   'DirectPrintPanel.svelte',
   'ExternalResourceConnectionsPanel.svelte',
   'GuidesPanel.svelte',

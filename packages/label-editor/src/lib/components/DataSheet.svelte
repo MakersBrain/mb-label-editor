@@ -3,11 +3,10 @@
   import type { EditorStore } from '../store.svelte.js';
   import { updateDocument } from '../commands.js';
   import type { TemplateData } from '../model.js';
-  export let editor: EditorStore;
-  /** Called after every committed change so the host can persist the template. */
-  export let onChange: (template: TemplateData) => void = () => {};
-  let newField = '';
-  $: template = $editor.document.template;
+  /** `onChange` is called after every committed change so the host can persist the template. */
+  let { editor, onChange = () => {} }: { editor: EditorStore; onChange?: (template: TemplateData) => void } = $props();
+  let newField = $state('');
+  const template = $derived(editor.document.template);
   function commit(next: TemplateData, coalesceKey?: string) { editor.execute(updateDocument({ template: next }, coalesceKey)); onChange(next); }
   function setCell(row: number, field: string, value: string) {
     if (!template) return; const record = template.records[row];
@@ -54,28 +53,28 @@
     const lines = [template.fields.map(quote).join(','), ...template.records.map(record => template.fields.map(field => quote(record[field] ?? '')).join(','))];
     const anchor = document.createElement('a');
     anchor.href = URL.createObjectURL(new Blob([`${lines.join('\n')}\n`], { type: 'text/csv' }));
-    anchor.download = `${$editor.document.title || 'records'}.csv`; anchor.click(); URL.revokeObjectURL(anchor.href);
+    anchor.download = `${editor.document.title || 'records'}.csv`; anchor.click(); URL.revokeObjectURL(anchor.href);
   }
 </script>
 {#if template}
   <div class="sheet-wrap">
     <table class="sheet" aria-label="Data records">
-      <thead><tr><th class="num" scope="col">#</th>{#each template.fields as field (field)}<th scope="col"><span class="field">{field}</span>{#if template.fields.length > 1}<button type="button" class="remove" aria-label={`Remove column ${field}`} title="Remove column" on:click={() => removeField(field)}>×</button>{/if}</th>{/each}<th class="actions" scope="col"><span class="visually-hidden">Row actions</span></th></tr></thead>
+      <thead><tr><th class="num" scope="col">#</th>{#each template.fields as field (field)}<th scope="col"><span class="field">{field}</span>{#if template.fields.length > 1}<button type="button" class="remove" aria-label={`Remove column ${field}`} title="Remove column" onclick={() => removeField(field)}>×</button>{/if}</th>{/each}<th class="actions" scope="col"><span class="visually-hidden">Row actions</span></th></tr></thead>
       <tbody>
         {#each template.records as record, row (row)}
           <tr class:current={row === template.currentRecord}>
-            <th class="num" scope="row"><button type="button" aria-label={`Preview record ${row + 1}`} aria-pressed={row === template.currentRecord} title="Preview this record on the label" on:click={() => selectRow(row)}>{row + 1}</button></th>
-            {#each template.fields as field, column (field)}<td><input type="text" data-row={row} data-column={column} aria-label={`${field}, row ${row + 1}`} value={record[field] ?? ''} on:change={(event) => setCell(row, field, event.currentTarget.value)} on:focus={() => selectRow(row)} on:keydown={(event) => cellKeys(event, row, column)}></td>{/each}
-            <td class="actions"><button type="button" aria-label={`Duplicate row ${row + 1}`} title="Duplicate row" on:click={() => duplicateRow(row)}>⧉</button><button type="button" aria-label={`Delete row ${row + 1}`} title="Delete row" on:click={() => deleteRow(row)}>×</button></td>
+            <th class="num" scope="row"><button type="button" aria-label={`Preview record ${row + 1}`} aria-pressed={row === template.currentRecord} title="Preview this record on the label" onclick={() => selectRow(row)}>{row + 1}</button></th>
+            {#each template.fields as field, column (field)}<td><input type="text" data-row={row} data-column={column} aria-label={`${field}, row ${row + 1}`} value={record[field] ?? ''} onchange={(event) => setCell(row, field, event.currentTarget.value)} onfocus={() => selectRow(row)} onkeydown={(event) => cellKeys(event, row, column)}></td>{/each}
+            <td class="actions"><button type="button" aria-label={`Duplicate row ${row + 1}`} title="Duplicate row" onclick={() => duplicateRow(row)}>⧉</button><button type="button" aria-label={`Delete row ${row + 1}`} title="Delete row" onclick={() => deleteRow(row)}>×</button></td>
           </tr>
         {/each}
       </tbody>
     </table>
   </div>
   <div class="sheet-tools">
-    <button type="button" on:click={addRow}>Add row</button>
-    <form class="add-field" on:submit|preventDefault={addField}><input type="text" placeholder="New column" aria-label="New column name" bind:value={newField}><button type="submit" disabled={!newField.trim() || template.fields.includes(newField.trim())}>Add column</button></form>
-    <button type="button" on:click={exportCsv}>Export CSV</button>
+    <button type="button" onclick={addRow}>Add row</button>
+    <form class="add-field" onsubmit={(event)=>{event.preventDefault();addField()}}><input type="text" placeholder="New column" aria-label="New column name" bind:value={newField}><button type="submit" disabled={!newField.trim() || template.fields.includes(newField.trim())}>Add column</button></form>
+    <button type="button" onclick={exportCsv}>Export CSV</button>
     <span class="count">{template.records.length} {template.records.length === 1 ? 'record' : 'records'} · {template.fields.length} {template.fields.length === 1 ? 'column' : 'columns'}</span>
   </div>
 {/if}
