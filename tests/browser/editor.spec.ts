@@ -2134,8 +2134,9 @@ test('elements paint in dense rank order so no stored z-index can outrank the ca
   const tools = page.getByRole('navigation', { name: 'Drawing tools' });
   await tools.getByRole('button', { name: 'Rectangle' }).click();
   await tools.getByRole('button', { name: 'Ellipse' }).click();
-  // Both shapes share the visible centre; the rectangle's corner lies outside the ellipse on top of it.
-  await page.locator('.element.rectangle').click({ position: { x: 3, y: 3 } });
+  // Both shapes share the visible centre, so pick the rectangle from the layer list.
+  await page.locator('aside ol > li').last().getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await expect(page.locator('.element.rectangle.selected')).toHaveCount(1);
   const bar = page.getByRole('toolbar', { name: 'Selection' });
   for (let i = 0; i < 5; i += 1) await bar.getByRole('button', { name: 'Bring forward' }).click();
   await expect(page.locator('.element.rectangle')).toHaveCSS('z-index', '1');
