@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { Bounds, LabelDocument, LabelElement, Point, Zone } from './model.js';
+import type { Bounds, LabelDocument, LabelElement, Point, Zone } from './model.js'; import { isEffectivelyVisible } from './model.js';
 import { elementRootBounds } from './zones.js';
 
 export type SnapMode = 'all' | 'grid' | 'elements' | 'none';
@@ -14,7 +14,7 @@ export function snapMove(elements: LabelElement[], selected: Set<string>, delta:
   const movingBounds=moving.map(rootBounds);
   const x0 = Math.min(...movingBounds.map((item) => item.x)); const x1 = Math.max(...movingBounds.map((item) => item.x + item.width));
   const y0 = Math.min(...movingBounds.map((item) => item.y)); const y1 = Math.max(...movingBounds.map((item) => item.y + item.height));
-  const stationary = elements.filter((item) => !movingIds.has(item.id) && item.visible && item.type !== 'group');
+  const stationary = elements.filter((item) => !movingIds.has(item.id) && (document ? isEffectivelyVisible(document, item) : item.visible) && item.type !== 'group');
   const zones = options.zones ?? [];
   const allTargets = mode === 'all';
   const elementTargets = mode === 'elements' || allTargets;

@@ -9,7 +9,7 @@
   import {GestureTracker}from'../gestures.js';
   import type { EditorStore } from '../store.js';
   import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import ThermalPreview from'./ThermalPreview.svelte';
-  import type { Bounds, LabelElement, Point } from '../model.js';
+  import type { Bounds, LabelElement, Point } from '../model.js'; import { elementAncestry, isEffectivelyLocked, isEffectivelyVisible } from '../model.js';
   export let editor: EditorStore;
   export let sdk:PrinterSdk|undefined=undefined;
   export let printer:PrinterDefinition|undefined=undefined;
@@ -28,14 +28,14 @@
   const pxPerMm = 3.7795275591;
   const gestures=new GestureTracker();
   /** Groups are not drawn, so a click on a grouped child targets its outermost group unless the user already entered the group. */
-  function dragTargetFor(element: LabelElement): LabelElement {
-    const selected = $editor.selection; const chain: LabelElement[] = []; let current: LabelElement | undefined = element;
-    while (current) { chain.push(current); current = current.groupId ? $editor.document.elements.find(item => item.id === current?.groupId) : undefined; }
+  function dragTargetFor(element: LabelElement, deep: boolean): LabelElement {
+    if (deep) return element;
+    const selected = $editor.selection; const chain = elementAncestry($editor.document, element);
     return chain.find(item => selected.has(item.id)) ?? chain[chain.length - 1];
   }
   function startDrag(event: PointerEvent, element: LabelElement) {
-    const target = dragTargetFor(element);
-    if (target.locked) return; const handle = event.currentTarget as HTMLElement; handle.setPointerCapture(event.pointerId);
+    const target = dragTargetFor(element, event.ctrlKey || event.metaKey);
+    if (isEffectivelyLocked($editor.document, target)) return; const handle = event.currentTarget as HTMLElement; handle.setPointerCapture(event.pointerId);
     let ids = [target.id]; editor.selection.subscribe((current) => { ids = current.has(target.id) ? [...current] : event.shiftKey ? [...current, target.id] : [target.id]; })();
     editor.select([target.id], event.shiftKey); dragPreviewDelta={x:0,y:0}; drag = { kind: 'move', at: { x: event.clientX, y: event.clientY }, current: { x: event.clientX, y: event.clientY }, ids }; event.stopPropagation();
   }
@@ -43,7 +43,7 @@
   function enterElement(event: MouseEvent, element: LabelElement) { editor.select([element.id]); event.stopPropagation(); }
   /** The selection box is the only grab surface a group has, so dragging its interior moves the whole selection. */
   function startSelectionDrag(event: PointerEvent) {
-    if (event.button !== 0) return; const ids = [...$editor.selection].filter(id => !$editor.document.elements.find(item => item.id === id)?.locked); if (!ids.length) return;
+    if (event.button !== 0) return; const ids = $editor.selectedElements.filter(item => !isEffectivelyLocked($editor.document, item)).map(item => item.id); if (!ids.length) return;
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); dragPreviewDelta={x:0,y:0}; drag = { kind: 'move', at: { x: event.clientX, y: event.clientY }, current: { x: event.clientX, y: event.clientY }, ids }; event.stopPropagation();
   }
   function enterUnderPointer(event: MouseEvent) {
@@ -116,7 +116,7 @@
   }
   function boundsOf(elements:LabelElement[],document=$editor.document):Bounds|undefined{if(!elements.length)return;const roots=elements.map(item=>elementRootBounds(document,item));const x=Math.min(...roots.map(item=>item.x));const y=Math.min(...roots.map(item=>item.y));const right=Math.max(...roots.map(item=>item.x+item.width));const bottom=Math.max(...roots.map(item=>item.y+item.height));return{x,y,width:right-x,height:bottom-y}}
   $: displayDocument=dragPreview??$editor.document;
-  $: selectionBounds=boundsOf(displayDocument.elements.filter(item=>$editor.selection.has(item.id)&&!item.locked),displayDocument);
+  $: selectionBounds=boundsOf(displayDocument.elements.filter(item=>$editor.selection.has(item.id)&&!isEffectivelyLocked(displayDocument,item)),displayDocument);
   $: rotateElement=$editor.selectedElements.length===1&&$editor.selectedElements[0].type!=='group'?$editor.selectedElements[0]:undefined;
   $: rollSettings=continuousSettings($editor.document);
   $: { $editor.document; rollSettings.lengthMode; rollSettings.fixedLengthMm; rollSettings.leadingMarginMm; rollSettings.trailingMarginMm; printer?.id; void preparePreview(); }
@@ -133,8 +133,8 @@
       {#if sdk&&previewDocument}<ThermalPreview {sdk} document={previewDocument} zoom={$editor.view.zoom}/>{:else if previewError}<span class="preview-error" title={previewError}>Fit preview unavailable</span>{/if}
       {#if previewWarning}<span class="preview-warning" role="status" title={previewWarning}>{previewWarning}</span>{/if}
       {#each [...displayDocument.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
-        {#if element.visible && element.type !== 'group'}
-          <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={element.locked} class:exact={!!sdk} class="element {element.type}" data-id={element.id} style={styleFor(element,elementRootOffset(displayDocument,element),movesWithDrag(element)?dragPreviewDelta:undefined)} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} on:dblclick={(event) => enterElement(event, element)} aria-label={element.name}>
+        {#if element.type !== 'group' && isEffectivelyVisible(displayDocument, element)}
+          <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={isEffectivelyLocked(displayDocument, element)} class:exact={!!sdk} class="element {element.type}" data-id={element.id} style={styleFor(element,elementRootOffset(displayDocument,element),movesWithDrag(element)?dragPreviewDelta:undefined)} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} on:dblclick={(event) => enterElement(event, element)} aria-label={element.name}>
             {#if element.type === 'text'}<span style={`font-family:${element.fontFamily};font-size:${element.fontSize}px;text-align:${element.horizontalAlign}`}>{element.text}</span>
             {:else if element.type === 'barcode'}<span class="placeholder">▥ {element.value}</span>
             {:else if element.type === 'qr'}<span class="placeholder">▦</span>

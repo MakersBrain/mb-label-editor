@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { Bounds, ElementBase, Id, LabelDocument, LabelElement, Point, Transform } from './model.js';
-import { cloneDocument, uuid } from './model.js';
+import { cloneDocument, isEffectivelyLocked, uuid } from './model.js';
 import { elementRootBounds, elementRootOffset } from './zones.js';
 
 export interface Command {
@@ -95,7 +95,7 @@ export const patchElement = (id: Id, patch: Partial<LabelElement>): Command => (
 export const transformElements = (ids: Iterable<Id>, transform: (current: Transform) => Transform, operation = 'transform'): Command => {
   const selected = new Set(ids); const coalesceKey = `${operation}:${[...selected].sort().join(',')}`;
   return { label: 'Transform elements', coalesceKey, apply: (doc) => changed(doc, (copy) => copy.elements.forEach((element) => {
-    if (selected.has(element.id) && !element.locked) element.transform = transform(structuredClone(element.transform));
+    if (selected.has(element.id) && !isEffectivelyLocked(copy, element)) element.transform = transform(structuredClone(element.transform));
   })) };
 };
 export const moveElements = (ids: Iterable<Id>, delta: Point): Command => {
@@ -110,7 +110,7 @@ export const moveElements = (ids: Iterable<Id>, delta: Point): Command => {
     };
     selected.forEach(include);
     copy.elements.forEach((element) => {
-      if (moving.has(element.id) && !element.locked) {
+      if (moving.has(element.id) && !isEffectivelyLocked(copy, element)) {
         element.transform.x += delta.x;
         element.transform.y += delta.y;
       }
@@ -122,14 +122,14 @@ export const resizeElements = (ids: Iterable<Id>, bounds: Bounds): Command => {
   const selected = [...new Set(ids)];
   return { label: 'Resize elements', coalesceKey: `resize:${[...selected].sort().join(',')}`, apply: (doc) => changed(doc, (copy) => {
     const roots = topLevelSelection(copy, selected);
-    const items = roots.map((id) => elementById(copy, id)).filter((item) => !item.locked);
+    const items = roots.map((id) => elementById(copy, id)).filter((item) => !isEffectivelyLocked(copy, item));
     if (!items.length) return;
     const source = elementBounds(items.map((item)=>({...item,transform:{...item.transform,...elementRootBounds(copy,item)}})));
     const scaleX = bounds.width / Math.max(0.1, source.width);
     const scaleY = bounds.height / Math.max(0.1, source.height);
     const resizing = descendantIds(copy, items.map((item) => item.id));
     copy.elements.forEach((element) => {
-      if (!resizing.has(element.id) || element.locked) return;
+      if (!resizing.has(element.id) || isEffectivelyLocked(copy, element)) return;
       const transform = element.transform;
       const offset=elementRootOffset(copy,element);
       transform.x = bounds.x + (transform.x+offset.x-source.x) * scaleX-offset.x;
@@ -171,7 +171,7 @@ export const bulkPatch = (ids: Iterable<Id>, patch: Partial<Pick<ElementBase, 'v
 export type Alignment = 'left' | 'center-x' | 'right' | 'top' | 'center-y' | 'bottom';
 export const alignElements = (ids: Iterable<Id>, alignment: Alignment): Command => {
   const selected = new Set(ids); return { label: `Align ${alignment}`, apply: (doc) => changed(doc, (copy) => {
-    const items = copy.elements.filter((item) => selected.has(item.id) && !item.locked); if (items.length < 2) return;
+    const items = copy.elements.filter((item) => selected.has(item.id) && !isEffectivelyLocked(copy, item)); if (items.length < 2) return;
     const left = Math.min(...items.map((item) => item.transform.x)); const right = Math.max(...items.map((item) => item.transform.x + item.transform.width));
     const top = Math.min(...items.map((item) => item.transform.y)); const bottom = Math.max(...items.map((item) => item.transform.y + item.transform.height));
     items.forEach((item) => { const t = item.transform;
@@ -186,7 +186,7 @@ export const alignElementsToBounds = (ids: Iterable<Id>, alignment: Alignment, b
   return { label: `Align ${alignment} to boundary`, apply: (doc) => changed(doc, (copy) => {
     for (const id of topLevelSelection(copy, selected)) {
       const item = elementById(copy, id);
-      if (item.locked) continue;
+      if (isEffectivelyLocked(copy, item)) continue;
       const root=elementRootBounds(copy,item);
       const delta = { x: 0, y: 0 };
       if (alignment === 'left') delta.x = bounds.x - root.x;
@@ -197,7 +197,7 @@ export const alignElementsToBounds = (ids: Iterable<Id>, alignment: Alignment, b
       if (alignment === 'center-y') delta.y = bounds.y + (bounds.height - root.height) / 2 - root.y;
       const moving = descendantIds(copy, [id]);
       copy.elements.forEach((element) => {
-        if (!moving.has(element.id) || element.locked) return;
+        if (!moving.has(element.id) || isEffectivelyLocked(copy, element)) return;
         element.transform.x += delta.x;
         element.transform.y += delta.y;
       });
@@ -206,7 +206,7 @@ export const alignElementsToBounds = (ids: Iterable<Id>, alignment: Alignment, b
 };
 export const distributeElements = (ids: Iterable<Id>, axis: 'horizontal' | 'vertical'): Command => {
   const selected = new Set(ids); return { label: `Distribute ${axis}`, apply: (doc) => changed(doc, (copy) => {
-    const items = copy.elements.filter((item) => selected.has(item.id) && !item.locked).sort((a, b) => axis === 'horizontal' ? a.transform.x - b.transform.x : a.transform.y - b.transform.y);
+    const items = copy.elements.filter((item) => selected.has(item.id) && !isEffectivelyLocked(copy, item)).sort((a, b) => axis === 'horizontal' ? a.transform.x - b.transform.x : a.transform.y - b.transform.y);
     if (items.length < 3) return;
     const position = (item: LabelElement) => axis === 'horizontal' ? item.transform.x : item.transform.y;
     const extent = (item: LabelElement) => axis === 'horizontal' ? item.transform.width : item.transform.height;

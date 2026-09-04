@@ -315,6 +315,32 @@ test('a group can be dragged by its selection box and clicking a child selects t
   await expect(page.getByLabel('Name')).toHaveValue('Ellipse');
 });
 
+test('hiding or locking a group applies to the elements inside it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await page.getByRole('button', { name: 'Ellipse', exact: true }).click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Control+g');
+  const groupRow = page.locator('aside ol > li').filter({ hasText: 'Group' });
+  await groupRow.getByRole('button', { name: 'Hide' }).click();
+  await expect(page.locator('.element.rectangle')).toHaveCount(0);
+  await expect(page.locator('.element.ellipse')).toHaveCount(0);
+  await groupRow.getByRole('button', { name: 'Show' }).click();
+  await expect(page.locator('.element.rectangle')).toHaveCount(1);
+  await groupRow.getByRole('button', { name: 'Lock' }).click();
+  const ellipse = page.locator('.element.ellipse');
+  const before = await ellipse.boundingBox();
+  const center = { x: before!.x + before!.width / 2, y: before!.y + before!.height / 2 };
+  await page.mouse.move(center.x, center.y);
+  await page.mouse.down();
+  await page.mouse.move(center.x + 40, center.y + 20, { steps: 3 });
+  await page.mouse.up();
+  const after = await ellipse.boundingBox();
+  expect(after!.x).toBeCloseTo(before!.x, 0);
+  expect(after!.y).toBeCloseTo(before!.y, 0);
+  await expect(page.locator('aside ol > li').filter({ hasText: 'Ellipse' }).getByRole('button', { name: 'Lock' })).toHaveAttribute('title', 'Locked by its group');
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();

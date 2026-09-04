@@ -26,6 +26,9 @@ export const editorShortcuts: ShortcutGroup[] = [
     { keys: ['Shift+Arrow keys'], action: 'Nudge the selection by 1 mm' },
   ] },
   { title: 'Canvas pointer', entries: [
+    { keys: ['Click'], action: 'Select an element, or the group it belongs to' },
+    { keys: ['Double-click'], action: 'Select one element inside its group' },
+    { keys: ['Mod+Click'], action: 'Select one element inside its group directly' },
     { keys: ['Shift+Click'], action: 'Add an element to the selection' },
     { keys: ['Shift while resizing'], action: 'Toggle keeping the aspect ratio' },
     { keys: ['Shift while rotating'], action: 'Rotate in 15 degree steps' },

@@ -98,3 +98,14 @@ export function assertV4Document(value: unknown): asserts value is LabelDocument
     ids.add(element.id);
   }
 }
+
+/** Walks an element and its enclosing groups; the element comes first. */
+export function elementAncestry(document: LabelDocument, element: LabelElement): LabelElement[] {
+  const chain: LabelElement[] = []; let current: LabelElement | undefined = element; const seen = new Set<Id>();
+  while (current && !seen.has(current.id)) { chain.push(current); seen.add(current.id); current = current.groupId ? document.elements.find((item) => item.id === current?.groupId) : undefined; }
+  return chain;
+}
+/** Locking a group locks everything inside it. */
+export const isEffectivelyLocked = (document: LabelDocument, element: LabelElement): boolean => elementAncestry(document, element).some((item) => item.locked);
+/** Hiding a group hides everything inside it. */
+export const isEffectivelyVisible = (document: LabelDocument, element: LabelElement): boolean => elementAncestry(document, element).every((item) => item.visible);

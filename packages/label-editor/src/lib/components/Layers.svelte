@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-import type { EditorStore } from '../store.js'; import type { LabelElement } from '../model.js'; import { createGroup, moveToGroup, reorderElement, setLocked, setVisibility } from '../commands.js';
+import type { EditorStore } from '../store.js'; import { isEffectivelyLocked, isEffectivelyVisible, type LabelElement } from '../model.js'; import { createGroup, moveToGroup, reorderElement, setLocked, setVisibility } from '../commands.js';
 export let editor:EditorStore;
 /** Groups the user folded; everything else stays expanded. */
 let collapsed=new Set<string>();
@@ -32,8 +32,8 @@ function dragEnd(){dragging=undefined;dropTarget=undefined}
       <li class:selected={$editor.selection.has(element.id)} class:group={element.type==='group'} class:drop={dropTarget===element.id} class:dragging={dragging===element.id} style={`--depth:${row.depth}`} draggable="true" on:dragstart={(e)=>dragStart(e,element.id)} on:dragend={dragEnd} on:dragover|stopPropagation={(e)=>dragOver(e,element.id)} on:drop|stopPropagation={(e)=>drop(e,element)}>
         {#if element.type==='group'}<button class="fold" aria-label={collapsed.has(element.id)?`Expand ${element.name}`:`Collapse ${element.name}`} aria-expanded={!collapsed.has(element.id)} on:click|stopPropagation={()=>toggle(element.id)}>{collapsed.has(element.id)?'▸':'▾'}</button>{:else}<span class="fold" aria-hidden="true"></span>{/if}
         <button class="name" on:click={(e)=>editor.select([element.id],e.shiftKey)}>{element.name}{#if element.type==='group'}<span class="count">{row.children}</span>{/if}</button>
-        <button aria-label={element.visible?'Hide':'Show'} on:click={()=>editor.execute(setVisibility([element.id],!element.visible))}>{element.visible?'◉':'○'}</button>
-        <button aria-label={element.locked?'Unlock':'Lock'} on:click={()=>editor.execute(setLocked([element.id],!element.locked))}>{element.locked?'🔒':'♢'}</button>
+        <button aria-label={element.visible?'Hide':'Show'} class:inherited={element.visible&&!isEffectivelyVisible($editor.document,element)} title={element.visible&&!isEffectivelyVisible($editor.document,element)?'Hidden by its group':undefined} on:click={()=>editor.execute(setVisibility([element.id],!element.visible))}>{isEffectivelyVisible($editor.document,element)?'◉':'○'}</button>
+        <button aria-label={element.locked?'Unlock':'Lock'} class:inherited={!element.locked&&isEffectivelyLocked($editor.document,element)} title={!element.locked&&isEffectivelyLocked($editor.document,element)?'Locked by its group':undefined} on:click={()=>editor.execute(setLocked([element.id],!element.locked))}>{isEffectivelyLocked($editor.document,element)?'🔒':'♢'}</button>
         <button aria-label="Raise" on:click={()=>editor.execute(reorderElement(element.id,'forward'))}>↑</button>
       </li>
     {/each}
@@ -54,5 +54,6 @@ function dragEnd(){dragging=undefined;dropTarget=undefined}
   .fold{width:1.1rem;flex:none;padding:0;text-align:center;color:var(--mble-text-muted,#59635e)}
   .name{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .count{margin-left:.35rem;color:var(--mble-text-muted,#59635e);font-size:.7rem}
+  .inherited{opacity:.55}
   .hint{margin:.4rem 0 0;color:var(--mble-text-muted,#59635e);font-size:.68rem}
 </style>
