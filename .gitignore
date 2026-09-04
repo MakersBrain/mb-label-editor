@@ -9,3 +9,5 @@ playwright-report/
 release-artifacts/
 .package-consumer-*/
 .worktrees/
+/label.json
+/*.mb-label.json
