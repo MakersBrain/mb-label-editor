@@ -7,5 +7,4 @@
  * Keyed by basename because the PWA compiles the package's dist copies.
  */
 export const legacyComponents = new Set([
-  'App.svelte',
 ]);
