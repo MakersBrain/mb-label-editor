@@ -25,3 +25,14 @@ for (const colorScheme of ['light', 'dark'] as const) {
     });
   }
 }
+
+test('reduced motion removes the chrome transitions', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const grip = page.getByRole('separator', { name: 'Resize side panel' });
+  await expect(grip).toBeVisible();
+  const seconds = () => grip.evaluate((element) => parseFloat(getComputedStyle(element, '::after').transitionDuration));
+  expect(await seconds()).toBeLessThan(0.001);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  expect(await seconds()).toBeCloseTo(0.12, 3);
+});

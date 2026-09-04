@@ -25,6 +25,7 @@
   --mble-z-menu: 60;
   --mble-z-scrim: 80;
   --mble-z-dialog: 81;
+  --mble-dur-fast: 0.12s;
 }
 
 .mb-label-editor,
@@ -226,4 +227,23 @@
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/*
+ * Motion: the editor only fades and slides chrome, and none of it may move for
+ * people who asked their OS for less motion. The one sanctioned !important.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .mb-label-editor *,
+  .mb-label-editor *::before,
+  .mb-label-editor *::after {
+    /* stylelint-disable-next-line declaration-no-important */
+    transition-duration: 0.01ms !important;
+    /* stylelint-disable-next-line declaration-no-important */
+    animation-duration: 0.01ms !important;
+    /* stylelint-disable-next-line declaration-no-important */
+    animation-iteration-count: 1 !important;
+    /* stylelint-disable-next-line declaration-no-important */
+    scroll-behavior: auto !important;
+  }
 }

@@ -1131,7 +1131,7 @@
     font-size: var(--mble-text-body);
     line-height: 1;
     opacity: 0;
-    transition: opacity 0.12s;
+    transition: opacity var(--mble-dur-fast);
   }
   .tile-wrap:hover .star,
   .tile-wrap:focus-within .star,

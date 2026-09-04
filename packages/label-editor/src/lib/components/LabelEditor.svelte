@@ -635,7 +635,7 @@
     left: 2px;
     width: 2px;
     background: transparent;
-    transition: background 0.12s;
+    transition: background var(--mble-dur-fast);
   }
   /* A finger needs a wider strip and a visible grip. */
   @media (pointer: coarse) {
