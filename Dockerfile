@@ -40,7 +40,7 @@ RUN --mount=type=secret,id=aws_access_key_id,env=AWS_ACCESS_KEY_ID \
     export RUSTC_WRAPPER SCCACHE_BUCKET SCCACHE_ENDPOINT SCCACHE_REGION \
            SCCACHE_S3_USE_SSL=true SCCACHE_S3_KEY_PREFIX="$SCCACHE_PREFIX" \
            SCCACHE_BASEDIRS=/workspace:/root/.cargo/registry \
-    && npm ci && npm run build
+    && npm ci --no-audit --no-fund && npm run build
 
 WORKDIR /workspace
 COPY mb-ui ./mb-ui
@@ -49,7 +49,7 @@ COPY mb-label-editor/package.json mb-label-editor/package-lock.json ./mb-label-e
 COPY mb-label-editor/packages/label-editor/package.json ./mb-label-editor/packages/label-editor/
 COPY mb-label-editor/apps/pwa/package.json ./mb-label-editor/apps/pwa/
 WORKDIR /workspace/mb-label-editor
-RUN --mount=type=cache,target=/root/.npm npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY mb-label-editor ./
 ARG VITE_ASSET_CATALOG_URL=http://127.0.0.1:8766
 ENV VITE_ASSET_CATALOG_URL=$VITE_ASSET_CATALOG_URL
