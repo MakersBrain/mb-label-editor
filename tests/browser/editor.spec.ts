@@ -407,6 +407,24 @@ test('the asset browser filters by category, previews a tile, and places it from
   await expect(page.getByText('Nothing in this browser matches', { exact: false })).toBeVisible();
 });
 
+test('an asset dragged from the browser lands where it is dropped on the label', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Assets' }).click();
+  await page.getByRole('group', { name: 'Asset source' }).getByRole('button', { name: 'This browser' }).click();
+  const tile = page.getByRole('group', { name: 'Browser assets' }).getByRole('button', { name: /Synthetic plus/ });
+  const media = page.locator('.media');
+  const box = (await media.boundingBox())!;
+  const target = { x: box.x + box.width * 0.7, y: box.y + box.height * 0.6 };
+  await tile.dragTo(media, { targetPosition: { x: box.width * 0.7, y: box.height * 0.6 } });
+  const placed = page.locator('.element.svg');
+  await expect(placed).toHaveCount(1);
+  const bounds = (await placed.boundingBox())!;
+  expect(bounds.x + bounds.width / 2).toBeCloseTo(target.x, -1);
+  expect(bounds.y + bounds.height / 2).toBeCloseTo(target.y, -1);
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await expect(page.locator('aside ol > li').filter({ hasText: 'Synthetic plus' })).toHaveCount(1);
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();

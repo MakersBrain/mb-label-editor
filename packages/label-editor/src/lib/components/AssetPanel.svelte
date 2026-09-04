@@ -10,6 +10,8 @@
   import type { ExternalAsset, ExternalFont, ExternalResourceProvider } from '../external-resources/types.js';
   import { EditorDatabase } from '../persistence/database.js';
   import RemoteAssetPreview from './RemoteAssetPreview.svelte';
+  import { assetDrag, ASSET_DRAG_TYPE } from '../asset-drag.js';
+  import type { Point } from '../model.js';
   import manifest from '../../../assets/public-catalogue.json';
 
   export let editor: EditorStore;
@@ -132,10 +134,18 @@
     favorites.has(id) ? favorites.delete(id) : favorites.add(id);
     await database.put('preferences', 'asset-favorites', [...favorites]);
   }
-  function place(resource: Resource, width = 20, height = 20) {
+  /** Starts a drag the canvas can resolve into a drop position on the label. */
+  function dragTile(event: DragEvent, label: string, placeAt: (at: Point) => Promise<void> | void) {
+    event.dataTransfer?.setData(ASSET_DRAG_TYPE, label); event.dataTransfer?.setData('text/plain', label);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+    assetDrag.set({ label, place: placeAt });
+  }
+  const endDrag = () => assetDrag.set(undefined);
+  function place(resource: Resource, width = 20, height = 20, at?: Point) {
     if (resource.mimeType.startsWith('font/')) { editor.execute(addFont(resource as FontResource)); return; }
     editor.execute(addResource(resource));
-    const base = { id: uuid(), name: resource.name, resourceId: resource.id, transform: { x: 2, y: 2, width, height, rotation: 0 }, zIndex: $editor.document.elements.length, visible: true, locked: false };
+    const origin = at ? { x: Math.max(0, at.x - width / 2), y: Math.max(0, at.y - height / 2) } : { x: 2, y: 2 };
+    const base = { id: uuid(), name: resource.name, resourceId: resource.id, transform: { ...origin, width, height, rotation: 0 }, zIndex: $editor.document.elements.length, visible: true, locked: false };
     const dither = imageProfile === 'photo' ? { algorithm: 'floyd-steinberg' as const, threshold: 128 } : imageProfile === 'logo' ? { algorithm: 'bayer' as const, threshold: 128 } : { algorithm: 'threshold' as const, threshold: 150 };
     editor.execute(addElement(resource.mimeType === 'image/svg+xml' ? { ...base, type: 'svg' } : { ...base, type: 'image', fit: 'contain', dither }));
   }
@@ -146,16 +156,16 @@
     if (hash !== item.sha256) throw new Error(`Catalogue hash mismatch for ${item.name}`);
     return bytes;
   }
-  async function use(item: CatalogueAsset) {
+  async function use(item: CatalogueAsset, at?: Point) {
     if (!item.dataBase64) return;
     await verifiedBytes(item);
     const resource = { id: uuid(), name: item.name, mimeType: item.mediaType, sha256: item.sha256, data: item.dataBase64 };
-    place(resource);
+    place(resource, 20, 20, at);
     await saveResource(resource);
     await remember(item.id);
     status = `Added ${item.name}`;
   }
-  async function useRemoteAsset(item: ExternalAsset) {
+  async function useRemoteAsset(item: ExternalAsset, at?: Point) {
     if (!resourceProvider) return;
     try {
       status = `Downloading ${item.title}…`;
@@ -167,7 +177,7 @@
         await saveResource(imported);
       } else {
         const imported = await importAsset(file, sdk, $editor.document.media.dpi);
-        place(imported.resource, imported.widthMm ?? 20, imported.heightMm ?? 20);
+        place(imported.resource, imported.widthMm ?? 20, imported.heightMm ?? 20, at);
         await saveResource(imported.resource);
       }
       await remember(`remote:${item.id}`);
@@ -278,21 +288,21 @@
       </div>
     </div>
   {:else}
-    <p class="hint">Click a tile to see details, double-click to place it directly.</p>
+    <p class="hint">Click a tile for details, double-click to place it, or drag it onto the label.</p>
   {/if}
 
 
   {#if source === 'service' && resourceProvider}
     <div class="grid" class:busy={remoteLoading} role="group" aria-label="Catalogue results">
       {#each remoteAssets as item (item.id)}
-        <button type="button" class="tile" class:active={isSelected('asset', item.id)} aria-pressed={isSelected('asset', item.id)} title={`${item.title} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'asset', item }} on:dblclick={() => useRemoteAsset(item)}>
+        <button type="button" class="tile" class:active={isSelected('asset', item.id)} aria-pressed={isSelected('asset', item.id)} title={`${item.title} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'asset', item }} on:dblclick={() => useRemoteAsset(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.title, (at) => useRemoteAsset(item, at))} on:dragend={endDrag}>
           <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
           <span class="name">{item.title}</span>
           <span class="sub">{item.category}</span>
         </button>
       {/each}
       {#each remoteFonts as item (item.id)}
-        <button type="button" class="tile font" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'font', item }} on:dblclick={() => useRemoteFont(item)}>
+        <button type="button" class="tile font" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'font', item }} on:dblclick={() => useRemoteFont(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.family, () => useRemoteFont(item))} on:dragend={endDrag}>
           <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
           <span class="name">{item.family}</span>
           <span class="sub">{item.category}</span>
@@ -304,7 +314,7 @@
   {:else}
     <div class="grid" role="group" aria-label="Browser assets">
       {#each results as item (item.id)}
-        <button type="button" class="tile" class:active={isSelected('local', item.id)} aria-pressed={isSelected('local', item.id)} title={`${item.name} · ${item.kind} · ${item.category}`} on:click={() => selected = { kind: 'local', item }} on:dblclick={() => use(item)}>
+        <button type="button" class="tile" class:active={isSelected('local', item.id)} aria-pressed={isSelected('local', item.id)} title={`${item.name} · ${item.kind} · ${item.category}`} on:click={() => selected = { kind: 'local', item }} on:dblclick={() => use(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.name, (at) => use(item, at))} on:dragend={endDrag}>
           <span class="thumb">{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${item.dataBase64}`}>{:else}<span class="glyph" aria-hidden="true">{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span>{/if}</span>
           <span class="name">{item.name}</span>
           <span class="sub">{item.category}</span>
@@ -344,11 +354,12 @@
   .status{min-height:1em;margin:0;color:var(--mble-text-muted,#59635e);font-size:.7rem}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.2rem,1fr));gap:.4rem}
   .grid.busy{opacity:.55}
-  .tile{position:relative;display:flex;flex-direction:column;gap:.25rem;padding:.3rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-sm,4px);background:var(--mble-surface,#fff);color:inherit;cursor:pointer;text-align:left}
+  .tile{position:relative;cursor:grab;display:flex;flex-direction:column;gap:.25rem;padding:.3rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-sm,4px);background:var(--mble-surface,#fff);color:inherit;cursor:pointer;text-align:left}
   .tile:hover{border-color:var(--mble-border-strong,#948274)}
+  .tile:active{cursor:grabbing}
   .tile.active{border-color:var(--mble-primary,#ed6146);box-shadow:0 0 0 1px var(--mble-primary,#ed6146)}
   .thumb{display:grid;place-items:center;aspect-ratio:1;background:#fff;border-radius:3px;overflow:hidden}
-  .thumb :global(img){width:100%;height:100%;object-fit:contain}
+  .thumb :global(img){display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
   .thumb :global(.preview){width:100%;height:100%}
   .glyph{font-size:1.4rem;color:var(--mble-text-muted,#59635e)}
   .name{overflow:hidden;font-size:.68rem;line-height:1.25;white-space:nowrap;text-overflow:ellipsis}
