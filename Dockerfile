@@ -44,9 +44,13 @@ RUN --mount=type=secret,id=aws_access_key_id,env=AWS_ACCESS_KEY_ID \
 
 WORKDIR /workspace
 COPY mb-ui ./mb-ui
-COPY mb-label-editor ./mb-label-editor
+# Install from the manifests alone so source edits do not invalidate the npm layer.
+COPY mb-label-editor/package.json mb-label-editor/package-lock.json ./mb-label-editor/
+COPY mb-label-editor/packages/label-editor/package.json ./mb-label-editor/packages/label-editor/
+COPY mb-label-editor/apps/pwa/package.json ./mb-label-editor/apps/pwa/
 WORKDIR /workspace/mb-label-editor
 RUN --mount=type=cache,target=/root/.npm npm ci
+COPY mb-label-editor ./
 ARG VITE_ASSET_CATALOG_URL=http://127.0.0.1:8766
 ENV VITE_ASSET_CATALOG_URL=$VITE_ASSET_CATALOG_URL
 ARG MB_BUILD_TAG=
