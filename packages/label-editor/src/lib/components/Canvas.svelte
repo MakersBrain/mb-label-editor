@@ -3,7 +3,7 @@
   import { moveElements, resizeElements, rotateElements, type Command } from '../commands.js';
   import { assetDrag } from '../asset-drag.js';
   import { evaluateTemplate } from '../template/evaluate.js';
-  import { mediaBounds, snapModeForModifiers, snapMove } from '../snapping.js';
+  import { guidesEqual, mediaBounds, snapModeForModifiers, snapTargets, snapWithTargets, type SnapTargets } from '../snapping.js';
   import { elementRootBounds, elementRootOffset } from '../zones.js';
   import { continuousSettings } from '../continuous-media.js';
   import { prepareDocumentForOutput } from '../output-preparation.js';
@@ -23,7 +23,9 @@
   let previewGeneration=0;
   type ResizeHandle='nw'|'n'|'ne'|'e'|'se'|'s'|'sw'|'w';
   const resizeHandles:ResizeHandle[]=['nw','n','ne','e','se','s','sw','w'];
-  let drag: { kind: 'move' | 'resize' | 'rotate'; at: Point; current: Point; ids: string[]; element?: LabelElement; bounds?: Bounds; handle?:ResizeHandle } | undefined;
+  let drag: { kind: 'move' | 'resize' | 'rotate'; at: Point; current: Point; ids: string[]; element?: LabelElement; bounds?: Bounds; handle?:ResizeHandle; targets?: SnapTargets } | undefined;
+  /** Pointer moves are coalesced to one layout pass per animation frame. */
+  let pendingMove:PointerEvent|undefined;let moveFrame:number|undefined;
   let dragPreviewDelta:Point={x:0,y:0};
   /** Document with the in-progress resize or rotation applied, so the canvas shows the result before the pointer is released. */
   let dragPreview:import('../model.js').LabelDocument|undefined;
@@ -40,14 +42,21 @@
     const target = dragTargetFor(element, event.ctrlKey || event.metaKey);
     if (isEffectivelyLocked($editor.document, target)) return; const handle = event.currentTarget as HTMLElement; handle.setPointerCapture(event.pointerId);
     let ids = [target.id]; editor.selection.subscribe((current) => { ids = current.has(target.id) ? [...current] : event.shiftKey ? [...current, target.id] : [target.id]; })();
-    editor.select([target.id], event.shiftKey); dragPreviewDelta={x:0,y:0}; drag = { kind: 'move', at: { x: event.clientX, y: event.clientY }, current: { x: event.clientX, y: event.clientY }, ids }; event.stopPropagation();
+    editor.select([target.id], event.shiftKey); beginMove(event, ids);
   }
   /** Double-clicking a grouped child enters the group and selects that child on its own. */
   function enterElement(event: MouseEvent, element: LabelElement) { editor.select([element.id]); event.stopPropagation(); }
   /** The selection box is the only grab surface a group has, so dragging its interior moves the whole selection. */
   function startSelectionDrag(event: PointerEvent) {
     if (event.button !== 0) return; const ids = $editor.selectedElements.filter(item => !isEffectivelyLocked($editor.document, item)).map(item => item.id); if (!ids.length) return;
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); dragPreviewDelta={x:0,y:0}; drag = { kind: 'move', at: { x: event.clientX, y: event.clientY }, current: { x: event.clientX, y: event.clientY }, ids }; event.stopPropagation();
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); beginMove(event, ids);
+  }
+  function beginMove(event:PointerEvent, ids:string[]){
+    gestures.start(event.pointerId,{x:event.clientX,y:event.clientY});
+    if(gestures.active>=2){drag=undefined;event.stopPropagation();return}
+    dragPreviewDelta={x:0,y:0};
+    const targets=$editor.view.snapping?snapTargets($editor.document.elements,new Set(ids),mediaBounds($editor.document),{guides:$editor.view.manualGuides,zones:$editor.document.media.zones},$editor.document):undefined;
+    drag = { kind: 'move', at: { x: event.clientX, y: event.clientY }, current: { x: event.clientX, y: event.clientY }, ids, targets }; event.stopPropagation();
   }
   function enterUnderPointer(event: MouseEvent) {
     const hit = document.elementsFromPoint(event.clientX, event.clientY).find(node => node.classList.contains('element')) as HTMLElement | undefined;
@@ -57,12 +66,27 @@
   function startResize(event: PointerEvent,handle:ResizeHandle) { if (!selectionBounds) return; (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); drag = { kind:'resize', at:{x:event.clientX,y:event.clientY}, current:{x:event.clientX,y:event.clientY}, ids:[...$editor.selection], bounds:structuredClone(selectionBounds),handle }; event.stopPropagation(); }
   function startRotate(event: PointerEvent, element: LabelElement) { (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); drag = { kind:'rotate', at:{x:event.clientX,y:event.clientY}, current:{x:event.clientX,y:event.clientY}, ids:[element.id], element:structuredClone(element) }; event.stopPropagation(); }
   function gestureStart(event:PointerEvent){if(event.target!==event.currentTarget&&!(event.target as HTMLElement).classList.contains('media'))return;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);gestures.start(event.pointerId,{x:event.clientX,y:event.clientY})}
-  function moveDrag(event: PointerEvent) { if (!drag){const update=gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});if(update)editor.setView({zoom:Math.max(.25,Math.min(4,$editor.view.zoom*update.zoomFactor)),pan:{x:$editor.view.pan.x+update.panDelta.x,y:$editor.view.pan.y+update.panDelta.y}});return} drag = {...drag,current:{x:event.clientX,y:event.clientY}}; if(drag.kind==='move'){const raw=dragDelta(event);const result=$editor.view.snapping?snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),snapOptions(event),$editor.document):{delta:raw,guides:[]};dragPreviewDelta=result.delta;editor.setView({guides:result.guides})}else{const command=transformCommand(event);dragPreview=command?command.apply($editor.document):undefined} }
+  function moveDrag(event: PointerEvent) {
+    if (drag && gestures.active >= 2) { abandonDrag(); }
+    if (!drag){const update=gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});if(update)editor.setView({zoom:Math.max(.25,Math.min(4,$editor.view.zoom*update.zoomFactor)),pan:{x:$editor.view.pan.x+update.panDelta.x,y:$editor.view.pan.y+update.panDelta.y}});return}
+    gestures.move(event.pointerId,{x:event.clientX,y:event.clientY});
+    pendingMove=event; drag = {...drag,current:{x:event.clientX,y:event.clientY}};
+    moveFrame ??= requestAnimationFrame(applyPendingMove);
+  }
+  function applyPendingMove(){
+    moveFrame=undefined; const event=pendingMove; pendingMove=undefined; if(!event||!drag)return;
+    if(drag.kind==='move'){const result=snappedDelta(event);dragPreviewDelta=result.delta;if(!guidesEqual(result.guides,$editor.view.guides))editor.setView({guides:result.guides})}
+    else{const command=transformCommand(event);dragPreview=command?command.apply($editor.document):undefined}
+  }
+  function snappedDelta(event:PointerEvent){const raw=dragDelta(event);return drag?.targets?snapWithTargets(drag.targets,raw,snapOptions(event)):{delta:raw,guides:[]}}
+  function cancelPendingMove(){if(moveFrame!==undefined)cancelAnimationFrame(moveFrame);moveFrame=undefined;pendingMove=undefined}
+  /** A second finger turns a single-pointer drag into a pan or pinch gesture. */
+  function abandonDrag(){cancelPendingMove();if(drag?.kind==='move'&&$editor.view.guides.length)editor.setView({guides:[]});drag=undefined;dragPreviewDelta={x:0,y:0};dragPreview=undefined}
   function gestureEnd(event:PointerEvent){gestures.end(event.pointerId)}
   /** Assets dragged from the browser drop at the pointer's label position. */
   function assetDragOver(event:DragEvent){if(!$assetDrag)return;event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='copy'}
   function assetDrop(event:DragEvent){const pending=$assetDrag;if(!pending||!mediaElement)return;event.preventDefault();const rect=mediaElement.getBoundingClientRect();const scale=pxPerMm*$editor.view.zoom;const at={x:(event.clientX-rect.left)/scale,y:(event.clientY-rect.top)/scale};assetDrag.set(undefined);void pending.place(at)}
-  function cancelInteraction(event:PointerEvent){gestures.end(event.pointerId);if(drag?.kind==='move')editor.setView({guides:[]});drag=undefined;dragPreviewDelta={x:0,y:0};dragPreview=undefined}
+  function cancelInteraction(event:PointerEvent){gestures.end(event.pointerId);abandonDrag()}
   function clearSelection(event: MouseEvent) {
     if (!(event.target as Element).closest('.element,.selection-box')) editor.clearSelection();
   }
@@ -94,9 +118,9 @@
       }
     });
   }
-  function finishDrag(event: PointerEvent) { if (!drag) return;
-    const raw = dragDelta(event);
-    if (drag.kind === 'move') { const snapped = $editor.view.snapping ? snapMove($editor.document.elements,new Set(drag.ids),raw,mediaBounds($editor.document),snapOptions(event),$editor.document) : {delta:raw,guides:[]}; if(snapped.delta.x||snapped.delta.y)editor.execute(moveElements(drag.ids,snapped.delta)); editor.setView({guides:[]}); }
+  function finishDrag(event: PointerEvent) { gestures.end(event.pointerId); if (!drag) return;
+    cancelPendingMove();
+    if (drag.kind === 'move') { const snapped = snappedDelta(event); if(snapped.delta.x||snapped.delta.y)editor.execute(moveElements(drag.ids,snapped.delta)); if($editor.view.guides.length)editor.setView({guides:[]}); }
     else { const command=transformCommand(event); if(command)editor.execute(command); }
     drag = undefined; dragPreviewDelta={x:0,y:0}; dragPreview=undefined;
   }
@@ -112,7 +136,7 @@
   const styleFor = (element: LabelElement,offset:Point,preview:Point|undefined) => {const delta=preview??{x:0,y:0};return `left:${(element.transform.x+offset.x+delta.x)*pxPerMm}px;top:${(element.transform.y+offset.y+delta.y)*pxPerMm}px;width:${element.transform.width*pxPerMm}px;height:${element.transform.height*pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${element.zIndex}`};
   const boundsStyle = (bounds:Bounds,preview:Point|undefined) => {const delta=preview??{x:0,y:0};return `left:${(bounds.x+delta.x)*pxPerMm}px;top:${(bounds.y+delta.y)*pxPerMm}px;width:${bounds.width*pxPerMm}px;height:${bounds.height*pxPerMm}px`};
   const dragDelta=(event:Pick<PointerEvent,'clientX'|'clientY'>):Point=>({x:(event.clientX-drag!.at.x)/pxPerMm/$editor.view.zoom,y:(event.clientY-drag!.at.y)/pxPerMm/$editor.view.zoom});
-  const snapOptions=(event:PointerEvent)=>({grid:$editor.view.gridSize,gridEnabled:$editor.view.showGrid,threshold:1.25/$editor.view.zoom,guides:$editor.view.manualGuides,zones:$editor.document.media.zones,mode:snapModeForModifiers(event)});
+  const snapOptions=(event:PointerEvent)=>({grid:$editor.view.gridSize,gridEnabled:$editor.view.showGrid,threshold:1.25/$editor.view.zoom,mode:snapModeForModifiers(event)});
   function resizedBounds(bounds:Bounds,delta:Point,preserve:boolean,handle:ResizeHandle):Bounds{
     const west=handle.includes('w'),east=handle.includes('e'),north=handle.includes('n'),south=handle.includes('s');
     let width=Math.max(.1,bounds.width+(east?delta.x:west?-delta.x:0));let height=Math.max(.1,bounds.height+(south?delta.y:north?-delta.y:0));
@@ -174,7 +198,7 @@
   let previewTimer:ReturnType<typeof setTimeout>|undefined;let previewInputs:[LabelDocument,string|undefined,PrinterSdk|undefined]|undefined;
   $: schedulePreview($editor.document,printer?.id,sdk);
   function schedulePreview(document:LabelDocument,printerId:string|undefined,currentSdk:PrinterSdk|undefined){if(previewInputs&&previewInputs[0]===document&&previewInputs[1]===printerId&&previewInputs[2]===currentSdk)return;previewInputs=[document,printerId,currentSdk];if(previewTimer)clearTimeout(previewTimer);previewTimer=setTimeout(()=>{previewTimer=undefined;void preparePreview()},120)}
-  onDestroy(()=>{if(previewTimer)clearTimeout(previewTimer)});
+  onDestroy(()=>{if(previewTimer)clearTimeout(previewTimer);cancelPendingMove()});
   $: displayHeight=previewDocument?.media.height??$editor.document.media.height;
   async function preparePreview(){const generation=++previewGeneration;if(!sdk){previewDocument=undefined;previewError='';previewWarning='';return}try{const continuous=printer?.continuousMedia;const prepared=await prepareDocumentForOutput($editor.document,{materializer,measurer:sdk.measure?sdk as import('../continuous-media.js').DocumentMeasurer:undefined},{limits:printer?{minimumLengthMm:continuous?.minimumLengthMm??printer.media.minHeight,maximumLengthMm:continuous?.maximumLengthMm??printer.media.maxHeight,source:'printer',printerModel:printer.id}:undefined});if(generation===previewGeneration){previewDocument=prepared.document;previewError='';const warnings=prepared.warnings.filter(item=>item.severity==='warning').map(item=>item.message);if(rollSettings.lengthMode==='fixed'&&prepared.contentBounds&&prepared.contentBounds.y+prepared.contentBounds.height>prepared.resolvedLengthMm&&!warnings.some(item=>item.includes('fixed cut line')))warnings.push('Visible content extends past the fixed cut line.');previewWarning=warnings.join(' ')}}catch(error){if(generation===previewGeneration){previewDocument=undefined;previewWarning='';previewError=error instanceof Error?error.message:String(error)}}}
 </script>

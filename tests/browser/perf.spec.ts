@@ -8,7 +8,10 @@ import { expect, test } from '@playwright/test';
  * commit tightens the entry it fixes (see docs/editor-remediation-plan.md).
  */
 const budget = {
-  longTaskMs: 250,
+  /** Longest task while the pointer is down: the drag must never stall a frame. */
+  dragTaskMs: 50,
+  /** Longest task after release: the debounced SDK preview rasterises once through synchronous WASM. Drops when rendering moves to a Worker. */
+  settleTaskMs: 150,
   idbWriteTransactions: 1,
   sdkRenders: 2,
   sdkMeasures: 2,
@@ -64,20 +67,23 @@ test('a drag stays within the interaction budget', async ({ page }) => {
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 120, box.y + box.height / 2 + 60, { steps: 100 });
+  const dragTasks = await page.evaluate(() => window.__mbLongTasks.splice(0));
   await page.mouse.up();
   await page.waitForTimeout(2500);
 
   const measured = await page.evaluate(() => ({
-    longestTaskMs: Math.max(0, ...window.__mbLongTasks),
+    settleTaskMs: Math.max(0, ...window.__mbLongTasks),
     idbWriteTransactions: window.__mbIdb.filter((item) => item.mode === 'readwrite').length,
     idbWrites: window.__mbIdb.filter((item) => item.mode === 'readwrite').map((item) => item.stores.join('+')),
     sdkRenders: window.__mbPerf?.render ?? 0,
     sdkMeasures: window.__mbPerf?.measure ?? 0,
   }));
-  test.info().annotations.push({ type: 'perf', description: JSON.stringify({ insertMs, ...measured }) });
-  console.log('perf', JSON.stringify({ insertMs, ...measured }));
+  const dragTaskMs = Math.max(0, ...dragTasks);
+  test.info().annotations.push({ type: 'perf', description: JSON.stringify({ insertMs, dragTaskMs, ...measured }) });
+  console.log('perf', JSON.stringify({ insertMs, dragTaskMs, ...measured }));
 
-  expect(measured.longestTaskMs, 'longest task during the drag').toBeLessThanOrEqual(budget.longTaskMs);
+  expect(dragTaskMs, 'longest task during the drag').toBeLessThanOrEqual(budget.dragTaskMs);
+  expect(measured.settleTaskMs, 'longest task after release').toBeLessThanOrEqual(budget.settleTaskMs);
   expect(measured.idbWriteTransactions, 'IndexedDB write transactions during the drag').toBeLessThanOrEqual(budget.idbWriteTransactions);
   expect(measured.sdkRenders, 'SDK renders during the drag').toBeLessThanOrEqual(budget.sdkRenders);
   expect(measured.sdkMeasures, 'SDK measures during the drag').toBeLessThanOrEqual(budget.sdkMeasures);
