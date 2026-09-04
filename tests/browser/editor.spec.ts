@@ -561,6 +561,25 @@ test('File System Access open picker validates and opens v4',async({page})=>{con
 
 test('canvas elements stay unfilled on hover and the grid survives the thermal preview',async({page})=>{await page.goto('/');await page.getByRole('button',{name:'Text',exact:true}).click();const element=page.locator('.element').first();await element.hover();expect(await element.evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgba(0, 0, 0, 0)');await page.getByLabel('Printer model').focus();const raster=page.locator('.media canvas');await expect(raster).toBeAttached({timeout:10000});expect(await raster.evaluate(node=>getComputedStyle(node).mixBlendMode)).toBe('multiply');expect(await page.locator('.media').evaluate(node=>getComputedStyle(node).backgroundImage)).toContain('linear-gradient')});
 
+test('the thermal preview resamples the printer raster to the size it is shown at',async({page})=>{await page.goto('/');
+  // Hairline strokes vanish under nearest-neighbour downscaling, which is exactly what the preview must avoid.
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="#000" stroke-width="0.4">'+Array.from({length:20},(_,i)=>`<circle cx="50" cy="50" r="${2+i*2.3}"/>`).join('')+'</svg>';
+  await openDialog(page,'Label','Assets…');
+  await page.locator('input[type=file][accept*="image"]').setInputFiles({name:'rings.svg',mimeType:'image/svg+xml',buffer:Buffer.from(svg)});
+  await expect(page.getByText('rings.svg',{exact:true}).first()).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByLabel('Printer model').focus();
+  const raster=page.locator('canvas[aria-label="Exact thermal SDK preview"]');
+  await expect(raster).toBeAttached({timeout:10000});
+  await expect.poll(async()=>raster.evaluate(node=>(node as HTMLCanvasElement).width),{timeout:10000}).toBeGreaterThan(0);
+  await page.locator('.media').screenshot({path:process.env.MB_PREVIEW_SHOT??'test-results/thermal-preview.png'});
+  const sizes=await raster.evaluate(node=>{const canvas=node as HTMLCanvasElement;const shown=canvas.getBoundingClientRect();return{backing:canvas.width,shown:shown.width*devicePixelRatio,dpiWidth:Math.round(canvas.clientWidth/3.7795275591*300/25.4),rendering:getComputedStyle(canvas).imageRendering}});
+  expect(sizes.backing).toBeLessThan(sizes.dpiWidth);
+  expect(Math.abs(sizes.backing-sizes.shown)).toBeLessThanOrEqual(2);
+  expect(sizes.rendering).not.toBe('pixelated');
+  const ink=await raster.evaluate(node=>{const canvas=node as HTMLCanvasElement;const data=canvas.getContext('2d')!.getImageData(0,0,canvas.width,canvas.height).data;let dark=0;for(let i=0;i<data.length;i+=4)if(data[i]<200)dark++;return dark/(data.length/4)});
+  expect(ink).toBeGreaterThan(0.02);
+});
 test('webp imports transcode to a printable halftone png',async({page})=>{await page.goto('/');
   const webp=await page.evaluate(async()=>{const canvas=new OffscreenCanvas(48,48);const context=canvas.getContext('2d')!;const gradient=context.createLinearGradient(0,0,48,48);gradient.addColorStop(0,'#000');gradient.addColorStop(1,'#fff');context.fillStyle=gradient;context.fillRect(0,0,48,48);return [...new Uint8Array(await (await canvas.convertToBlob({type:'image/webp'})).arrayBuffer())]});
   await openDialog(page,'Label','Assets…');

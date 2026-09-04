@@ -100,7 +100,7 @@
   <div class="pan" style={`transform:translate(calc(-50% + ${$editor.view.pan.x}px),calc(-50% + ${$editor.view.pan.y}px)) scale(${$editor.view.zoom})`}>
     <div class:grid={$editor.view.showGrid} class:continuous={$editor.document.media.shape==='continuous'} class="media" style={`width:${$editor.document.media.width * pxPerMm}px;height:${displayHeight * pxPerMm}px;--grid:${$editor.view.gridSize * pxPerMm}px;border-radius:${$editor.document.media.shape === 'round' ? '50%' : '3px'}`}>
       {#if $editor.document.media.shape==='continuous'}<div class="safe-margin leading" style={`height:${rollSettings.leadingMarginMm*pxPerMm}px`}></div><div class="safe-margin trailing" style={`height:${rollSettings.trailingMarginMm*pxPerMm}px`}></div><div class="cut-line"><span>Cut at {displayHeight.toFixed(2)} mm</span></div>{/if}
-      {#if sdk&&previewDocument}<ThermalPreview {sdk} document={previewDocument}/>{:else if previewError}<span class="preview-error" title={previewError}>Fit preview unavailable</span>{/if}
+      {#if sdk&&previewDocument}<ThermalPreview {sdk} document={previewDocument} zoom={$editor.view.zoom}/>{:else if previewError}<span class="preview-error" title={previewError}>Fit preview unavailable</span>{/if}
       {#if previewWarning}<span class="preview-warning" role="status" title={previewWarning}>{previewWarning}</span>{/if}
       {#each [...$editor.document.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
         {#if element.visible && element.type !== 'group'}
