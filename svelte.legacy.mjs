@@ -10,5 +10,4 @@ export const legacyComponents = new Set([
   'App.svelte',
   'AssetPanel.svelte',
   'Canvas.svelte',
-  'ExternalResourceConnectionsPanel.svelte',
 ]);

@@ -1,24 +1,25 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { ExternalResourceConnection } from '../external-resources/types.js';
   import type { ExternalResourceConnectionManager } from '../external-resources/manager.js';
 
-  export let manager: ExternalResourceConnectionManager;
-  export let onChange: (connections: ExternalResourceConnection[]) => void = () => {};
-  export let onSelect: (id: string) => void = () => {};
+  interface Props { manager: ExternalResourceConnectionManager; onChange?: (connections: ExternalResourceConnection[]) => void; onSelect?: (id: string) => void }
+  let { manager, onChange = () => {}, onSelect = () => {} }: Props = $props();
 
-  let connections = manager.connections();
-  let selectedId = manager.selectedId();
-  let editingId = '';
-  let name = '';
-  let providerKind = manager.providers()[0]?.kind ?? '';
-  let endpoint = '';
-  let enabled = true;
-  let token = '';
-  let busy = false;
-  let status = '';
+  // The form seeds itself from the manager once; refresh() re-reads it after every change.
+  let connections = $state.raw(untrack(() => manager.connections()));
+  let selectedId = $state(untrack(() => manager.selectedId()));
+  let editingId = $state('');
+  let name = $state('');
+  let providerKind = $state(untrack(() => manager.providers()[0]?.kind ?? ''));
+  let endpoint = $state('');
+  let enabled = $state(true);
+  let token = $state('');
+  let busy = $state(false);
+  let status = $state('');
 
-  $: providers = manager.providers();
+  const providers = $derived(manager.providers());
 
   function refresh() {
     connections = manager.connections();
@@ -88,21 +89,21 @@
     <ul>
       {#each connections as item (item.id)}
         <li class:active={item.id === selectedId}>
-          <label><input type="radio" name="active-resource-connection" value={item.id} checked={item.id === selectedId} disabled={!item.enabled} on:change={() => choose(item.id)}><span><strong>{item.name}</strong><small>{providerName(item.providerKind)} · {item.endpoint} · {item.enabled ? 'Enabled' : 'Disabled'}</small></span></label>
-          <div><button on:click={() => edit(item)}>Edit</button><button on:click={() => test(item)} disabled={busy || !item.enabled}>Test</button><button on:click={() => remove(item)}>Remove</button></div>
+          <label><input type="radio" name="active-resource-connection" value={item.id} checked={item.id === selectedId} disabled={!item.enabled} onchange={() => choose(item.id)}><span><strong>{item.name}</strong><small>{providerName(item.providerKind)} · {item.endpoint} · {item.enabled ? 'Enabled' : 'Disabled'}</small></span></label>
+          <div><button onclick={() => edit(item)}>Edit</button><button onclick={() => test(item)} disabled={busy || !item.enabled}>Test</button><button onclick={() => remove(item)}>Remove</button></div>
         </li>
       {/each}
     </ul>
   {:else}<p>No external resource connections.</p>{/if}
 
-  <form on:submit|preventDefault={save}>
+  <form onsubmit={(event)=>{event.preventDefault();(save)()}}>
     <h3>{editingId ? 'Edit connection' : 'Add connection'}</h3>
     <label>Name<input bind:value={name} required placeholder="Workshop assets"></label>
     <label>Provider<select bind:value={providerKind} required>{#each providers as provider}<option value={provider.kind}>{provider.displayName}</option>{/each}</select></label>
     <label>Endpoint<input type="url" bind:value={endpoint} required placeholder="https://assets.example.com"></label>
     <label>Session token<input type="password" bind:value={token} autocomplete="off" placeholder={editingId && manager.hasSessionToken(editingId) ? 'Token is set for this session' : 'Optional bearer token'}></label>
     <label class="enabled"><input type="checkbox" bind:checked={enabled}> Enabled</label>
-    <div class="form-actions"><button type="submit" disabled={busy || !providers.length}>{editingId ? 'Save connection' : 'Add connection'}</button>{#if editingId}<button type="button" on:click={() => edit()}>Add another</button>{/if}</div>
+    <div class="form-actions"><button type="submit" disabled={busy || !providers.length}>{editingId ? 'Save connection' : 'Add connection'}</button>{#if editingId}<button type="button" onclick={() => edit()}>Add another</button>{/if}</div>
   </form>
   <p aria-live="polite">{status}</p>
 </section>
