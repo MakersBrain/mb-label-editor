@@ -19,7 +19,9 @@
   import MediaPanel from './MediaPanel.svelte';
   import LibraryPanel from './LibraryPanel.svelte';
   import GuidesPanel from './GuidesPanel.svelte';
-  import Toolbar from './Toolbar.svelte';
+  import ToolRail from './ToolRail.svelte';
+  import HistoryButtons from './HistoryButtons.svelte';
+  import { MediaQuery } from 'svelte/reactivity';
   import EditorMenus from './EditorMenus.svelte';
   import Modal from './Modal.svelte';
   interface Props {
@@ -54,6 +56,8 @@
     actions,
     sidebar,
   }: Props = $props();
+  /** Below 64rem the selection bar folds its alignment tools away and the tool rail runs along the top. */
+  const narrow = new MediaQuery('(max-width: 64rem)');
   let sidebarOpen = $state(true);
   let dialog = $state('');
   const activeResourceProvider = $derived(resourceProvider ?? assetCatalog);
@@ -231,13 +235,16 @@
     <nav class="menubar" aria-label="Editor menus">
       {@render menuStart?.()}
       <EditorMenus {editor} {sidebarOpen} onOpen={openPanel} onToggleSidebar={() => (sidebarOpen = !sidebarOpen)} />
+      <HistoryButtons {editor} />
       {@render menuEnd?.()}
     </nav>
     <div class="appbar-actions">{@render actions?.()}</div>
   </header>
-  <Toolbar {editor} />
   <main class:sidebar-closed={!sidebarOpen} style={`--sidebar-width:${sidebarWidth}px`}>
-    <div class="canvas"><Canvas {editor} {sdk} {materializer} printer={selectedPrinter} /></div>
+    <ToolRail {editor} orientation={narrow.current ? 'horizontal' : 'vertical'} />
+    <div class="canvas">
+      <Canvas {editor} {sdk} {materializer} printer={selectedPrinter} compact={narrow.current} />
+    </div>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
     {#if sidebarOpen}<div
         class="sidebar-resizer"
@@ -387,7 +394,7 @@
   main {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, var(--sidebar-width, 19rem));
+    grid-template-columns: auto minmax(20rem, 1fr) auto minmax(0, var(--sidebar-width, 19rem));
     min-width: 0;
     min-height: 0;
     flex: 1;
@@ -425,7 +432,7 @@
     overflow: hidden;
   }
   main.sidebar-closed {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
   }
   main.sidebar-closed aside {
     display: none;
@@ -530,10 +537,10 @@
     main,
     main.sidebar-closed {
       grid-template-columns: 1fr;
-      grid-template-rows: minmax(16rem, 1fr) minmax(0, 42vh);
+      grid-template-rows: auto minmax(16rem, 1fr) minmax(0, 42vh);
     }
     main.sidebar-closed {
-      grid-template-rows: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
     }
     aside {
       display: block;

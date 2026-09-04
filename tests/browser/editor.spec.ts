@@ -620,7 +620,7 @@ test('grouping selects the new group for immediate alignment', async ({ page }) 
     .locator('button.name')
     .last()
     .click({ modifiers: ['Shift'] });
-  await tools.getByRole('button', { name: 'Group', exact: true }).click();
+  await page.getByRole('toolbar', { name: 'Selection' }).getByRole('button', { name: 'Group', exact: true }).click();
   await expect(page.getByText('2 child elements', { exact: true })).toBeVisible();
   await expect(page.locator('li.selected')).toContainText('Group');
   await page.getByRole('button', { name: 'Align right', exact: true }).click();
@@ -1936,7 +1936,30 @@ test('layers can be renamed inline, reordered from the keyboard and duplicated f
   expect(Number(await layerField.inputValue())).toBeLessThan(before);
   await rows.first().getByRole('button', { name: 'Lower' }).click();
   await page.getByTitle('More actions').first().click();
-  await page.getByRole('button', { name: 'Duplicate' }).click();
+  await rows.first().getByRole('button', { name: 'Duplicate' }).click();
   await expect(rows).toHaveCount(3);
   await expect(page.locator('aside .layer-count')).toHaveText('3 layers');
+});
+
+test('the selection bar follows the selection and collapses into a More menu when compact', async ({ page }) => {
+  await page.goto('/');
+  const bar = page.getByRole('toolbar', { name: 'Selection' });
+  await expect(bar).toHaveCount(0);
+  await page
+    .getByRole('navigation', { name: 'Drawing tools' })
+    .getByRole('button', { name: 'Rectangle', exact: true })
+    .click();
+  await expect(bar).toBeVisible();
+  const box = (await page.locator('.selection-box').boundingBox())!;
+  const barBox = (await bar.boundingBox())!;
+  expect(barBox.y + barBox.height).toBeLessThanOrEqual(box.y);
+  await expect(bar.getByRole('button', { name: 'Align right', exact: true })).toBeVisible();
+  await page.getByRole('application', { name: 'Label canvas' }).click({ position: { x: 30, y: 30 } });
+  await expect(bar).toHaveCount(0);
+  await page.setViewportSize({ width: 1000, height: 700 });
+  await page.locator('.element.rectangle').click();
+  await expect(bar).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Align right', exact: true })).toHaveCount(0);
+  await bar.getByTitle('More').click();
+  await expect(bar.getByRole('button', { name: 'Align right', exact: true })).toBeVisible();
 });

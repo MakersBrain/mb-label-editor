@@ -20,6 +20,7 @@
   import type { EditorStore } from '../store.svelte.js';
   import { fitToView, labelToScreen, rulerTicks, RULER_SIZE } from '../view.js';
   import ZoomControl from './ZoomControl.svelte';
+  import SelectionBar from './SelectionBar.svelte';
   import type { PrinterDefinition, PrinterSdk } from '../print/types.js';
   import ThermalPreview from './ThermalPreview.svelte';
   import type { Bounds, FontResource, LabelDocument, LabelElement, Point, Resource } from '../model.js';
@@ -29,8 +30,10 @@
     sdk?: PrinterSdk;
     printer?: PrinterDefinition;
     materializer?: Pick<DocumentMaterializer, 'materializeRecord'>;
+    /** Folds the selection bar's alignment tools into a menu on narrow screens. */
+    compact?: boolean;
   }
-  let { editor, sdk, printer, materializer }: Props = $props();
+  let { editor, sdk, printer, materializer, compact = false }: Props = $props();
   let previewDocument = $state.raw<LabelDocument | undefined>();
   let previewError = $state('');
   let previewWarning = $state('');
@@ -230,7 +233,9 @@
     abandonDrag();
   }
   function clearSelection(event: MouseEvent) {
-    if (!(event.target as Element).closest('.element,.selection-box')) editor.clearSelection();
+    // Clicks on canvas chrome (the selection bar and zoom control) are not clicks on empty label space.
+    if (!(event.target as Element).closest('.element,.selection-box,.selection-bar,.zoom-control'))
+      editor.clearSelection();
   }
   function wheel(event: WheelEvent) {
     event.preventDefault();
@@ -523,6 +528,15 @@
   const horizontalTicks = $derived(
     rulerTicks(editor.view.zoom, rulerOrigin.x - RULER_SIZE, Math.max(0, editor.view.viewport.width - RULER_SIZE)),
   );
+  /** Where the floating selection bar sits: above the selection, clear of the handles that overhang the top edge. */
+  const selectionAnchor = $derived.by(() => {
+    const bounds = selectionBounds ?? { x: 0, y: 0, width: 0, height: 0 };
+    const media = { width: editor.document.media.width, height: displayHeight };
+    const clearance = 6 * editor.view.zoom + 8;
+    const top = labelToScreen({ x: bounds.x + bounds.width / 2, y: bounds.y }, editor.view, media);
+    const bottom = labelToScreen({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height }, editor.view, media);
+    return { above: { x: top.x, y: top.y - clearance }, below: { x: bottom.x, y: bottom.y + clearance } };
+  });
   const verticalTicks = $derived(
     rulerTicks(editor.view.zoom, rulerOrigin.y - RULER_SIZE, Math.max(0, editor.view.viewport.height - RULER_SIZE)),
   );
@@ -719,6 +733,15 @@
         <span>continuous roll</span>
       </div>{/if}
   </div>
+  {#if selectionBounds && !drag}
+    <SelectionBar
+      {editor}
+      above={selectionAnchor.above}
+      below={selectionAnchor.below}
+      viewport={editor.view.viewport}
+      {compact}
+    />
+  {/if}
   <ZoomControl {editor} />
 </div>
 
