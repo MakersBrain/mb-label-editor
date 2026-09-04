@@ -12,7 +12,7 @@
   import { onDestroy } from 'svelte';
   import type { EditorStore } from '../store.js';
   import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import ThermalPreview from'./ThermalPreview.svelte';
-  import type { Bounds, FontResource, LabelDocument, LabelElement, Point } from '../model.js'; import { elementAncestry, isEffectivelyLocked, isEffectivelyVisible } from '../model.js';
+  import type { Bounds, FontResource, LabelDocument, LabelElement, Point, Resource } from '../model.js'; import { elementAncestry, isEffectivelyLocked, isEffectivelyVisible } from '../model.js';
   export let editor: EditorStore;
   export let sdk:PrinterSdk|undefined=undefined;
   export let printer:PrinterDefinition|undefined=undefined;
@@ -132,7 +132,7 @@
     if(drag.kind==='rotate'&&drag.element&&mediaElement){const root=elementRootBounds($editor.document,drag.element);const center={x:root.x+root.width/2,y:root.y+root.height/2};const page=mediaElement.getBoundingClientRect();const degrees=Math.atan2(event.clientY-page.top-center.y*pxPerMm*$editor.view.zoom,event.clientX-page.left-center.x*pxPerMm*$editor.view.zoom)*180/Math.PI+90;return rotateElements([drag.element.id],event.shiftKey?Math.round(degrees/15)*15:degrees)}
     return;
   }
-  function movesWithDrag(element:LabelElement):boolean{if(drag?.kind!=='move')return false;const moved=new Set(drag.ids);let current:LabelElement|undefined=element;while(current){if(moved.has(current.id))return true;current=current.groupId?$editor.document.elements.find(item=>item.id===current?.groupId):undefined}return false}
+  function movesWithDrag(element:LabelElement):boolean{return !!movedIds&&elementAncestry($editor.document,element).some(item=>movedIds!.has(item.id))}
   const styleFor = (element: LabelElement,offset:Point,preview:Point|undefined) => {const delta=preview??{x:0,y:0};return `left:${(element.transform.x+offset.x+delta.x)*pxPerMm}px;top:${(element.transform.y+offset.y+delta.y)*pxPerMm}px;width:${element.transform.width*pxPerMm}px;height:${element.transform.height*pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${element.zIndex}`};
   const boundsStyle = (bounds:Bounds,preview:Point|undefined) => {const delta=preview??{x:0,y:0};return `left:${(bounds.x+delta.x)*pxPerMm}px;top:${(bounds.y+delta.y)*pxPerMm}px;width:${bounds.width*pxPerMm}px;height:${bounds.height*pxPerMm}px`};
   const dragDelta=(event:Pick<PointerEvent,'clientX'|'clientY'>):Point=>({x:(event.clientX-drag!.at.x)/pxPerMm/$editor.view.zoom,y:(event.clientY-drag!.at.y)/pxPerMm/$editor.view.zoom});
@@ -146,17 +146,29 @@
   }
   function boundsOf(elements:LabelElement[],document=$editor.document):Bounds|undefined{if(!elements.length)return;const roots=elements.map(item=>elementRootBounds(document,item));const x=Math.min(...roots.map(item=>item.x));const y=Math.min(...roots.map(item=>item.y));const right=Math.max(...roots.map(item=>item.x+item.width));const bottom=Math.max(...roots.map(item=>item.y+item.height));return{x,y,width:right-x,height:bottom-y}}
   $: displayDocument=dragPreview??$editor.document;
+  $: resourcesById=new Map($editor.document.resources.map(item=>[item.id,item]));
+  /** Data URLs are built once per resource object; rebuilding a base64 string per render made every element re-render pay for embedded images. */
+  const resourceUrls=new WeakMap<Resource,string>();
+  function resourceUrl(resource:Resource):string{let url=resourceUrls.get(resource);if(!url){url=`data:${resource.mimeType};base64,${resource.data}`;resourceUrls.set(resource,url)}return url}
+  $: sortedElements=[...displayDocument.elements].sort((a,b)=>a.zIndex-b.zIndex);
+  $: movedIds=drag?.kind==='move'?new Set(drag.ids):undefined;
   $: currentRecord=$editor.document.template?.records[$editor.document.template.currentRecord];
   /** Text on the canvas shows the selected record's values; the raw expression stays editable in Properties. */
   function merged(source:string):string{if(!currentRecord||!source.includes('{{'))return source;try{return evaluateTemplate(source,{record:currentRecord,locale:globalThis.navigator?.language})}catch{return source}}
   const verticalPlacement:Record<string,string>={top:'flex-start',middle:'center',bottom:'flex-end'};
   let measurer:CanvasRenderingContext2D|null|undefined;
   /** Width in pixels of the widest line, at the element's own face and size. */
+  /** Widest line of a text run, memoised by font and text; cleared when an embedded face registers because its metrics change. */
+  const lineWidths=new Map<string,number>();
   function lineWidth(element:Extract<LabelElement,{type:'text'}>,text:string,size:number):number{
     if(measurer===undefined)measurer=typeof document==='undefined'?null:document.createElement('canvas').getContext('2d');
     if(!measurer||!text)return 0;
-    measurer.font=`${element.fontWeight} ${size*pxPerMm}px ${element.fontFamily}`;
-    return Math.max(...text.split('\n').map(line=>measurer!.measureText(line).width));
+    const font=`${element.fontWeight} ${size*pxPerMm}px ${element.fontFamily}`;const key=`${font}\u0000${text}`;
+    const cached=lineWidths.get(key);if(cached!==undefined)return cached;
+    if(lineWidths.size>2000)lineWidths.clear();
+    measurer.font=font;
+    const width=Math.max(...text.split('\n').map(line=>measurer!.measureText(line).width));
+    lineWidths.set(key,width);return width;
   }
   /** Mirrors the SDK's shrink-to-fit: one linear scale down to whichever of the box's width or height binds first. */
   function fittedFontSize(element:Extract<LabelElement,{type:'text'}>,text:string):number{
@@ -185,7 +197,7 @@
       try{
         const face=new FontFace(font.family,`url(data:${font.mimeType};base64,${font.data})`,{weight:String(font.weight),style:font.style});
         document.fonts.add(await face.load());
-        fontGeneration+=1;
+        fontGeneration+=1;lineWidths.clear();
       }catch{registeredFonts.delete(font.id)}
     }
   }
@@ -213,21 +225,21 @@
       {#if sdk&&previewDocument}<ThermalPreview {sdk} document={previewDocument} zoom={$editor.view.zoom}/>{:else if previewError}<span class="preview-error" title={previewError}>Fit preview unavailable</span>{/if}
       {#if previewWarning}<span class="preview-warning" role="status" title={previewWarning}>{previewWarning}</span>{/if}
       {#if $editor.document.template?.records.length}<span class="record-badge" role="status" title="Values from this record are shown; pick another row in the Data tab">Record {$editor.document.template.currentRecord + 1} of {$editor.document.template.records.length}</span>{/if}
-      {#each [...displayDocument.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
+      {#each sortedElements as element (element.id)}
         {#if element.type !== 'group' && isEffectivelyVisible(displayDocument, element)}
           <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={isEffectivelyLocked(displayDocument, element)} class:exact={!!sdk} class="element {element.type}" data-id={element.id} style={styleFor(element,elementRootOffset(displayDocument,element),movesWithDrag(element)?dragPreviewDelta:undefined)} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} on:dblclick={(event) => enterElement(event, element)} aria-label={element.name}>
             {#if element.type === 'text'}<span style={textBoxStyle(element)}><span class="text-body" style={textStyle(element,fontGeneration)}>{merged(element.text)}</span></span>
             {:else if element.type === 'barcode'}<span class="placeholder">▥ {merged(element.value)}</span>
             {:else if element.type === 'qr'}<span class="placeholder">▦</span>
             {:else if element.type === 'image' || element.type === 'svg'}
-              {@const resource = $editor.document.resources.find((item) => item.id === element.resourceId)}
-              {#if resource}<img class="asset" style={`object-fit:${element.type === 'image' && element.fit === 'stretch' ? 'fill' : element.type === 'image' && element.fit === 'cover' ? 'cover' : 'contain'};filter:${element.type === 'image' && element.invert ? 'invert(1)' : 'none'}`} alt={element.name} src={`data:${resource.mimeType};base64,${resource.data}`}>{:else}<span class="placeholder">Missing asset</span>{/if}
+              {@const resource = resourcesById.get(element.resourceId)}
+              {#if resource}<img class="asset" style={`object-fit:${element.type === 'image' && element.fit === 'stretch' ? 'fill' : element.type === 'image' && element.fit === 'cover' ? 'cover' : 'contain'};filter:${element.type === 'image' && element.invert ? 'invert(1)' : 'none'}`} alt={element.name} src={resourceUrl(resource)}>{:else}<span class="placeholder">Missing asset</span>{/if}
             {:else}<span class="placeholder">{element.type}</span>{/if}
           </button>
         {/if}
       {/each}
       {#if selectionBounds}<div class="selection-box" style={boundsStyle(selectionBounds,drag?.kind==='move'?dragPreviewDelta:undefined)}>{#if selectionHasGroup}<div class="selection-move" role="presentation" title="Drag to move the group; double-click a child to edit it alone" on:pointerdown={startSelectionDrag} on:pointerup={finishDrag} on:dblclick={enterUnderPointer}></div>{/if}{#each resizeHandles as handle}<i class="handle resize {handle}" role="presentation" title={`Resize ${handle}; hold Shift to toggle aspect ratio`} on:pointerdown={(event)=>startResize(event,handle)} on:pointerup={finishDrag}></i>{/each}{#if rotateElement}<i class="handle rotate" role="presentation" title="Rotate; hold Shift for 15° increments" on:pointerdown={(event)=>startRotate(event,rotateElement!)} on:pointerup={finishDrag}>↻</i>{/if}</div>{/if}
-      {#each [...$editor.view.manualGuides,...$editor.view.guides] as guide}<div class="guide {guide.axis}" style={`${guide.axis === 'x' ? 'left' : 'top'}:${guide.value * pxPerMm}px`}></div>{/each}
+      {#each [...$editor.view.manualGuides,...$editor.view.guides] as guide, index (index)}<div class="guide {guide.axis}" style={`${guide.axis === 'x' ? 'left' : 'top'}:${guide.value * pxPerMm}px`}></div>{/each}
     </div>
     {#if $editor.document.media.shape==='continuous'}<div class="roll-continuation" style={`top:${displayHeight*pxPerMm}px;width:${$editor.document.media.width*pxPerMm}px`} aria-hidden="true"><span>continuous roll</span></div>{/if}
   </div>
