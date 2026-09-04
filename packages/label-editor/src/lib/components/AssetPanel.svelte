@@ -15,9 +15,11 @@
   export let editor: EditorStore;
   export let sdk: PrinterSdk | undefined = undefined;
   export let resourceProvider: ExternalResourceProvider | undefined = undefined;
+  /** False while the panel sits in a hidden tab, so it does not query the catalogue in the background. */
+  export let active = true;
 
   const database = new EditorDatabase();
-  const pageSize = 12;
+  const pageSize = 24;
   let query = '';
   let category = '';
   let status = '';
@@ -38,15 +40,26 @@
   let mounted = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let requestSequence = 0;
+  let providerFilter = '';
+  let facetCategories: { value: string; count: number }[] = [];
+  let facetProviders: { value: string; count: number }[] = [];
+  /** Tile the user clicked; placing happens from the detail strip or by double-click. */
+  let selected: { kind: 'local'; item: CatalogueAsset } | { kind: 'asset'; item: ExternalAsset } | { kind: 'font'; item: ExternalFont } | undefined;
+  let importOpen = false;
 
   $: catalogue = new AssetCatalogue([...(manifest as CatalogueAsset[]).filter(item => item.visibility === 'public'), ...privateAssets]);
   $: all = catalogue.search({ query, category: category || undefined }).sort((a, b) => recents.indexOf(b.id) - recents.indexOf(a.id));
   $: results = all.slice(page * pageSize, (page + 1) * pageSize);
   $: pages = Math.max(1, Math.ceil(all.length / pageSize));
-  $: if (mounted && source === 'service' && resourceProvider) {
-    query; category; remoteKind;
+  $: if (mounted && active && source === 'service' && resourceProvider) {
+    query; category; remoteKind; providerFilter;
     scheduleRemoteSearch();
   }
+  $: if (mounted && active && source === 'service' && resourceProvider) { query; remoteKind; void loadFacets(); }
+  $: localCategories = catalogue.categories.map(value => ({ value, count: catalogue.search({ query, category: value }).length })).filter(item => item.count);
+  $: chips = source === 'service' ? facetCategories : localCategories;
+  $: selectedSource = source; $: selectedKind = remoteKind;
+  $: { selectedSource; selectedKind; selected = undefined; }
 
   onMount(() => {
     mounted = true;
@@ -62,6 +75,25 @@
     recents = (await database.get<string[]>('preferences', 'asset-recents')) ?? [];
   }
 
+  async function loadFacets() {
+    if (!resourceProvider) { facetCategories = []; facetProviders = []; return; }
+    const loader = remoteKind === 'assets' ? resourceProvider.assetFacets : resourceProvider.fontFacets;
+    if (!loader) { facetCategories = []; facetProviders = []; return; }
+    try {
+      const facets = await loader.call(resourceProvider, query);
+      facetCategories = facets.categories.slice(0, 16);
+      facetProviders = facets.providers;
+      if (providerFilter && !facetProviders.some(item => item.value === providerFilter)) providerFilter = '';
+    } catch { facetCategories = []; facetProviders = []; }
+  }
+  function toggleCategory(value: string) { category = category === value ? '' : value; page = 0; }
+  function placeSelected() {
+    if (!selected) return;
+    if (selected.kind === 'local') void use(selected.item);
+    else if (selected.kind === 'asset') void useRemoteAsset(selected.item);
+    else void useRemoteFont(selected.item);
+  }
+  const isSelected = (kind: string, id: string) => selected?.kind === kind && selected.item.id === id;
   function scheduleRemoteSearch() {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void searchRemote(1), 250);
@@ -72,7 +104,7 @@
     const sequence = ++requestSequence;
     remoteLoading = true;
     try {
-      const common = { query, categories: category ? [category] : undefined, page: nextPage, pageSize };
+      const common = { query, categories: category ? [category] : undefined, providers: providerFilter ? [providerFilter] : undefined, page: nextPage, pageSize };
       const result = remoteKind === 'assets'
         ? await resourceProvider.searchAssets(common)
         : await resourceProvider.searchFonts(common);
@@ -199,31 +231,137 @@
   }
   const message = (error: unknown) => error instanceof Error ? error.message : String(error);
 </script>
-
-<section>
-  <h2>Asset catalogue</h2>
-  <div class="filters">
-    <select bind:value={source} aria-label="Asset source"><option value="browser">This browser</option><option value="service" disabled={!resourceProvider}>{resourceProvider?.displayName ?? 'External resources'}</option></select>
-    {#if source === 'service'}<select bind:value={remoteKind} aria-label="Remote asset kind"><option value="assets">Graphics</option><option value="fonts">Fonts</option></select>{/if}
-    <input type="search" bind:value={query} on:input={() => page = 0} placeholder="Search catalogue">
-    {#if source === 'browser'}<select bind:value={category} on:change={() => page = 0} aria-label="Asset category"><option value="">All categories</option>{#each catalogue.categories as item}<option>{item}</option>{/each}</select>{:else}<input type="text" bind:value={category} placeholder="Category (optional)" aria-label="Asset category">{/if}
+<section class="assets">
+  <div class="toolbar">
+    <div class="segmented" role="group" aria-label="Asset source">
+      <button type="button" class:active={source === 'browser'} aria-pressed={source === 'browser'} on:click={() => { source = 'browser'; page = 0; }}>This browser</button>
+      <button type="button" class:active={source === 'service'} aria-pressed={source === 'service'} disabled={!resourceProvider} on:click={() => { source = 'service'; }}>{resourceProvider?.displayName ?? 'External resources'}</button>
+    </div>
+    {#if source === 'service'}
+      <div class="segmented" role="group" aria-label="Asset kind">
+        <button type="button" class:active={remoteKind === 'assets'} aria-pressed={remoteKind === 'assets'} on:click={() => { remoteKind = 'assets'; category = ''; }}>Graphics</button>
+        <button type="button" class:active={remoteKind === 'fonts'} aria-pressed={remoteKind === 'fonts'} on:click={() => { remoteKind = 'fonts'; category = ''; }}>Fonts</button>
+      </div>
+    {/if}
+    <input type="search" bind:value={query} on:input={() => page = 0} placeholder={source === 'service' ? `Search ${remoteKind}` : 'Search this browser'} aria-label="Search assets">
+    {#if source === 'service' && facetProviders.length > 1}
+      <select bind:value={providerFilter} aria-label="Provider"><option value="">All providers</option>{#each facetProviders as item}<option value={item.value}>{item.value} ({item.count})</option>{/each}</select>
+    {/if}
   </div>
-  <div class="actions"><label>Image/SVG/PDF<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif,image/svg+xml,.svg,.webp,application/pdf" on:change={asset}></label><label>Font<input type="file" accept=".woff,.woff2,.ttf,.otf,.ttc" on:change={font}></label><label>Private .mb-assets<input type="file" accept=".mb-assets,application/json" on:change={collection}></label><button on:click={exportCollection} disabled={!privateAssets.length}>Export private collection</button></div>
-  <label class="render-profile">Image rendering<select bind:value={imageProfile}><option value="photo">Photo · smooth tones</option><option value="logo">Logo · crisp ordered dots</option><option value="line-art">Line art · solid black/white</option></select><small>The original stays intact. Rendering happens at the selected printer's {$editor.document.media.dpi} dpi and can be changed later in Properties.</small></label>
-  <p aria-live="polite">{remoteLoading ? `Searching ${resourceProvider?.displayName ?? 'external resources'}…` : status}</p>
+  {#if chips.length}
+    <div class="chips" role="group" aria-label="Categories">
+      <button type="button" class="chip" class:active={!category} aria-pressed={!category} on:click={() => { category = ''; page = 0; }}>All</button>
+      {#each chips as item (item.value)}<button type="button" class="chip" class:active={category === item.value} aria-pressed={category === item.value} on:click={() => toggleCategory(item.value)}>{item.value}<span class="count">{item.count}</span></button>{/each}
+    </div>
+  {/if}
+  <p class="status" aria-live="polite">{remoteLoading ? `Searching ${resourceProvider?.displayName ?? 'external resources'}…` : status}</p>
 
   {#if source === 'service' && resourceProvider}
-    <ul class:busy={remoteLoading}>
-      {#each remoteAssets as item (item.id)}<li><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/><button on:click={() => useRemoteAsset(item)}>{item.title}</button><small>{item.provider} · {item.category} · {item.kinds.join(', ')}</small></li>{/each}
-      {#each remoteFonts as item (item.id)}<li><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/><button on:click={() => useRemoteFont(item)}>{item.family}</button><small>{item.provider} · {item.category} · {item.availability} · {item.license}</small></li>{/each}
-    </ul>
-    {#if !remoteLoading && remoteTotal === 0}<p>No matching remote {remoteKind}.</p>{/if}
-    <nav><button on:click={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>{remotePage}/{remotePages}</span><button on:click={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>
+    <div class="grid" class:busy={remoteLoading} role="group" aria-label="Catalogue results">
+      {#each remoteAssets as item (item.id)}
+        <button type="button" class="tile" class:active={isSelected('asset', item.id)} aria-pressed={isSelected('asset', item.id)} title={`${item.title} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'asset', item }} on:dblclick={() => useRemoteAsset(item)}>
+          <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
+          <span class="name">{item.title}</span>
+        </button>
+      {/each}
+      {#each remoteFonts as item (item.id)}
+        <button type="button" class="tile font" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'font', item }} on:dblclick={() => useRemoteFont(item)}>
+          <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
+          <span class="name">{item.family}</span>
+        </button>
+      {/each}
+    </div>
+    {#if !remoteLoading && remoteTotal === 0}<p class="empty">No matching {remoteKind}.</p>{/if}
+    <nav class="pager"><button type="button" on:click={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>Page {remotePage} of {remotePages}{remoteTotal ? ` · ${remoteTotal} ${remoteKind}` : ''}</span><button type="button" on:click={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>
   {:else}
-    <ul>{#each results as item}<li>{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${item.dataBase64}`}>{:else}<span class="kind" aria-hidden="true">{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span>{/if}<button class="star" aria-label={`Favorite ${item.name}`} aria-pressed={favorites.has(item.id)} on:click={() => favorite(item.id)}>★</button><button on:click={() => use(item)}>{item.name}</button><small>{item.kind} · {item.category} · {item.visibility}{recents.includes(item.id) ? ' · recent' : ''}</small></li>{/each}{#each savedResources.filter(item => item.name.toLowerCase().includes(query.toLowerCase())) as item}<li><span>▧</span><button on:click={() => place(item)}>Place {item.name}</button><small>{item.mimeType} · persisted private library</small></li>{/each}</ul>
-    <nav><button on:click={() => page--} disabled={page === 0}>Previous</button><span>{page + 1}/{pages}</span><button on:click={() => page++} disabled={page + 1 >= pages}>Next</button></nav>
+    <div class="grid" role="group" aria-label="Browser assets">
+      {#each results as item (item.id)}
+        <button type="button" class="tile" class:active={isSelected('local', item.id)} aria-pressed={isSelected('local', item.id)} title={`${item.name} · ${item.kind} · ${item.category}`} on:click={() => selected = { kind: 'local', item }} on:dblclick={() => use(item)}>
+          <span class="thumb">{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${item.dataBase64}`}>{:else}<span class="glyph" aria-hidden="true">{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span>{/if}</span>
+          <span class="name">{item.name}</span>
+          {#if favorites.has(item.id)}<span class="star-mark" aria-label="Favourite">★</span>{/if}
+        </button>
+      {/each}
+    </div>
+    {#if !all.length}<p class="empty">Nothing in this browser matches. Import a file below or switch to the catalogue.</p>{/if}
+    <nav class="pager"><button type="button" on:click={() => page--} disabled={page === 0}>Previous</button><span>Page {page + 1} of {pages}{all.length ? ` · ${all.length} assets` : ''}</span><button type="button" on:click={() => page++} disabled={page + 1 >= pages}>Next</button></nav>
   {/if}
+
+  {#if selected}
+    <div class="detail" aria-label="Selected asset">
+      <span class="preview">
+        {#if selected.kind === 'local'}{#if selected.item.dataBase64 && selected.item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${selected.item.dataBase64}`}>{:else}<span class="glyph" aria-hidden="true">{selected.item.kind === 'font' ? 'Aa' : '▧'}</span>{/if}
+        {:else if resourceProvider}{#key selected.item.id}<RemoteAssetPreview provider={resourceProvider} path={selected.item.previewUrl} alt=""/>{/key}{/if}
+      </span>
+      <div class="meta">
+        <strong>{selected.kind === 'font' ? selected.item.family : selected.kind === 'asset' ? selected.item.title : selected.item.name}</strong>
+        {#if selected.kind === 'local'}<small>{selected.item.kind} · {selected.item.category} · {selected.item.license}</small>
+        {:else if selected.kind === 'asset'}<small>{selected.item.provider} · {selected.item.category} · {selected.item.kinds.join(', ')}</small>
+        {:else}<small>{selected.item.provider} · {selected.item.category} · {selected.item.availability} · {selected.item.license}</small><small>{selected.item.variants.length} variants</small>{/if}
+        {#if selected.kind !== 'font' && !(selected.kind === 'local' && selected.item.kind === 'font')}
+          <label class="render-profile">Image rendering<select bind:value={imageProfile}><option value="photo">Photo · smooth tones</option><option value="logo">Logo · crisp ordered dots</option><option value="line-art">Line art · solid black/white</option></select></label>
+        {/if}
+        <div class="detail-actions">
+          <button type="button" class="primary" on:click={placeSelected}>{selected.kind === 'font' || (selected.kind === 'local' && selected.item.kind === 'font') ? 'Add font' : 'Place on label'}</button>
+          {#if selected.kind === 'local'}<button type="button" aria-label={`Favorite ${selected.item.name}`} aria-pressed={favorites.has(selected.item.id)} on:click={() => { if (selected?.kind === 'local') void favorite(selected.item.id); }}>{favorites.has(selected.item.id) ? '★ Favourite' : '☆ Favourite'}</button>{/if}
+          <button type="button" on:click={() => selected = undefined}>Close</button>
+        </div>
+      </div>
+    </div>
+  {:else}
+    <p class="hint">Click a tile to see details, double-click to place it directly.</p>
+  {/if}
+
+  <details class="import" bind:open={importOpen}>
+    <summary>Import files</summary>
+    <div class="actions">
+      <label class="upload">Image/SVG/PDF<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif,image/svg+xml,.svg,.webp,application/pdf" on:change={asset}></label>
+      <label class="upload">Font<input type="file" accept=".woff,.woff2,.ttf,.otf,.ttc" on:change={font}></label>
+      <label class="upload">Private .mb-assets<input type="file" accept=".mb-assets,application/json" on:change={collection}></label>
+      <button type="button" on:click={exportCollection} disabled={!privateAssets.length}>Export private collection</button>
+    </div>
+    <label class="render-profile">Image rendering for imports<select bind:value={imageProfile}><option value="photo">Photo · smooth tones</option><option value="logo">Logo · crisp ordered dots</option><option value="line-art">Line art · solid black/white</option></select><small>The original stays intact. Rendering happens at the selected printer's {$editor.document.media.dpi} dpi and can be changed later in Properties.</small></label>
+  </details>
 </section>
 <style>
-  section{padding:.7rem .75rem;border-top:1px solid var(--mble-border,#e5dfd5)}h2{margin:0 0 .5rem;color:var(--mble-text-muted,#59635e);font-size:.75rem;font-weight:600}.filters,.actions{display:flex;gap:.3rem;flex-wrap:wrap}.filters input[type=search]{flex:1;min-width:10rem}.actions{margin-top:.4rem}.actions label{border:1px solid var(--mble-border-strong,#bbb);padding:.3rem}.actions input{position:absolute;opacity:0;width:1px}.render-profile{display:flex;flex-direction:column;gap:.2rem;margin:.55rem 0 0;font-size:.72rem}.render-profile small{line-height:1.35}ul{list-style:none;padding:0;max-height:24rem;overflow:auto}ul.busy{opacity:.55}li{display:grid;grid-template-columns:2.5rem minmax(0,1fr);gap:.15rem .4rem;align-items:center;margin:.25rem 0}li :global(img){grid-row:span 2;width:2.5rem;height:2.5rem;object-fit:contain}li>.kind,li>span:first-child{grid-row:span 2}.star{position:absolute;margin-left:1.3rem;padding:.1rem}small{color:var(--mble-text-muted,#666);overflow:hidden;text-overflow:ellipsis}nav{display:flex;justify-content:space-between}
+  .assets{display:flex;flex-direction:column;gap:.5rem;padding:.7rem .75rem;font-size:.78rem}
+  .toolbar{display:flex;flex-direction:column;gap:.35rem}
+  .segmented{display:flex;border:1px solid var(--mble-border-strong,#bbb);border-radius:var(--mble-radius-sm,4px);overflow:hidden}
+  .segmented button{flex:1;padding:.3rem .4rem;border:0;border-radius:0;background:transparent;color:var(--mble-text-muted,#59635e);font-size:.72rem;font-weight:600;cursor:pointer}
+  .segmented button+button{border-left:1px solid var(--mble-border-strong,#bbb)}
+  .segmented button.active{background:var(--mble-primary,#ed6146);color:#fff}
+  .segmented button:disabled{opacity:.5;cursor:default}
+  .toolbar input[type=search]{width:100%;box-sizing:border-box}
+  .chips{display:flex;flex-wrap:wrap;gap:.25rem}
+  .chip{padding:.15rem .5rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:999px;background:var(--mble-surface,#fff);color:var(--mble-text,#17231c);font-size:.68rem;cursor:pointer}
+  .chip.active{background:var(--mble-text,#17231c);border-color:var(--mble-text,#17231c);color:var(--mble-surface,#fff)}
+  .chip .count{margin-left:.3rem;opacity:.65}
+  .status{min-height:1em;margin:0;color:var(--mble-text-muted,#59635e);font-size:.7rem}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.2rem,1fr));gap:.4rem}
+  .grid.busy{opacity:.55}
+  .tile{position:relative;display:flex;flex-direction:column;gap:.25rem;padding:.3rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-sm,4px);background:var(--mble-surface,#fff);color:inherit;cursor:pointer;text-align:left}
+  .tile:hover{border-color:var(--mble-border-strong,#948274)}
+  .tile.active{border-color:var(--mble-primary,#ed6146);box-shadow:0 0 0 1px var(--mble-primary,#ed6146)}
+  .thumb{display:grid;place-items:center;aspect-ratio:1;background:#fff;border-radius:3px;overflow:hidden}
+  .thumb :global(img){width:100%;height:100%;object-fit:contain}
+  .thumb :global(.preview){width:100%;height:100%}
+  .glyph{font-size:1.4rem;color:var(--mble-text-muted,#59635e)}
+  .name{overflow:hidden;font-size:.68rem;line-height:1.25;white-space:nowrap;text-overflow:ellipsis}
+  .star-mark{position:absolute;top:.2rem;right:.3rem;color:var(--mble-primary,#ed6146);font-size:.7rem}
+  .empty,.hint{margin:0;color:var(--mble-text-muted,#59635e);font-size:.7rem}
+  .pager{display:flex;align-items:center;justify-content:space-between;gap:.3rem;font-size:.7rem;color:var(--mble-text-muted,#59635e)}
+  .detail{display:grid;grid-template-columns:5.5rem minmax(0,1fr);gap:.6rem;padding:.5rem;border:1px solid var(--mble-border,#d8d0c3);border-radius:var(--mble-radius-sm,4px);background:var(--mble-background,#f7f4ed)}
+  .preview{display:grid;place-items:center;aspect-ratio:1;background:#fff;border-radius:3px;overflow:hidden}
+  .preview :global(img){width:100%;height:100%;object-fit:contain}
+  .meta{display:flex;flex-direction:column;gap:.25rem;min-width:0}
+  .meta strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .meta small{color:var(--mble-text-muted,#59635e);font-size:.68rem}
+  .detail-actions{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.2rem}
+  .primary{background:var(--mble-primary,#ed6146);color:#fff;border-color:var(--mble-primary,#ed6146)}
+  .render-profile{display:flex;flex-direction:column;gap:.2rem;font-size:.7rem}
+  .render-profile small{line-height:1.35;color:var(--mble-text-muted,#59635e)}
+  .import summary{cursor:pointer;color:var(--mble-text-muted,#59635e);font-size:.72rem;font-weight:600}
+  .import .actions{display:flex;flex-wrap:wrap;gap:.3rem;margin:.4rem 0}
+  .upload{border:1px solid var(--mble-border-strong,#bbb);padding:.3rem;border-radius:var(--mble-radius-sm,4px);cursor:pointer}
+  .upload input{position:absolute;opacity:0;width:1px}
 </style>

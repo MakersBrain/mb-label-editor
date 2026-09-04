@@ -386,6 +386,27 @@ test('the sidebar switches between layers and printer tabs and remembers the cho
   await expect(page.getByRole('button', { name: '+ Group' })).toBeHidden();
 });
 
+test('the asset browser filters by category, previews a tile, and places it from the detail strip', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Assets' }).click();
+  await page.getByRole('group', { name: 'Asset source' }).getByRole('button', { name: 'This browser' }).click();
+  const grid = page.getByRole('group', { name: 'Browser assets' });
+  await expect(grid.getByRole('button', { name: /Synthetic plus/ })).toBeVisible();
+  const unfiltered = await grid.getByRole('button').count();
+  expect(unfiltered).toBeGreaterThan(1);
+  await page.getByRole('group', { name: 'Categories' }).getByRole('button', { name: /^interface/ }).click();
+  await expect(grid.getByRole('button', { name: /Synthetic plus/ })).toBeVisible();
+  expect(await grid.getByRole('button').count()).toBeLessThan(unfiltered);
+  await grid.getByRole('button', { name: /Synthetic plus/ }).click();
+  const detail = page.locator('.detail');
+  await expect(detail.locator('strong')).toHaveText('Synthetic plus');
+  await expect(detail.getByLabel('Image rendering')).toBeVisible();
+  await detail.getByRole('button', { name: 'Place on label' }).click();
+  await expect(page.locator('.element.svg')).toHaveCount(1);
+  await page.getByLabel('Search assets').fill('zzz-nothing');
+  await expect(page.getByText('Nothing in this browser matches', { exact: false })).toBeVisible();
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();

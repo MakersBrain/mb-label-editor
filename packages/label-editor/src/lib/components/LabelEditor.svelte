@@ -43,7 +43,7 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
         <details open><summary>Properties</summary><Inspector {editor}/></details>
       </div>
       <div id="sidebar-panel-assets" role="tabpanel" aria-labelledby="sidebar-tab-assets" hidden={sidebarTab!=='assets'}>
-        <AssetPanel {editor} {sdk} resourceProvider={activeResourceProvider}/>
+        <AssetPanel {editor} {sdk} resourceProvider={activeResourceProvider} active={sidebarTab==='assets'}/>
       </div>
       <div id="sidebar-panel-printer" role="tabpanel" aria-labelledby="sidebar-tab-printer" hidden={sidebarTab!=='printer'}>
         <slot name="sidebar"/>

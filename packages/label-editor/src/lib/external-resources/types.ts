@@ -64,8 +64,13 @@ export interface ExternalResourceProvider {
   searchAssets(options?: ExternalAssetSearchOptions): Promise<ExternalResourcePage<ExternalAsset>>;
   searchFonts(options?: ExternalFontSearchOptions): Promise<ExternalResourcePage<ExternalFont>>;
   cacheFont?(id: string, variants?: string[]): Promise<ExternalFont>;
+  /** Category and provider counts for the current query, used to offer filters. */
+  assetFacets?(query?: string): Promise<ExternalResourceFacets>;
+  fontFacets?(query?: string): Promise<ExternalResourceFacets>;
   fetchBlob(path: string): Promise<Blob>;
 }
+export interface ExternalFacetValue { value: string; count: number }
+export interface ExternalResourceFacets { providers: ExternalFacetValue[]; categories: ExternalFacetValue[] }
 
 export interface ExternalResourceConnection {
   version: 1;
