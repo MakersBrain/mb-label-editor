@@ -10,55 +10,51 @@
   import { prepareDocumentForOutput } from '../output-preparation.js';
   import type { ContinuousCutMode, ContinuousPrintOptions, PrinterDefinition, PrinterSdk, PrinterStatus, PrintRoute } from '../print/types.js';
 
-  export let sdk: PrinterSdk;
-  export let materializer: Pick<DocumentMaterializer, 'materializeRecord'> | undefined = undefined;
-  export let document: LabelDocument;
-  export let printer: PrinterDefinition | undefined;
-  export let database: EditorDatabase;
-  export let localRoute: LocalApiPrintRoute | undefined = undefined;
-  export let localConnection: LocalApiConnection | undefined = undefined;
-  export let onLocalConnection: (connection: LocalApiConnection | undefined) => void = () => {};
-  export let onConfigureLocal: () => void = () => {};
-  export let onSelectLocal: () => void = () => {};
-  export let onRoute: (route: PrintRoute) => void = () => {};
-  export let onMedia: (media: { width: number; height: number; shape: 'rectangle' | 'round' | 'continuous' }) => void = () => {};
-  export let initialContinuous: ContinuousPrintOptions = { cutMode:'after-each',extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:false };
-  export let onContinuous: (options:ContinuousPrintOptions)=>void=()=>{};
+  import { untrack } from 'svelte';
+  interface Props {
+    sdk: PrinterSdk; materializer?: Pick<DocumentMaterializer, 'materializeRecord'>; document: LabelDocument; printer: PrinterDefinition | undefined; database: EditorDatabase;
+    localRoute?: LocalApiPrintRoute; localConnection?: LocalApiConnection;
+    onLocalConnection?: (connection: LocalApiConnection | undefined) => void; onConfigureLocal?: () => void; onSelectLocal?: () => void; onRoute?: (route: PrintRoute) => void;
+    onMedia?: (media: { width: number; height: number; shape: 'rectangle' | 'round' | 'continuous' }) => void;
+    initialContinuous?: ContinuousPrintOptions; onContinuous?: (options: ContinuousPrintOptions) => void;
+  }
+  let { sdk, materializer, document, printer, database, localRoute, localConnection, onLocalConnection = () => {}, onConfigureLocal = () => {}, onSelectLocal = () => {}, onRoute = () => {}, onMedia = () => {}, initialContinuous = { cutMode:'after-each',extraFeedBeforeMm:0,extraFeedAfterMm:0,chainCopies:false }, onContinuous = () => {} }: Props = $props();
 
   type RouteKind = 'local' | 'bluetooth' | 'spp' | 'usb';
-  let route: RouteKind = 'bluetooth';
-  let routePinned = false;
-  let service = '0000ff00-0000-1000-8000-00805f9b34fb';
-  let write = '0000ff02-0000-1000-8000-00805f9b34fb';
-  let notify = '0000ff03-0000-1000-8000-00805f9b34fb';
-  let vendorId = '';
-  let productId = '';
-  let message = 'Select a printer, then connect.';
-  let active: DirectPrintRoute | undefined;
-  let connectedPrinterId = '';
-  let connection: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected';
-  let cancellation: AbortController | undefined;
-  let printerStatus: PrinterStatus | undefined;
-  let querying = false;
-  let cutMode: ContinuousCutMode = initialContinuous.cutMode;
-  let extraFeedBeforeMm = initialContinuous.extraFeedBeforeMm;
-  let extraFeedAfterMm = initialContinuous.extraFeedAfterMm;
-  let chainCopies = initialContinuous.chainCopies;
-  let continuousPreferenceKey='';
-  $: syncContinuousPreference(printer?.id??'',initialContinuous);
+  let route = $state<RouteKind>('bluetooth');
+  let routePinned = $state(false);
+  let service = $state('0000ff00-0000-1000-8000-00805f9b34fb');
+  let write = $state('0000ff02-0000-1000-8000-00805f9b34fb');
+  let notify = $state('0000ff03-0000-1000-8000-00805f9b34fb');
+  let vendorId = $state('');
+  let productId = $state('');
+  let message = $state('Select a printer, then connect.');
+  let active = $state.raw<DirectPrintRoute | undefined>();
+  let connectedPrinterId = $state('');
+  let connection = $state<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  let cancellation = $state.raw<AbortController | undefined>();
+  let printerStatus = $state.raw<PrinterStatus | undefined>();
+  let querying = $state(false);
+  const seed = untrack(() => initialContinuous);
+  let cutMode = $state<ContinuousCutMode>(seed.cutMode);
+  let extraFeedBeforeMm = $state(seed.extraFeedBeforeMm);
+  let extraFeedAfterMm = $state(seed.extraFeedAfterMm);
+  let chainCopies = $state(seed.chainCopies);
+  let continuousPreferenceKey = $state('');
+  $effect(()=>{const id=printer?.id??'';const initial=initialContinuous;untrack(()=>syncContinuousPreference(id,initial))});
   const continuousChanged=()=>onContinuous({cutMode,extraFeedBeforeMm,extraFeedAfterMm,chainCopies});
   function syncContinuousPreference(printerId:string,value:ContinuousPrintOptions){const key=`${printerId}:${value.cutMode}:${value.extraFeedBeforeMm}:${value.extraFeedAfterMm}:${value.chainCopies}`;if(key===continuousPreferenceKey)return;continuousPreferenceKey=key;cutMode=value.cutMode;extraFeedBeforeMm=value.extraFeedBeforeMm;extraFeedAfterMm=value.extraFeedAfterMm;chainCopies=value.chainCopies}
 
   const preferredRoute = (definition: PrinterDefinition | undefined, saved: LocalApiConnection | undefined): RouteKind => saved && (!definition || saved.model === definition.id) ? 'local' : definition?.protocols[0] === 'brother' ? 'usb' : 'bluetooth';
-  $: if (!routePinned && connection === 'disconnected') route = preferredRoute(printer, localConnection);
-  $: if (connectedPrinterId && printer?.id !== connectedPrinterId) void disconnect('Printer changed. Connect the new printer.');
-  $: displayConnection = route === 'local' ? localConnection ? 'connected' : 'disconnected' : connection;
-  $: reportedMedia = route === 'local' ? localMediaDescription(localConnection, document) : mediaDescription(printerStatus, document);
-  $: rollCapabilities = document.media.shape === 'continuous' ? printer?.continuousMedia : undefined;
-  $: continuousPrinterUnsupported=document.media.shape==='continuous'&&!printer?.continuousMedia?.supported;
-  $: activeRoute=route==='local'?localRoute:active;
-  $: availableCutModes=rollCapabilities?.cutModes.filter(mode=>mode!=='after-job'||activeRoute?.supportsNativeBatch!==false)??[];
-  $: if (rollCapabilities && !availableCutModes.includes(cutMode)) cutMode = availableCutModes[0] ?? 'none';
+  $effect(()=>{if(!routePinned&&connection==='disconnected'){const next=preferredRoute(printer,localConnection);untrack(()=>{route=next})}});
+  $effect(()=>{if(connectedPrinterId&&printer?.id!==connectedPrinterId)untrack(()=>disconnect('Printer changed. Connect the new printer.')).catch(()=>{})});
+  const displayConnection = $derived(route === 'local' ? localConnection ? 'connected' : 'disconnected' : connection);
+  const reportedMedia = $derived(route === 'local' ? localMediaDescription(localConnection, document) : mediaDescription(printerStatus, document));
+  const rollCapabilities = $derived(document.media.shape === 'continuous' ? printer?.continuousMedia : undefined);
+  const continuousPrinterUnsupported=$derived(document.media.shape==='continuous'&&!printer?.continuousMedia?.supported);
+  const activeRoute=$derived(route==='local'?localRoute:active);
+  const availableCutModes=$derived(rollCapabilities?.cutModes.filter(mode=>mode!=='after-job'||activeRoute?.supportsNativeBatch!==false)??[]);
+  $effect(()=>{if(rollCapabilities&&!availableCutModes.includes(cutMode)){const next=availableCutModes[0]??'none';untrack(()=>{cutMode=next})}});
 
   function usbFilters() {
     const vendor = Number(vendorId || 0);
@@ -197,8 +193,8 @@
     <span>Media</span><strong>{reportedMedia.width} × {reportedMedia.length} mm</strong>
     <small>{reportedMedia.name ?? reportedMedia.kind} · {printer?.dpi ?? document.media.dpi} dpi</small>
   </div>
-  <label>Connection<select bind:value={route} on:change={changeRoute} disabled={connection === 'connecting'}>{#if localRoute}<option value="local">{localConnection ? `${localConnection.transport.kind.toUpperCase()} · ${localConnection.id}` : 'IPP/IPPS · Local service'}</option>{/if}<option value="bluetooth">Bluetooth LE</option><option value="spp">Bluetooth Serial</option><option value="usb">USB</option></select></label>
-  {#if rollCapabilities}<fieldset><legend>Continuous roll</legend>{#if rollCapabilities.automaticCutter}<label>Cut<select bind:value={cutMode} on:change={continuousChanged}>{#each availableCutModes as mode}<option value={mode}>{mode==='after-each'?'After each label':mode==='after-job'?'After complete job':'Do not cut'}</option>{/each}</select></label>{/if}{#if rollCapabilities.maximumExtraFeedMm>0}<label>Extra feed before (mm)<input type="number" min={rollCapabilities.minimumExtraFeedMm} max={rollCapabilities.maximumExtraFeedMm} step="0.1" bind:value={extraFeedBeforeMm} on:change={continuousChanged}></label><label>Extra feed after (mm)<input type="number" min={rollCapabilities.minimumExtraFeedMm} max={rollCapabilities.maximumExtraFeedMm} step="0.1" bind:value={extraFeedAfterMm} on:change={continuousChanged}></label>{/if}{#if rollCapabilities.supportsChainedRaster}<label class="check"><input type="checkbox" bind:checked={chainCopies} on:change={continuousChanged}> Chain copies without intermediate cuts</label>{/if}<small>Required firmware feed: {rollCapabilities.requiredFeedBeforeMm??0} mm before / {rollCapabilities.requiredFeedAfterMm??0} mm after. Artwork margins and extra operator feed are separate. This printer currently allows {rollCapabilities.minimumLengthMm}–{rollCapabilities.maximumLengthMm} mm labels.</small></fieldset>{/if}
+  <label>Connection<select bind:value={route} onchange={changeRoute} disabled={connection === 'connecting'}>{#if localRoute}<option value="local">{localConnection ? `${localConnection.transport.kind.toUpperCase()} · ${localConnection.id}` : 'IPP/IPPS · Local service'}</option>{/if}<option value="bluetooth">Bluetooth LE</option><option value="spp">Bluetooth Serial</option><option value="usb">USB</option></select></label>
+  {#if rollCapabilities}<fieldset><legend>Continuous roll</legend>{#if rollCapabilities.automaticCutter}<label>Cut<select bind:value={cutMode} onchange={continuousChanged}>{#each availableCutModes as mode}<option value={mode}>{mode==='after-each'?'After each label':mode==='after-job'?'After complete job':'Do not cut'}</option>{/each}</select></label>{/if}{#if rollCapabilities.maximumExtraFeedMm>0}<label>Extra feed before (mm)<input type="number" min={rollCapabilities.minimumExtraFeedMm} max={rollCapabilities.maximumExtraFeedMm} step="0.1" bind:value={extraFeedBeforeMm} onchange={continuousChanged}></label><label>Extra feed after (mm)<input type="number" min={rollCapabilities.minimumExtraFeedMm} max={rollCapabilities.maximumExtraFeedMm} step="0.1" bind:value={extraFeedAfterMm} onchange={continuousChanged}></label>{/if}{#if rollCapabilities.supportsChainedRaster}<label class="check"><input type="checkbox" bind:checked={chainCopies} onchange={continuousChanged}> Chain copies without intermediate cuts</label>{/if}<small>Required firmware feed: {rollCapabilities.requiredFeedBeforeMm??0} mm before / {rollCapabilities.requiredFeedAfterMm??0} mm after. Artwork margins and extra operator feed are separate. This printer currently allows {rollCapabilities.minimumLengthMm}–{rollCapabilities.maximumLengthMm} mm labels.</small></fieldset>{/if}
   {#if route === 'local'}
     <p class="hint">{localConnection ? `Saved by the local service as ${localConnection.id}. It will be restored after reload.` : 'Pair with the local service and configure an IPP/IPPS printer.'}</p>
   {:else if route === 'bluetooth'}
@@ -211,11 +207,11 @@
     <details><summary>USB identity</summary><label>Vendor ID<input bind:value={vendorId} placeholder="0x04f9"></label><label>Product ID<input bind:value={productId} placeholder="0x20a8"></label></details>
   {/if}
   <div class="actions">
-    {#if route === 'local'}<button on:click={onConfigureLocal}>{localConnection ? 'Manage' : 'Configure'}</button>{:else if connection === 'connected'}<button on:click={() => disconnect()}>Disconnect</button>{:else}<button class="primary" on:click={connect} disabled={!printer || connection === 'connecting'}>{connection === 'connecting' ? 'Connecting…' : 'Connect'}</button>{/if}
-    <button on:click={() => refreshStatus(false)} disabled={(route === 'local' ? !localConnection : connection !== 'connected') || querying}>{querying ? 'Checking…' : 'Refresh status'}</button>
-    <button class="primary print" on:click={print} disabled={continuousPrinterUnsupported||(route === 'local' ? !localConnection : connection !== 'connected') || !!cancellation} title={continuousPrinterUnsupported?'The selected printer is not qualified for continuous media.':undefined}>{cancellation ? 'Printing…' : 'Print label'}</button>
+    {#if route === 'local'}<button onclick={onConfigureLocal}>{localConnection ? 'Manage' : 'Configure'}</button>{:else if connection === 'connected'}<button onclick={() => disconnect()}>Disconnect</button>{:else}<button class="primary" onclick={connect} disabled={!printer || connection === 'connecting'}>{connection === 'connecting' ? 'Connecting…' : 'Connect'}</button>{/if}
+    <button onclick={() => refreshStatus(false)} disabled={(route === 'local' ? !localConnection : connection !== 'connected') || querying}>{querying ? 'Checking…' : 'Refresh status'}</button>
+    <button class="primary print" onclick={print} disabled={continuousPrinterUnsupported||(route === 'local' ? !localConnection : connection !== 'connected') || !!cancellation} title={continuousPrinterUnsupported?'The selected printer is not qualified for continuous media.':undefined}>{cancellation ? 'Printing…' : 'Print label'}</button>
   </div>
-  {#if cancellation}<button class="cancel" on:click={() => cancellation?.abort()}>Cancel current job</button>{/if}
+  {#if cancellation}<button class="cancel" onclick={() => cancellation?.abort()}>Cancel current job</button>{/if}
   <p class="message" aria-live="polite">{message}</p>
   {#if printerStatus}<dl>{#if printerStatus.phase}<dt>State</dt><dd>{printerStatus.phase}</dd>{/if}{#if printerStatus.battery !== undefined}<dt>Battery</dt><dd>{printerStatus.battery}%</dd>{/if}{#if printerStatus.paper}<dt>Paper</dt><dd>{printerStatus.paper}</dd>{/if}{#if printerStatus.cover}<dt>Cover</dt><dd>{printerStatus.cover}</dd>{/if}{#if printerStatus.firmware}<dt>Firmware</dt><dd>{printerStatus.firmware}</dd>{/if}<dt>Errors</dt><dd class:fault={!!printerStatus.errors.length}>{printerStatus.errors.length ? printerStatus.errors.join(', ') : 'none'}</dd></dl>{/if}
 </section>
