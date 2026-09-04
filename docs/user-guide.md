@@ -69,6 +69,14 @@ the layers and properties get their own pinned rail and the tabs hold assets,
 data and the printer. Dialogs fill the screen on phones. On touch screens every
 control is at least 44 px.
 
+## Appearance
+
+The editor follows the operating system's light or dark preference. A host
+page can pin either look by setting `data-theme="light"` or
+`data-theme="dark"` on the root element; that choice beats the system
+setting in both directions. People who ask their OS for reduced motion get an
+editor without transitions.
+
 ## Data records
 
 The Data tab can start a sheet from the fields the label already references in

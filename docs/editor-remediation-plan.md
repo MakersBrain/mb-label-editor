@@ -72,6 +72,35 @@ After Phase 4 (2026-09-05), same spec, plus `tests/browser/viewports.spec.ts`:
 | Visible controls under 44 px on the 360 px and 768 px touch viewports, per tab | 0 |
 | Browser tests | 83 (editor 71, external resources 3, cloud print 1, perf 1, viewports 8) |
 
+After Phase 5 (2026-09-05), same spec, plus `theme.spec.ts` and `visual.spec.ts`:
+
+| Measure | Value |
+| --- | --- |
+| IndexedDB write transactions during the drag and 2.5 s settle | 1 |
+| SDK renders and measures during the drag | 1 and 0 |
+| Longest task while the pointer is down | 0 ms (none recorded) |
+| Longest task after release (synchronous WASM raster) | 72 ms |
+| Scripted insertion of 40 text elements | 2231 ms |
+| Colour literals outside `themes/standalone.css` | 0 (stylelint and `tokens.test.ts`) |
+| Token fallbacks in components | 0 (was 334) |
+| Distinct font sizes in the package | 4 tokens (was 16 literals) |
+| z-index values in the package | 6 named layers plus 0, 1, 2 for sibling order (was -1 to 10001) |
+| `!important` outside the reduced-motion block | 0 |
+| Text nodes failing WCAG AA in either theme across the four tabs | 0 |
+| ESLint warnings under the cap | 85 (cap 85; the remaining warnings are unkeyed each blocks and floating promises outside the migration's scope) |
+| Browser tests | 101 locally, plus 8 visual comparisons in CI |
+
+Deviations decided during Phase 5: the Panel title contract uses an empty
+string rather than undefined, because Svelte applies a prop default to an
+explicit undefined; panel titles keep the body size instead of the mb-ui
+display face, since the sidebar is dense; the visual spec runs only in CI or
+under `VISUAL=1`, with baselines rendered by `scripts/visual-update.sh` in the
+pinned Playwright image (the host Chromium renders glyph fallbacks
+differently); the contrast walk skips paper surfaces, disabled controls and
+form fields, and requires at least 30 examined nodes per tab so an empty walk
+cannot pass. The 14 mm default text size predates this work and is left as
+is.
+
 Deviations decided during Phases 3 and 4: keyboard resize lives on
 Ctrl+Arrow and rotate on Ctrl+Alt+Arrow and the bracket keys, because
 Shift+Arrow already means a 1 mm nudge in the tests and the user guide; the
