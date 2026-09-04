@@ -28,7 +28,7 @@
   h3 {
     margin: 0.85rem 0 0.35rem;
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -48,7 +48,7 @@
   }
   dd {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: var(--mble-text-body);
   }
   kbd {
     padding: 0.05rem 0.35rem;
@@ -57,11 +57,11 @@
     border-radius: var(--mble-radius-sm);
     background: var(--mble-background);
     font-family: var(--mble-font-mono);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     white-space: nowrap;
   }
   .or {
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
 </style>

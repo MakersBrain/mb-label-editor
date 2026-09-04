@@ -2128,3 +2128,18 @@ test('a shape can be drawn by dragging with an armed tool', async ({ page }) => 
   await page.keyboard.press('Escape');
   await expect(tools.getByRole('button', { name: 'Ellipse' })).toHaveAttribute('aria-pressed', 'false');
 });
+
+test('elements paint in dense rank order so no stored z-index can outrank the canvas chrome', async ({ page }) => {
+  await page.goto('/');
+  const tools = page.getByRole('navigation', { name: 'Drawing tools' });
+  await tools.getByRole('button', { name: 'Rectangle' }).click();
+  await tools.getByRole('button', { name: 'Ellipse' }).click();
+  // Both shapes share the visible centre; the rectangle's corner lies outside the ellipse on top of it.
+  await page.locator('.element.rectangle').click({ position: { x: 3, y: 3 } });
+  const bar = page.getByRole('toolbar', { name: 'Selection' });
+  for (let i = 0; i < 5; i += 1) await bar.getByRole('button', { name: 'Bring forward' }).click();
+  await expect(page.locator('.element.rectangle')).toHaveCSS('z-index', '1');
+  await expect(page.locator('.element.ellipse')).toHaveCSS('z-index', '0');
+  await expect(page.locator('.selection-box')).toHaveCSS('z-index', '10');
+  await expect(page.locator('.elements')).toHaveCSS('isolation', 'isolate');
+});

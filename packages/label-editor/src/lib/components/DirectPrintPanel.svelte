@@ -493,19 +493,19 @@
   .heading h2 {
     margin: 0 0 0.12rem;
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
     text-transform: uppercase;
     letter-spacing: 0.08em;
   }
   .heading strong {
-    font-size: 0.86rem;
+    font-size: var(--mble-text-body);
   }
   .connection {
     display: flex;
     gap: 0.32rem;
     align-items: center;
     text-transform: capitalize;
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
     color: var(--mble-text-muted);
   }
   .connection i {
@@ -536,12 +536,12 @@
   .media-summary span {
     grid-row: span 2;
     color: var(--mble-text-muted);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
   .media-summary strong {
-    font-size: 0.9rem;
+    font-size: var(--mble-text-body);
   }
   .media-summary small {
     color: var(--mble-text-muted);
@@ -553,13 +553,13 @@
     border-radius: var(--mble-radius-sm);
   }
   legend {
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   fieldset small {
     display: block;
     color: var(--mble-text-muted);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
   .check {
     flex-direction: row;
@@ -570,13 +570,13 @@
     flex-direction: column;
     gap: 0.2rem;
     margin-bottom: 0.45rem;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   .hint,
   .message {
     margin: 0.45rem 0;
     color: var(--mble-text-muted);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     line-height: 1.35;
   }
   .actions {
@@ -617,7 +617,7 @@
     margin: 0.55rem 0 0;
     padding-top: 0.5rem;
     border-top: 1px solid var(--mble-border);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   dt {
     color: var(--mble-text-muted);
@@ -629,6 +629,6 @@
     color: var(--mble-danger);
   }
   code {
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
 </style>

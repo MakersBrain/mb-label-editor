@@ -568,7 +568,7 @@
     border: 1px solid var(--mble-border);
     border-radius: var(--mble-radius-sm);
     color: var(--mble-text-muted);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     white-space: nowrap;
   }
   .menu-drawer {
@@ -578,7 +578,7 @@
     padding: 0.25rem 0.55rem;
     border-radius: var(--mble-radius-sm);
     list-style: none;
-    font-size: 1rem;
+    font-size: var(--mble-text-h4);
     line-height: 1;
   }
   .menu-drawer > summary::-webkit-details-marker {
@@ -591,7 +591,7 @@
     position: absolute;
     left: 0;
     top: calc(100% + 0.3rem);
-    z-index: 61;
+    z-index: var(--mble-z-menu);
     flex-direction: column;
     align-items: stretch;
     min-width: 12rem;
@@ -616,7 +616,7 @@
   }
   .sidebar-resizer {
     position: relative;
-    z-index: 7;
+    z-index: var(--mble-z-panel-sticky);
     width: 6px;
     margin: 0 -3px;
     cursor: col-resize;
@@ -665,6 +665,7 @@
   }
   .canvas-area {
     position: relative;
+    isolation: isolate;
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -687,7 +688,7 @@
   .sheet-dock-bar h2 {
     margin: 0;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .sheet-dock-body {
@@ -747,12 +748,12 @@
   .pane-title {
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: var(--mble-z-panel-sticky);
     margin: 0;
     padding: 0.5rem 0.75rem 0.2rem;
     background: var(--mble-background);
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -770,7 +771,7 @@
   .tabs {
     position: sticky;
     top: 0;
-    z-index: 6;
+    z-index: var(--mble-z-panel-sticky);
     display: flex;
     background: var(--mble-background);
     border-bottom: 1px solid var(--mble-border);
@@ -783,7 +784,7 @@
     border-radius: 0;
     background: transparent;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
     cursor: pointer;
   }
@@ -824,7 +825,7 @@
     }
     main.overlay aside {
       position: absolute;
-      z-index: 9;
+      z-index: var(--mble-z-drawer);
       top: 0;
       right: 0;
       bottom: 0;
@@ -836,7 +837,7 @@
     }
     .scrim {
       position: absolute;
-      z-index: 8;
+      z-index: calc(var(--mble-z-drawer) - 1);
       inset: 0;
       padding: 0;
       border: 0;
@@ -845,7 +846,7 @@
     }
     .panels-toggle {
       position: absolute;
-      z-index: 7;
+      z-index: var(--mble-z-panel-sticky);
       left: 0.6rem;
       bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
       min-height: 2.75rem;
@@ -855,7 +856,7 @@
       box-shadow: var(--mble-shadow);
     }
     main.overlay:not(.sidebar-closed) .panels-toggle {
-      z-index: 10;
+      z-index: calc(var(--mble-z-drawer) + 1);
     }
   }
   /* Phone: the same panel rises from the bottom as a sheet. */

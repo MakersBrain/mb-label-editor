@@ -185,7 +185,7 @@
     border-collapse: separate;
     border-spacing: 0;
     min-width: 100%;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   th,
   td {
@@ -197,7 +197,7 @@
   thead th {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: var(--mble-z-panel-sticky);
     padding: 0.3rem 0.4rem;
     background: var(--mble-background);
     color: var(--mble-text-muted);
@@ -222,7 +222,7 @@
   .num {
     position: sticky;
     left: 0;
-    z-index: 1;
+    z-index: var(--mble-z-panel-sticky);
     width: 2rem;
     background: var(--mble-background);
     text-align: center;
@@ -279,7 +279,7 @@
     align-items: center;
     gap: 0.35rem;
     margin-top: 0.45rem;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   .add-field {
     display: flex;

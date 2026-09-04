@@ -46,7 +46,7 @@
     padding-left: 1rem;
     color: var(--mble-text-muted);
     font-family: var(--mble-font-mono);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
   .menu > summary {
     padding: 0.25rem 0.5rem;
@@ -65,7 +65,7 @@
   }
   .sheet {
     position: absolute;
-    z-index: 60;
+    z-index: var(--mble-z-menu);
     left: 0;
     top: calc(100% + 0.3rem);
     display: grid;
@@ -96,7 +96,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.3rem 0.45rem;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .sheet :global(label.check) {
     justify-content: flex-start;
@@ -115,6 +115,6 @@
   .sheet :global(p.group-label) {
     margin: 0.3rem 0 0.1rem 0.45rem;
     color: var(--mble-text-muted);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
 </style>

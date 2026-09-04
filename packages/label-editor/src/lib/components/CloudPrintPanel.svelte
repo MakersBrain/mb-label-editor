@@ -156,7 +156,7 @@
   h2 {
     margin: 0 0 0.5rem;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .row {
@@ -171,7 +171,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   select {
     box-sizing: border-box;
@@ -180,7 +180,7 @@
   }
   p,
   dl {
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .warning {
     color: var(--mble-danger);

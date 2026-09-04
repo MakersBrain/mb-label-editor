@@ -337,11 +337,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .sheet-panel p {
     margin: 0.15rem 0;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .summary,
   .guidance {
@@ -366,7 +366,7 @@
     border: 1px solid var(--mble-success);
     background: var(--mble-success-tint);
     color: var(--mble-success);
-    font-size: 0.62rem;
+    font-size: var(--mble-text-micro);
     overflow: hidden;
   }
   .paper button.unused {

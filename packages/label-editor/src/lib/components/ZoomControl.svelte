@@ -61,7 +61,7 @@
     position: absolute;
     right: 0.6rem;
     bottom: 0.6rem;
-    z-index: 5;
+    z-index: calc(var(--mble-z-canvas-chrome) + 2);
     display: flex;
     align-items: center;
     gap: 0.2rem;
@@ -70,7 +70,7 @@
     border: 1px solid var(--mble-border);
     border-radius: var(--mble-radius-md);
     box-shadow: var(--mble-shadow);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .zoom-control > button {
     width: 1.6rem;
@@ -108,7 +108,7 @@
     border-radius: 999px;
     background: var(--mble-selection);
     color: var(--mble-text);
-    font-size: 0.62rem;
+    font-size: var(--mble-text-micro);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
@@ -136,7 +136,7 @@
   .sheet kbd {
     color: var(--mble-text-muted);
     font-family: var(--mble-font-mono);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
   @media (pointer: coarse) {
     .zoom-control > button,

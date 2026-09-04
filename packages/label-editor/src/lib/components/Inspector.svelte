@@ -287,7 +287,7 @@
   h2 {
     margin: 0 0 0.5rem;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .grid {
@@ -298,7 +298,7 @@
   label {
     display: flex;
     flex-direction: column;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     margin-bottom: 0.5rem;
   }
   .check {
@@ -309,7 +309,7 @@
   .render-help {
     margin: -0.2rem 0 0.55rem;
     color: var(--mble-text-muted);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
     line-height: 1.35;
   }
   input,

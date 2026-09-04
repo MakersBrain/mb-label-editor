@@ -52,6 +52,6 @@
   .save-state {
     padding-left: 0.4rem;
     color: var(--mble-text-muted);
-    font-size: 0.66rem;
+    font-size: var(--mble-text-micro);
   }
 </style>

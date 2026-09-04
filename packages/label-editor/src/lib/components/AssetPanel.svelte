@@ -845,7 +845,7 @@
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.7rem 0.75rem;
-    font-size: 0.78rem;
+    font-size: var(--mble-text-small);
   }
   .toolbar {
     display: flex;
@@ -865,7 +865,7 @@
     border-radius: 0;
     background: transparent;
     color: var(--mble-text-muted);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
     cursor: pointer;
   }
@@ -894,7 +894,7 @@
     border-radius: 999px;
     background: var(--mble-surface);
     color: var(--mble-text);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
     cursor: pointer;
   }
   .chip.active {
@@ -910,7 +910,7 @@
     min-height: 1em;
     margin: 0;
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
   .grid {
     display: grid;
@@ -1025,7 +1025,7 @@
     gap: 0.1rem;
     margin: 0.2rem 0 0.35rem;
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
     font-weight: 600;
   }
   .bundled h3 small {
@@ -1045,14 +1045,14 @@
     border-radius: 3px;
     background: var(--mble-surface);
     font: inherit;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     cursor: pointer;
   }
   .bundled-font:hover {
     border-color: var(--mble-border-strong);
   }
   .bundled-font .glyph {
-    font-size: 0.9rem;
+    font-size: var(--mble-text-body);
   }
   .thumb {
     display: grid;
@@ -1074,12 +1074,12 @@
     height: 100%;
   }
   .glyph {
-    font-size: 1.4rem;
+    font-size: var(--mble-text-h4);
     color: var(--mble-text-muted);
   }
   .name {
     overflow: hidden;
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
     line-height: 1.25;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -1087,7 +1087,7 @@
   .sub {
     overflow: hidden;
     color: var(--mble-text-muted);
-    font-size: 0.62rem;
+    font-size: var(--mble-text-micro);
     line-height: 1.2;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -1113,7 +1113,7 @@
     border: 1px solid var(--mble-danger);
     border-radius: var(--mble-radius-sm);
     color: var(--mble-danger);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .star {
     position: absolute;
@@ -1126,7 +1126,7 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--mble-surface) 85%, transparent);
     color: var(--mble-border-strong);
-    font-size: 0.85rem;
+    font-size: var(--mble-text-body);
     line-height: 1;
     opacity: 0;
     transition: opacity 0.12s;
@@ -1163,7 +1163,7 @@
   }
   .favorites-toggle .count {
     margin-left: 0.25rem;
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
   .favorites-toggle.active {
     background: var(--mble-primary);
@@ -1174,14 +1174,14 @@
   .hint {
     margin: 0;
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
   .pager {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.3rem;
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
     color: var(--mble-text-muted);
   }
   .detail {
@@ -1219,7 +1219,7 @@
   }
   .meta small {
     color: var(--mble-text-muted);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
   .detail-actions {
     display: flex;
@@ -1236,7 +1236,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
   .render-profile small {
     line-height: 1.35;
@@ -1245,7 +1245,7 @@
   .import summary {
     cursor: pointer;
     color: var(--mble-text-muted);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .import .actions {

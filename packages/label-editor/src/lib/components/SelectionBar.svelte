@@ -148,7 +148,7 @@
 <style>
   .selection-bar {
     position: absolute;
-    z-index: 6;
+    z-index: calc(var(--mble-z-canvas-chrome) + 2);
     transform: translateX(-50%);
     display: flex;
     align-items: center;
@@ -158,7 +158,7 @@
     border: 1px solid var(--mble-border);
     border-radius: var(--mble-radius-md);
     box-shadow: var(--mble-shadow);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     white-space: nowrap;
   }
   .selection-bar > button,
@@ -179,7 +179,7 @@
     display: flex;
     gap: 0.25rem;
     align-items: center;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   .align-tools select {
     max-width: 6rem;
@@ -187,7 +187,7 @@
   .align {
     min-width: 1.8rem;
     padding-inline: 0.3rem;
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
   .more {
     position: relative;

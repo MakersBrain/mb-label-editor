@@ -99,7 +99,6 @@
     height: 100%;
     mix-blend-mode: multiply;
     pointer-events: none;
-    z-index: 0;
   }
   canvas.crisp {
     image-rendering: pixelated;
@@ -110,7 +109,7 @@
     bottom: 0.3rem;
     background: color-mix(in srgb, var(--mble-surface) 80%, transparent);
     color: var(--mble-danger);
-    font-size: 9px;
+    font-size: var(--mble-text-micro);
     z-index: 2;
   }
 </style>

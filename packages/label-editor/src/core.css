@@ -8,13 +8,32 @@
  *   64rem (1024px) desktop: side-by-side shell, compact selection bar below
  *   90rem (1440px) wide: pinned inspector rail
  */
+/*
+ * Theme-independent scales. Type sizes are the four the editor uses; the
+ * z-index scale names every cross-component layer, with 0, 1 and 2 reserved
+ * for ordering siblings inside an isolated context. Declared on :root so a
+ * dialog scrim mounted outside the editor element resolves them too.
+ */
+:root {
+  --mble-text-micro: 0.6875rem;
+  --mble-text-small: 0.75rem;
+  --mble-text-body: 0.8125rem;
+  --mble-text-h4: 1rem;
+  --mble-z-canvas-chrome: 10;
+  --mble-z-panel-sticky: 20;
+  --mble-z-drawer: 30;
+  --mble-z-menu: 60;
+  --mble-z-scrim: 80;
+  --mble-z-dialog: 81;
+}
+
 .mb-label-editor,
 .mb-label-editor button,
 .mb-label-editor input,
 .mb-label-editor textarea,
 .mb-label-editor select {
   font-family: var(--mble-font-ui);
-  font-size: 0.8125rem;
+  font-size: var(--mble-text-body);
 }
 
 .mb-label-editor {
@@ -45,7 +64,7 @@
 .mb-label-editor legend {
   padding: 0 0.25rem;
   color: var(--mble-text-muted);
-  font-size: 0.7rem;
+  font-size: var(--mble-text-micro);
 }
 
 .mb-label-editor input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
@@ -117,7 +136,7 @@
 .mb-label-editor h2 {
   margin: 0 0 0.5rem;
   color: var(--mble-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--mble-text-small);
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;

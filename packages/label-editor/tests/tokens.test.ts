@@ -40,6 +40,8 @@ const dark = declared(systemDarkBlock);
 const declarations = (css: string) =>
   [...css.matchAll(/(--mble-[a-z0-9-]+):\s*([^;]+);/g)].map((match) => `${match[1]}: ${match[2].trim()}`).sort();
 const mapped = declared(adapter);
+/** Theme-independent scales (type, z-index) are declared in core.css and need no dark or adapter values. */
+const scales = declared(readFileSync(join(root, 'packages/label-editor/src/core.css'), 'utf8'));
 const referenced = new Map<string, string[]>();
 for (const file of sources) {
   const text = readFileSync(file, 'utf8');
@@ -54,8 +56,8 @@ const themeIndependent = /^--mble-(radius|font)-/;
 
 describe('design tokens', () => {
   it('declares every referenced token in the standalone light theme and maps it in the mb-ui adapter', () => {
-    const missingLight = [...referenced.keys()].filter((token) => !light.has(token));
-    const missingAdapter = [...referenced.keys()].filter((token) => !mapped.has(token));
+    const missingLight = [...referenced.keys()].filter((token) => !light.has(token) && !scales.has(token));
+    const missingAdapter = [...referenced.keys()].filter((token) => !mapped.has(token) && !scales.has(token));
     expect(missingLight).toEqual([]);
     expect(missingAdapter).toEqual([]);
   });
@@ -82,7 +84,7 @@ describe('design tokens', () => {
       '--mble-radius-full',
       '--mble-font-display',
     ]);
-    const unused = [...light].filter((token) => !referenced.has(token) && !adoptedLater.has(token));
+    const unused = [...light, ...scales].filter((token) => !referenced.has(token) && !adoptedLater.has(token));
     expect(unused).toEqual([]);
   });
   it('uses tokens without fallbacks', () => {

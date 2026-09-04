@@ -51,7 +51,7 @@
   h2 {
     margin: 0 0 0.5rem;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .row {
@@ -64,7 +64,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   input[type='number'] {
     width: 6rem;
@@ -84,6 +84,6 @@
   .hint {
     margin: 0.6rem 0 0;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
 </style>

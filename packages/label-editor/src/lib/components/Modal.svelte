@@ -77,7 +77,7 @@
 <style>
   .scrim {
     position: fixed;
-    z-index: 80;
+    z-index: var(--mble-z-scrim);
     inset: 0;
     padding: 0;
     border: 0;
@@ -87,7 +87,7 @@
   /* The class carries the editor's typography and controls to a dialog the host mounts elsewhere. */
   .dialog {
     position: fixed;
-    z-index: 81;
+    z-index: var(--mble-z-dialog);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -139,7 +139,7 @@
   .dialog h2 {
     margin: 0;
     color: var(--mble-text);
-    font-size: 0.85rem;
+    font-size: var(--mble-text-body);
     font-weight: 600;
   }
   .body {

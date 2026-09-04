@@ -600,7 +600,7 @@
   h2 {
     margin: 0 0 0.5rem;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   label {
@@ -608,7 +608,7 @@
     flex: 1;
     flex-direction: column;
     gap: 0.2rem;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   input,
   select,
@@ -624,7 +624,7 @@
     align-self: end;
   }
   p {
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   fieldset {
     display: flex;
@@ -635,7 +635,7 @@
     border: 1px solid var(--mble-border);
   }
   legend {
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .row,
@@ -666,7 +666,7 @@
     gap: 0.1rem;
     padding: 0.35rem;
     background: var(--mble-surface-muted);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     overflow-wrap: anywhere;
   }
   li span {
@@ -677,7 +677,7 @@
     grid-template-columns: max-content minmax(0, 1fr);
     gap: 0.2rem 0.55rem;
     margin: 0.35rem 0;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   dt {
     font-weight: 600;
@@ -694,7 +694,7 @@
   }
   .report summary {
     cursor: pointer;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .wifi-configure {

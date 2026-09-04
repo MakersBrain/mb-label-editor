@@ -395,7 +395,7 @@
   h2 {
     margin: 0 0 0.5rem;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .grid {
@@ -406,12 +406,12 @@
   label {
     display: flex;
     flex-direction: column;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .hint {
     margin: 0.4rem 0 0;
     color: var(--mble-text-muted);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   .warning {
     color: var(--mble-danger);

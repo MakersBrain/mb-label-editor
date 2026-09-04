@@ -103,12 +103,12 @@
 <style>
   .syntax {
     padding: 0.25rem 0.85rem 0.85rem;
-    font-size: 0.8rem;
+    font-size: var(--mble-text-body);
   }
   h3 {
     margin: 0.85rem 0 0.35rem;
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -118,7 +118,7 @@
   }
   code {
     font-family: var(--mble-font-mono);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .shape {
     padding: 0.4rem 0.6rem;
@@ -133,7 +133,7 @@
     text-align: left;
     font-weight: 600;
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
     padding: 0.2rem 0.3rem;
   }
   td {

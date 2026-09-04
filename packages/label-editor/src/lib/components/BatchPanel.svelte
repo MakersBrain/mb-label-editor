@@ -307,22 +307,22 @@
   h2 {
     margin: 0 0 0.5rem;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   label {
     display: flex;
     flex-direction: column;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .placements,
   .summary {
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
     margin: 0.5rem 0;
   }
   th,

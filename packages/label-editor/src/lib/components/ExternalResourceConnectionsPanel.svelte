@@ -167,16 +167,16 @@
     margin: 0 0 0.45rem;
   }
   h2 {
-    font-size: 1rem;
+    font-size: var(--mble-text-h4);
   }
   h3 {
-    font-size: 0.82rem;
+    font-size: var(--mble-text-body);
   }
   .intro,
   p,
   small {
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   ul {
     list-style: none;
@@ -233,7 +233,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
   }
   .enabled {
     flex-direction: row;

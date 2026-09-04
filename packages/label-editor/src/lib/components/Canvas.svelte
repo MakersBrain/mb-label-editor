@@ -382,9 +382,10 @@
   function movesWithDrag(element: LabelElement): boolean {
     return !!movedIds && elementAncestry(editor.document, element).some((item) => movedIds!.has(item.id));
   }
-  const styleFor = (element: LabelElement, offset: Point, preview: Point | undefined) => {
+  /** `rank` is the element's dense position in paint order, so a stored zIndex can never outrank the canvas chrome. */
+  const styleFor = (element: LabelElement, offset: Point, preview: Point | undefined, rank: number) => {
     const delta = preview ?? { x: 0, y: 0 };
-    return `left:${(element.transform.x + offset.x + delta.x) * pxPerMm}px;top:${(element.transform.y + offset.y + delta.y) * pxPerMm}px;width:${element.transform.width * pxPerMm}px;height:${element.transform.height * pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${element.zIndex}`;
+    return `left:${(element.transform.x + offset.x + delta.x) * pxPerMm}px;top:${(element.transform.y + offset.y + delta.y) * pxPerMm}px;width:${element.transform.width * pxPerMm}px;height:${element.transform.height * pxPerMm}px;transform:rotate(${element.transform.rotation}deg);z-index:${rank}`;
   };
   const boundsStyle = (bounds: Bounds, preview: Point | undefined) => {
     const delta = preview ?? { x: 0, y: 0 };
@@ -735,6 +736,14 @@
     class="pan"
     style={`transform:translate(calc(-50% + ${editor.view.pan.x}px),calc(-50% + ${editor.view.pan.y}px)) scale(${editor.view.zoom})`}
   >
+    <!-- Painted before the label so it sits behind it without a negative z-index. -->
+    {#if editor.document.media.shape === 'continuous'}<div
+        class="roll-continuation"
+        style={`top:${displayHeight * pxPerMm}px;width:${editor.document.media.width * pxPerMm}px`}
+        aria-hidden="true"
+      >
+        <span>continuous roll</span>
+      </div>{/if}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       bind:this={mediaElement}
@@ -753,42 +762,46 @@
         <div class="safe-margin trailing" style={`height:${rollSettings.trailingMarginMm * pxPerMm}px`}></div>
         <div class="cut-line"><span class="visually-hidden">Cut at {displayHeight.toFixed(2)} mm</span></div>{/if}
       {#if sdk && previewDocument}<ThermalPreview {sdk} document={previewDocument} zoom={editor.view.zoom} />{/if}
-      {#each sortedElements as element (element.id)}
-        {#if element.type !== 'group' && isEffectivelyVisible(displayDocument, element)}
-          <button
-            type="button"
-            class:selected={editor.selection.has(element.id)}
-            class:locked={isEffectivelyLocked(displayDocument, element)}
-            class:exact={!!sdk}
-            class="element {element.type}"
-            data-id={element.id}
-            style={styleFor(
-              element,
-              elementRootOffset(displayDocument, element),
-              movesWithDrag(element) ? dragPreviewDelta : undefined,
-            )}
-            onpointerdown={(event) => startDrag(event, element)}
-            onpointerup={finishDrag}
-            ondblclick={(event) => activateElement(event, element)}
-            aria-label={element.name}
-          >
-            {#if element.type === 'text'}<span style={textBoxStyle(element)}
-                ><span class="text-body" style={textStyle(element, fontGeneration)}>{merged(element.text)}</span></span
-              >
-            {:else if element.type === 'barcode'}<span class="placeholder">▥ {merged(element.value)}</span>
-            {:else if element.type === 'qr'}<span class="placeholder">▦</span>
-            {:else if element.type === 'image' || element.type === 'svg'}
-              {@const resource = resourcesById.get(element.resourceId)}
-              {#if resource}<img
-                  class="asset"
-                  style={`object-fit:${element.type === 'image' && element.fit === 'stretch' ? 'fill' : element.type === 'image' && element.fit === 'cover' ? 'cover' : 'contain'};filter:${element.type === 'image' && element.invert ? 'invert(1)' : 'none'}`}
-                  alt={element.name}
-                  src={resourceUrl(resource)}
-                />{:else}<span class="placeholder">Missing asset</span>{/if}
-            {:else}<span class="placeholder">{element.type}</span>{/if}
-          </button>
-        {/if}
-      {/each}
+      <div class="elements">
+        {#each sortedElements as element, rank (element.id)}
+          {#if element.type !== 'group' && isEffectivelyVisible(displayDocument, element)}
+            <button
+              type="button"
+              class:selected={editor.selection.has(element.id)}
+              class:locked={isEffectivelyLocked(displayDocument, element)}
+              class:exact={!!sdk}
+              class="element {element.type}"
+              data-id={element.id}
+              style={styleFor(
+                element,
+                elementRootOffset(displayDocument, element),
+                movesWithDrag(element) ? dragPreviewDelta : undefined,
+                rank,
+              )}
+              onpointerdown={(event) => startDrag(event, element)}
+              onpointerup={finishDrag}
+              ondblclick={(event) => activateElement(event, element)}
+              aria-label={element.name}
+            >
+              {#if element.type === 'text'}<span style={textBoxStyle(element)}
+                  ><span class="text-body" style={textStyle(element, fontGeneration)}>{merged(element.text)}</span
+                  ></span
+                >
+              {:else if element.type === 'barcode'}<span class="placeholder">▥ {merged(element.value)}</span>
+              {:else if element.type === 'qr'}<span class="placeholder">▦</span>
+              {:else if element.type === 'image' || element.type === 'svg'}
+                {@const resource = resourcesById.get(element.resourceId)}
+                {#if resource}<img
+                    class="asset"
+                    style={`object-fit:${element.type === 'image' && element.fit === 'stretch' ? 'fill' : element.type === 'image' && element.fit === 'cover' ? 'cover' : 'contain'};filter:${element.type === 'image' && element.invert ? 'invert(1)' : 'none'}`}
+                    alt={element.name}
+                    src={resourceUrl(resource)}
+                  />{:else}<span class="placeholder">Missing asset</span>{/if}
+              {:else}<span class="placeholder">{element.type}</span>{/if}
+            </button>
+          {/if}
+        {/each}
+      </div>
       {#if selectionBounds}<div
           class="selection-box"
           style={`${boundsStyle(selectionBounds, drag?.kind === 'move' ? dragPreviewDelta : undefined)};--inverse-zoom:${1 / editor.view.zoom}`}
@@ -819,13 +832,6 @@
           style={`${guide.axis === 'x' ? 'left' : 'top'}:${guide.value * pxPerMm}px`}
         ></div>{/each}
     </div>
-    {#if editor.document.media.shape === 'continuous'}<div
-        class="roll-continuation"
-        style={`top:${displayHeight * pxPerMm}px;width:${editor.document.media.width * pxPerMm}px`}
-        aria-hidden="true"
-      >
-        <span>continuous roll</span>
-      </div>{/if}
   </div>
   <div class="chrome" aria-live="polite">
     {#if draw}
@@ -907,6 +913,7 @@
   }
   .media {
     position: relative;
+    isolation: isolate;
     background: var(--mble-paper);
     box-shadow: var(--mble-shadow);
     overflow: hidden;
@@ -918,8 +925,17 @@
     --grid-line: color-mix(in srgb, var(--mble-guide) 14%, transparent);
     background-size: var(--grid) var(--grid);
   }
+  /* Elements stack among themselves only; the wrapper lets pointer events reach the label behind them. */
+  .elements {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    isolation: isolate;
+    pointer-events: none;
+  }
   .element {
     position: absolute;
+    pointer-events: auto;
     margin: 0;
     padding: 0;
     overflow: visible;
@@ -962,7 +978,7 @@
     border: 1px solid var(--mble-primary);
     outline: 1px solid white;
     pointer-events: none;
-    z-index: 10000;
+    z-index: var(--mble-z-canvas-chrome);
   }
   .selection-move {
     position: absolute;
@@ -979,7 +995,7 @@
     background: white;
     border: 1px solid var(--mble-primary);
     pointer-events: auto;
-    z-index: 20;
+    z-index: 1;
     /* Handles keep their screen size at any zoom and carry a hit area larger than they look. */
     transform: scale(var(--inverse-zoom, 1));
   }
@@ -1037,7 +1053,7 @@
     top: -18px;
     left: calc(50% - 5px);
     cursor: grab;
-    font-size: 9px;
+    font-size: var(--mble-text-micro);
     line-height: 8px;
     color: var(--mble-text);
   }
@@ -1058,12 +1074,12 @@
     background: var(--mble-ink);
   }
   .placeholder {
-    font-size: 10px;
+    font-size: var(--mble-text-micro);
   }
   .ruler {
     position: absolute;
     background: var(--mble-surface-muted);
-    z-index: 3;
+    z-index: var(--mble-z-canvas-chrome);
   }
   .ruler.horizontal {
     height: 20px;
@@ -1085,7 +1101,7 @@
     display: grid;
     place-items: center;
     color: var(--mble-text-muted);
-    font-size: 8px;
+    font-size: var(--mble-text-micro);
     border-right: 1px solid var(--mble-border-strong);
     border-bottom: 1px solid var(--mble-border-strong);
   }
@@ -1100,7 +1116,7 @@
   }
   .ruler text {
     fill: var(--mble-text-muted);
-    font-size: 8px;
+    font-size: var(--mble-text-micro);
     font-variant-numeric: tabular-nums;
   }
   .guide {
@@ -1159,7 +1175,7 @@
     left: 0;
     right: 0;
     bottom: -1px;
-    z-index: 10001;
+    z-index: var(--mble-z-canvas-chrome);
     border-bottom: 2px dashed var(--mble-danger);
     pointer-events: none;
   }
@@ -1167,7 +1183,6 @@
     position: absolute;
     left: 0;
     height: 56px;
-    z-index: -1;
     border: 1px solid var(--mble-border-strong);
     border-top: 0;
     background:
@@ -1180,7 +1195,7 @@
     box-shadow: var(--mble-shadow);
     color: var(--mble-text-muted);
     text-align: center;
-    font-size: 8px;
+    font-size: var(--mble-text-micro);
     pointer-events: none;
   }
   .roll-continuation span {
@@ -1191,9 +1206,9 @@
   .chrome {
     position: absolute;
     inset: 0;
-    z-index: 4;
+    z-index: calc(var(--mble-z-canvas-chrome) + 1);
     pointer-events: none;
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
   .viewport.armed {
     cursor: crosshair;
@@ -1242,7 +1257,7 @@
     transform: translate(-50%, -50%);
     text-align: center;
     color: var(--mble-text-muted);
-    font-size: 0.8rem;
+    font-size: var(--mble-text-body);
   }
   .inline-edit {
     position: absolute;
@@ -1256,7 +1271,7 @@
     line-height: 1.2;
     resize: none;
     pointer-events: auto;
-    z-index: 7;
+    z-index: calc(var(--mble-z-canvas-chrome) + 3);
   }
   .visually-hidden {
     position: absolute;

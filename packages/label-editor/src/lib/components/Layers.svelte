@@ -292,11 +292,11 @@
   h2 {
     margin: 0;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .add {
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
   ol {
     list-style: none;
@@ -360,12 +360,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--mble-text-muted);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
   .count {
     margin-left: 0.35rem;
     color: var(--mble-text-muted);
-    font-size: 0.7rem;
+    font-size: var(--mble-text-micro);
   }
   .inherited {
     opacity: 0.55;
@@ -393,7 +393,7 @@
     position: absolute;
     right: 0;
     top: calc(100% + 0.2rem);
-    z-index: 20;
+    z-index: var(--mble-z-menu);
     display: grid;
     gap: 0.1rem;
     min-width: 9rem;
@@ -414,16 +414,16 @@
   .sheet kbd {
     color: var(--mble-text-muted);
     font-family: var(--mble-font-mono);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
   .layer-count {
     margin: 0.4rem 0 0;
     color: var(--mble-text-muted);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
   .hint {
     margin: 0.4rem 0 0;
     color: var(--mble-text-muted);
-    font-size: 0.68rem;
+    font-size: var(--mble-text-micro);
   }
 </style>

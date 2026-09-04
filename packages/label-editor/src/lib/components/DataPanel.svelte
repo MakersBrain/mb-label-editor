@@ -202,10 +202,10 @@
     display: flex;
     gap: 0.3rem;
     align-items: center;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   .connect {
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   .section {
     margin-top: 0.6rem;
@@ -215,16 +215,16 @@
   .section summary {
     cursor: pointer;
     color: var(--mble-text-muted);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .section h3 {
     margin: 0.6rem 0 0.3rem;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   .muted {
     color: var(--mble-text-muted);
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   .empty {
     margin: 0.4rem 0;
@@ -236,12 +236,12 @@
     gap: 0.35rem;
     align-items: center;
     margin-bottom: 0.5rem;
-    font-size: 0.72rem;
+    font-size: var(--mble-text-small);
   }
   h2 {
     margin: 0 0 0.5rem;
     color: var(--mble-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     font-weight: 600;
   }
   .upload {
@@ -259,7 +259,7 @@
   .mapping {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     gap: 0.3rem;
   }
   dt,
@@ -272,7 +272,7 @@
   }
   .help {
     margin: 0 0 0.5rem;
-    font-size: 0.75rem;
+    font-size: var(--mble-text-small);
     color: var(--mble-text-muted);
   }
   .help code {
