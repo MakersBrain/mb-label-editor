@@ -1963,3 +1963,19 @@ test('the selection bar follows the selection and collapses into a More menu whe
   await bar.getByTitle('More').click();
   await expect(bar.getByRole('button', { name: 'Align right', exact: true })).toBeVisible();
 });
+
+test('a wide screen pins layers and properties beside the tabbed panels', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/');
+  await expect(page.getByRole('tab', { name: 'Layers' })).toHaveCount(0);
+  const pinned = page.locator('aside.pinned');
+  await expect(pinned).toBeVisible();
+  await page
+    .getByRole('navigation', { name: 'Drawing tools' })
+    .getByRole('button', { name: 'Rectangle', exact: true })
+    .click();
+  await expect(pinned.getByLabel('X (mm)')).toBeVisible();
+  await expect(pinned.locator('aside ol > li, ol > li').first()).toContainText('Rectangle');
+  await page.getByRole('tab', { name: 'Data' }).click();
+  await expect(pinned.getByLabel('X (mm)')).toBeVisible();
+});

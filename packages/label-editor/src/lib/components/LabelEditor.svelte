@@ -85,6 +85,10 @@
       }
     })(),
   );
+  /** From 90rem the layers and properties get their own permanent rail beside the tabbed one. */
+  const wide = new MediaQuery('(min-width: 90rem)');
+  const tabs = $derived(wide.current ? sidebarTabs.filter((tab) => tab !== 'layers') : sidebarTabs);
+  const activeTab = $derived(wide.current && sidebarTab === 'layers' ? 'assets' : sidebarTab);
   function selectSidebarTab(tab: SidebarTab) {
     sidebarTab = tab;
     try {
@@ -96,8 +100,8 @@
   function tabKeys(event: KeyboardEvent) {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
-    const index = sidebarTabs.indexOf(sidebarTab);
-    const next = sidebarTabs[(index + (event.key === 'ArrowRight' ? 1 : sidebarTabs.length - 1)) % sidebarTabs.length];
+    const index = tabs.indexOf(activeTab);
+    const next = tabs[(index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
     selectSidebarTab(next);
     (document.getElementById(`sidebar-tab-${next}`) as HTMLElement | null)?.focus();
   }
@@ -230,6 +234,19 @@
 
 <svelte:window onkeydown={keys} />
 <div class="editor mb-label-editor">
+  {#snippet layersStack()}
+    <!-- Layers scroll on their own so the properties below never leave the screen. -->
+    <div class="stack">
+      <section class="layers-pane" aria-label="Layers">
+        <h3 class="pane-title">Layers</h3>
+        <Layers {editor} title={undefined} />
+      </section>
+      <section class="props-pane" aria-label="Properties">
+        <h3 class="pane-title">Properties</h3>
+        <Inspector {editor} title={undefined} />
+      </section>
+    </div>
+  {/snippet}
   <header class="appbar">
     <div class="brand">{@render brand?.()}</div>
     <nav class="menubar" aria-label="Editor menus">
@@ -240,7 +257,7 @@
     </nav>
     <div class="appbar-actions">{@render actions?.()}</div>
   </header>
-  <main class:sidebar-closed={!sidebarOpen} style={`--sidebar-width:${sidebarWidth}px`}>
+  <main class:sidebar-closed={!sidebarOpen} class:wide={wide.current} style={`--sidebar-width:${sidebarWidth}px`}>
     <ToolRail {editor} orientation={narrow.current ? 'horizontal' : 'vertical'} />
     <div class="canvas">
       <Canvas {editor} {sdk} {materializer} printer={selectedPrinter} compact={narrow.current} />
@@ -265,23 +282,23 @@
       ></div>{/if}
     <aside class:open={sidebarOpen}>
       <div class="tabs" role="tablist" aria-label="Side panels">
-        <button
-          type="button"
-          role="tab"
-          id="sidebar-tab-layers"
-          aria-selected={sidebarTab === 'layers'}
-          aria-controls="sidebar-panel-layers"
-          tabindex={sidebarTab === 'layers' ? 0 : -1}
-          onclick={() => selectSidebarTab('layers')}
-          onkeydown={tabKeys}>Layers</button
-        >
+        {#if !wide.current}<button
+            type="button"
+            role="tab"
+            id="sidebar-tab-layers"
+            aria-selected={activeTab === 'layers'}
+            aria-controls="sidebar-panel-layers"
+            tabindex={activeTab === 'layers' ? 0 : -1}
+            onclick={() => selectSidebarTab('layers')}
+            onkeydown={tabKeys}>Layers</button
+          >{/if}
         <button
           type="button"
           role="tab"
           id="sidebar-tab-assets"
-          aria-selected={sidebarTab === 'assets'}
+          aria-selected={activeTab === 'assets'}
           aria-controls="sidebar-panel-assets"
-          tabindex={sidebarTab === 'assets' ? 0 : -1}
+          tabindex={activeTab === 'assets' ? 0 : -1}
           onclick={() => selectSidebarTab('assets')}
           onkeydown={tabKeys}>Assets</button
         >
@@ -289,9 +306,9 @@
           type="button"
           role="tab"
           id="sidebar-tab-data"
-          aria-selected={sidebarTab === 'data'}
+          aria-selected={activeTab === 'data'}
           aria-controls="sidebar-panel-data"
-          tabindex={sidebarTab === 'data' ? 0 : -1}
+          tabindex={activeTab === 'data' ? 0 : -1}
           onclick={() => selectSidebarTab('data')}
           onkeydown={tabKeys}>Data</button
         >
@@ -299,42 +316,45 @@
           type="button"
           role="tab"
           id="sidebar-tab-printer"
-          aria-selected={sidebarTab === 'printer'}
+          aria-selected={activeTab === 'printer'}
           aria-controls="sidebar-panel-printer"
-          tabindex={sidebarTab === 'printer' ? 0 : -1}
+          tabindex={activeTab === 'printer' ? 0 : -1}
           onclick={() => selectSidebarTab('printer')}
           onkeydown={tabKeys}>Printer</button
         >
       </div>
-      <div
-        id="sidebar-panel-layers"
-        role="tabpanel"
-        aria-labelledby="sidebar-tab-layers"
-        hidden={sidebarTab !== 'layers'}
-      >
-        <details open><summary>Layers</summary><Layers {editor} title={undefined} /></details>
-        <details open><summary>Properties</summary><Inspector {editor} title={undefined} /></details>
-      </div>
+      {#if !wide.current}
+        <div
+          id="sidebar-panel-layers"
+          class="layers-panel"
+          role="tabpanel"
+          aria-labelledby="sidebar-tab-layers"
+          hidden={activeTab !== 'layers'}
+        >
+          {@render layersStack()}
+        </div>
+      {/if}
       <div
         id="sidebar-panel-assets"
         role="tabpanel"
         aria-labelledby="sidebar-tab-assets"
-        hidden={sidebarTab !== 'assets'}
+        hidden={activeTab !== 'assets'}
       >
-        <AssetPanel {editor} {sdk} resourceProvider={activeResourceProvider} active={sidebarTab === 'assets'} />
+        <AssetPanel {editor} {sdk} resourceProvider={activeResourceProvider} active={activeTab === 'assets'} />
       </div>
-      <div id="sidebar-panel-data" role="tabpanel" aria-labelledby="sidebar-tab-data" hidden={sidebarTab !== 'data'}>
+      <div id="sidebar-panel-data" role="tabpanel" aria-labelledby="sidebar-tab-data" hidden={activeTab !== 'data'}>
         <DataPanel {editor} onSyntaxHelp={() => (dialog = 'syntax')} />
       </div>
       <div
         id="sidebar-panel-printer"
         role="tabpanel"
         aria-labelledby="sidebar-tab-printer"
-        hidden={sidebarTab !== 'printer'}
+        hidden={activeTab !== 'printer'}
       >
         {@render sidebar?.()}
       </div>
     </aside>
+    {#if wide.current}<aside class="pinned" aria-label="Layers and properties">{@render layersStack()}</aside>{/if}
   </main>
   <Modal open={dialog === 'media'} title={dialogTitles.media} onClose={() => (dialog = '')}
     ><MediaPanel {editor} {sdk} {materializer} {printers} {printerId} {onPrinter} /></Modal
@@ -442,11 +462,66 @@
     box-sizing: border-box;
   }
   aside {
+    display: flex;
+    flex-direction: column;
     min-width: 0;
-    overflow: auto;
+    min-height: 0;
+    overflow: hidden;
     overscroll-behavior: contain;
     background: var(--mble-background, #f7f4ed);
     border-left: 1px solid var(--mble-border, #d8d0c3);
+  }
+  aside [role='tabpanel'] {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  aside .layers-panel {
+    overflow: hidden;
+  }
+  .stack {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  .layers-pane {
+    flex: 0 1 auto;
+    max-height: 40%;
+    min-height: 8rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    border-bottom: 1px solid var(--mble-border, #e5dfd5);
+  }
+  .props-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+  .pane-title {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: 0;
+    padding: 0.5rem 0.75rem 0.2rem;
+    background: var(--mble-background, #f7f4ed);
+    color: var(--mble-text-muted, #59635e);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  main.wide {
+    grid-template-columns: auto minmax(20rem, 1fr) auto minmax(0, var(--sidebar-width, 19rem)) minmax(0, 20rem);
+  }
+  main.wide.sidebar-closed {
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 20rem);
+  }
+  aside.pinned {
+    display: flex;
+    flex-direction: column;
   }
   .tabs {
     position: sticky;
@@ -474,43 +549,6 @@
   }
   aside [role='tabpanel'][hidden] {
     display: none;
-  }
-  aside details {
-    border-bottom: 1px solid var(--mble-border, #e5dfd5);
-  }
-  aside summary {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    display: flex;
-    gap: 0.4rem;
-    align-items: center;
-    padding: 0.5rem 0.75rem;
-    background: var(--mble-background, #f7f4ed);
-    color: var(--mble-text-muted, #59635e);
-    cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 600;
-    list-style: none;
-  }
-  aside summary::-webkit-details-marker {
-    display: none;
-  }
-  aside summary::before {
-    content: '\203A';
-    display: inline-block;
-    width: 0.6rem;
-    color: var(--mble-text-muted, #59635e);
-    transition: transform 0.12s ease;
-  }
-  aside details[open] > summary {
-    color: var(--mble-text, #17231c);
-  }
-  aside details[open] > summary::before {
-    transform: rotate(90deg);
-  }
-  aside :global(details > section) {
-    border-top: 0;
   }
   @media (max-width: 800px) {
     .appbar {
