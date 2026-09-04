@@ -255,6 +255,31 @@ test('undo and redo shortcuts work and the shortcut viewer lists them', async ({
   await expect(dialog).toBeVisible();
 });
 
+test('layers can hold an empty group, nest elements by drag and drop, and fold', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
+  await page.getByRole('button', { name: 'Ellipse', exact: true }).click();
+  await page.getByRole('button', { name: '+ Group' }).click();
+  const layers = page.locator('aside ol > li');
+  await expect(layers).toHaveCount(3);
+  const groupRow = layers.filter({ hasText: 'Group' });
+  const rectangleRow = layers.filter({ hasText: 'Rectangle' });
+  await expect(groupRow.locator('.count')).toHaveText('0');
+  await rectangleRow.dragTo(groupRow);
+  await expect(groupRow.locator('.count')).toHaveText('1');
+  await expect(layers).toHaveCount(3);
+  const nested = layers.filter({ hasText: 'Rectangle' });
+  expect(await nested.evaluate(node => parseFloat(getComputedStyle(node).paddingLeft))).toBeGreaterThan(8);
+  expect(await groupRow.evaluate(node => parseFloat(getComputedStyle(node).paddingLeft))).toBe(0);
+  await groupRow.getByRole('button', { name: 'Collapse Group' }).click();
+  await expect(layers).toHaveCount(2);
+  await groupRow.getByRole('button', { name: 'Expand Group' }).click();
+  await expect(layers).toHaveCount(3);
+  await nested.dragTo(layers.filter({ hasText: 'Ellipse' }));
+  await expect(groupRow.locator('.count')).toHaveText('0');
+  expect(await layers.filter({ hasText: 'Rectangle' }).evaluate(node => parseFloat(getComputedStyle(node).paddingLeft))).toBe(0);
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();

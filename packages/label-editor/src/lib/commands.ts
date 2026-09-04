@@ -220,6 +220,43 @@ export const groupElements = (ids: Iterable<Id>): CreatedElementCommand => {
     assertGroupInvariants(copy);
   }) };
 };
+/** Fits a group's bounds to its children; an empty group keeps its position with no extent. */
+function refreshGroupBounds(document: LabelDocument, groupId: Id): void {
+  const group = elementById(document, groupId); if (group.type !== 'group') return;
+  const children = group.childIds.map((id) => elementById(document, id));
+  if (!children.length) { group.transform = { ...group.transform, width: 0, height: 0 }; return; }
+  const bounds = children.map((item) => elementRootBounds(document, item));
+  const x = Math.min(...bounds.map((item) => item.x)); const y = Math.min(...bounds.map((item) => item.y));
+  const right = Math.max(...bounds.map((item) => item.x + item.width)); const bottom = Math.max(...bounds.map((item) => item.y + item.height));
+  group.transform = { ...group.transform, x, y, width: right - x, height: bottom - y };
+  if (group.groupId) refreshGroupBounds(document, group.groupId);
+}
+const isInside = (document: LabelDocument, id: Id, ancestorId: Id): boolean => { let current = elementById(document, id); while (current.groupId) { if (current.groupId === ancestorId) return true; current = elementById(document, current.groupId); } return false; };
+/** Adds an empty group so elements can be dropped into it from the layer list. */
+export const createGroup = (name = 'Group'): CreatedElementCommand => {
+  const createdId = uuid(); return { label: 'Add group', createdId, apply: (doc) => changed(doc, (copy) => {
+    const zIndex = copy.elements.length ? Math.max(...copy.elements.map((item) => item.zIndex)) + 1 : 0;
+    copy.elements.push({ id: createdId, type: 'group', name, childIds: [], transform: { x: 0, y: 0, width: 0, height: 0, rotation: 0 }, zIndex, visible: true, locked: false });
+    assertGroupInvariants(copy);
+  }) };
+};
+/** Moves elements into a group, or to the root when `groupId` is undefined, keeping their placement on the label. */
+export const moveToGroup = (ids: Iterable<Id>, groupId: Id | undefined): Command => {
+  const moved = [...new Set(ids)]; return { label: groupId ? 'Move into group' : 'Move out of group', apply: (doc) => changed(doc, (copy) => {
+    const target = groupId ? elementById(copy, groupId) : undefined;
+    if (target && target.type !== 'group') throw new Error(`Target ${target.id} is not a group`);
+    const touched = new Set<Id>();
+    for (const id of moved) {
+      const item = elementById(copy, id);
+      if (target && (id === target.id || isInside(copy, target.id, id))) throw new Error('A group cannot be moved into itself');
+      if (item.groupId === groupId) continue;
+      if (item.groupId) { const parent = elementById(copy, item.groupId); if (parent.type === 'group') { parent.childIds = parent.childIds.filter((child) => child !== id); touched.add(parent.id); } }
+      if (target?.type === 'group') { target.childIds.push(id); item.groupId = target.id; touched.add(target.id); } else delete item.groupId;
+    }
+    for (const id of touched) refreshGroupBounds(copy, id);
+    assertGroupInvariants(copy);
+  }) };
+};
 export const ungroup = (groupId: Id): Command => ({ label: 'Ungroup elements', apply: (doc) => changed(doc, (copy) => {
   const group = elementById(copy, groupId); if (group.type !== 'group') return;
   const parent = group.groupId ? elementById(copy, group.groupId) : undefined;
