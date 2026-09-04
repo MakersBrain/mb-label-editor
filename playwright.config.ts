@@ -5,6 +5,11 @@ const origin = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`;
 export default defineConfig({
   testDir: 'tests/browser',
   timeout: 30000,
+  // Baselines are Linux renders from the pinned Playwright image; keep the path free of the host platform.
+  // Visual baselines are Linux renders from the pinned image; compare them in CI or via npm run test:visual.
+  testIgnore: process.env.CI || process.env.VISUAL ? [] : ['**/visual.spec.ts'],
+  snapshotPathTemplate: '{testDir}/__screenshots__/{testFileName}/{arg}{ext}',
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
   use: {
     baseURL: origin,
     serviceWorkers: 'allow',

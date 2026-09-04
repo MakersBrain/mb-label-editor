@@ -20,6 +20,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:browser": "playwright test",
+    "test:visual": "sh scripts/visual-update.sh",
+    "test:visual:update": "sh scripts/visual-update.sh --update-snapshots",
     "test:package": "node scripts/test-package.mjs",
     "test:pwa-release": "node scripts/test-pwa-release.mjs",
     "check:workflows": "node scripts/check-workflows.mjs",

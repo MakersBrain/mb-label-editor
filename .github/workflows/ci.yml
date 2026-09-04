@@ -55,4 +55,7 @@ jobs:
       - run: npm run test:browser
       - run: npm run test:package
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with: { name: browser-test-results, path: mb-label-editor/test-results, if-no-files-found: ignore }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with: { name: label-editor-pwa, path: mb-label-editor/apps/pwa/dist }
