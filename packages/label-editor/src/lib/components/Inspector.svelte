@@ -3,6 +3,11 @@
   import type { EditorStore } from '../store.js'; import { patchElement } from '../commands.js'; export let editor:EditorStore;
   const number=(value:string)=>Number.isFinite(Number(value))?Number(value):0;
   const patch=(id:string,value:Record<string,unknown>)=>editor.execute(patchElement(id,value));
+  /** Binding the face by id keeps the printed font exact: family alone cannot tell two weights of one family apart. */
+  function chooseFont(id:string,value:string){
+    const font=$editor.document.fonts.find(item=>item.id===value);
+    patch(id,font?{fontResourceId:font.id,fontFamily:font.family,fontWeight:font.weight}:{fontResourceId:undefined,fontFamily:'sans-serif',fontWeight:400});
+  }
 </script>
 <section><h2>Inspector</h2>
   {#if $editor.selectedElements.length===1}{#each $editor.selectedElements as element}
@@ -17,7 +22,7 @@
     </div>
     {#if element.type==='text'}
       <label>Text<textarea value={element.text} on:change={(e)=>patch(element.id,{text:e.currentTarget.value})}></textarea></label>
-      <div class="grid"><label>Font<select value={element.fontFamily} on:change={(e)=>patch(element.id,{fontFamily:e.currentTarget.value})}><option value="sans-serif">System sans</option>{#each $editor.document.fonts as font}<option value={font.family}>{font.family} {font.weight}</option>{/each}</select></label><label>Size (mm)<input type="number" min=".1" step=".1" value={element.fontSize} on:change={(e)=>patch(element.id,{fontSize:number(e.currentTarget.value)})}></label></div>
+      <div class="grid"><label>Font<select value={element.fontResourceId??'sans-serif'} on:change={(e)=>chooseFont(element.id,e.currentTarget.value)}><option value="sans-serif">System sans</option>{#each $editor.document.fonts as font}<option value={font.id}>{font.family} {font.weight}</option>{/each}</select></label><label>Size (mm)<input type="number" min=".1" step=".1" value={element.fontSize} on:change={(e)=>patch(element.id,{fontSize:number(e.currentTarget.value)})}></label></div>
       <label>Overflow<select value={element.overflow} on:change={(e)=>patch(element.id,{overflow:e.currentTarget.value})}><option>no-wrap</option><option>word-wrap</option><option>clip</option><option>shrink-to-fit</option><option>auto-height</option></select></label>
       <div class="grid"><label>Horizontal<select value={element.horizontalAlign} on:change={(e)=>patch(element.id,{horizontalAlign:e.currentTarget.value})}><option>left</option><option>center</option><option>right</option></select></label><label>Vertical<select value={element.verticalAlign} on:change={(e)=>patch(element.id,{verticalAlign:e.currentTarget.value})}><option>top</option><option>middle</option><option>bottom</option></select></label></div>
     {:else if element.type==='image'}

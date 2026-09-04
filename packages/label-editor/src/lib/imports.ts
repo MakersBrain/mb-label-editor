@@ -34,5 +34,19 @@ export async function importAsset(file:File,sdk?:PrinterSdk,dpi=300,options?:{ha
   const digest=await sha256(new Uint8Array(data).buffer);
   return{resource:{id:uuid(),name,mimeType,sha256:digest,data:base64(data)},widthMm,heightMm};
 }
-export async function importFont(file:File,details?:{family?:string;weight?:number;style?:'normal'|'italic'}):Promise<FontResource>{const data=bytes(await file.arrayBuffer());const mimeType=file.type||mimeFromName(file.name);if(!['font/woff','font/woff2','font/ttf','font/otf','font/collection','application/font-sfnt'].includes(mimeType))throw new Error(`Unsupported font type: ${mimeType}`);return{id:uuid(),name:file.name,mimeType,sha256:await sha256(new Uint8Array(data).buffer),data:base64(data),family:details?.family??file.name.replace(/\.[^.]+$/,''),weight:details?.weight??400,style:details?.style??'normal'}}
+const fontTypes=['font/woff','font/woff2','font/ttf','font/otf','font/collection','application/font-sfnt'];
+/** Catalogues commonly serve font files as `application/octet-stream`, so fall back to the name and then to the sfnt signature. */
+export function fontMimeType(data:Uint8Array,name='',declared=''):string|undefined{
+  if(fontTypes.includes(declared))return declared;
+  const named=mimeFromName(name);
+  if(fontTypes.includes(named))return named;
+  const tag=String.fromCharCode(...data.subarray(0,4));
+  if(tag==='wOFF')return 'font/woff';
+  if(tag==='wOF2')return 'font/woff2';
+  if(tag==='OTTO')return 'font/otf';
+  if(tag==='ttcf')return 'font/collection';
+  if(tag==='true'||tag==='\u0000\u0001\u0000\u0000')return 'font/ttf';
+  return undefined;
+}
+export async function importFont(file:File,details?:{family?:string;weight?:number;style?:'normal'|'italic'}):Promise<FontResource>{const data=bytes(await file.arrayBuffer());const mimeType=fontMimeType(data,file.name,file.type);if(!mimeType)throw new Error(`Unsupported font type: ${file.type||mimeFromName(file.name)}`);return{id:uuid(),name:file.name,mimeType,sha256:await sha256(new Uint8Array(data).buffer),data:base64(data),family:details?.family??file.name.replace(/\.[^.]+$/,''),weight:details?.weight??400,style:details?.style??'normal'}}
 const mimeFromName=(name:string)=>{const extension=name.split('.').pop()?.toLowerCase();return({svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',pdf:'application/pdf',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',ttc:'font/collection'} as Record<string,string>)[extension??'']??'application/octet-stream'};

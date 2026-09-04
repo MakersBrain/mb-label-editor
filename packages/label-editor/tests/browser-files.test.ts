@@ -86,3 +86,20 @@ describe('browser file handoff', () => {
     expect(failed.scheduled).toEqual([]);
   });
 });
+
+describe('font import', () => {
+  const file = (bytes: number[], name: string, type: string) => new File([new Uint8Array(bytes)], name, { type });
+  const ttf = [0x00, 0x01, 0x00, 0x00];
+  it('accepts a face a catalogue served as application/octet-stream', async () => {
+    const { importFont } = await import('../src/lib/imports.js');
+    const imported = await importFont(file(ttf, 'Inter-Regular.ttf', 'application/octet-stream'));
+    expect(imported).toMatchObject({ mimeType: 'font/ttf', family: 'Inter-Regular', weight: 400 });
+  });
+  it('recognises a face by its signature when neither the type nor the name says so', async () => {
+    const { fontMimeType, importFont } = await import('../src/lib/imports.js');
+    expect(fontMimeType(new Uint8Array([0x4f, 0x54, 0x54, 0x4f]), 'download', '')).toBe('font/otf');
+    expect(fontMimeType(new Uint8Array([0x77, 0x4f, 0x46, 0x46]), 'download', '')).toBe('font/woff');
+    expect(fontMimeType(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), 'download', '')).toBeUndefined();
+    await expect(importFont(file([0x89, 0x50, 0x4e, 0x47], 'logo', 'application/octet-stream'))).rejects.toThrow(/Unsupported font type/);
+  });
+});

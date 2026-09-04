@@ -11,7 +11,7 @@
   import {GestureTracker}from'../gestures.js';
   import type { EditorStore } from '../store.js';
   import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import ThermalPreview from'./ThermalPreview.svelte';
-  import type { Bounds, LabelElement, Point } from '../model.js'; import { elementAncestry, isEffectivelyLocked, isEffectivelyVisible } from '../model.js';
+  import type { Bounds, FontResource, LabelElement, Point } from '../model.js'; import { elementAncestry, isEffectivelyLocked, isEffectivelyVisible } from '../model.js';
   export let editor: EditorStore;
   export let sdk:PrinterSdk|undefined=undefined;
   export let printer:PrinterDefinition|undefined=undefined;
@@ -124,6 +124,48 @@
   $: currentRecord=$editor.document.template?.records[$editor.document.template.currentRecord];
   /** Text on the canvas shows the selected record's values; the raw expression stays editable in Properties. */
   function merged(source:string):string{if(!currentRecord||!source.includes('{{'))return source;try{return evaluateTemplate(source,{record:currentRecord,locale:globalThis.navigator?.language})}catch{return source}}
+  const verticalPlacement:Record<string,string>={top:'flex-start',middle:'center',bottom:'flex-end'};
+  let measurer:CanvasRenderingContext2D|null|undefined;
+  /** Width in pixels of the widest line, at the element's own face and size. */
+  function lineWidth(element:Extract<LabelElement,{type:'text'}>,text:string,size:number):number{
+    if(measurer===undefined)measurer=typeof document==='undefined'?null:document.createElement('canvas').getContext('2d');
+    if(!measurer||!text)return 0;
+    measurer.font=`${element.fontWeight} ${size*pxPerMm}px ${element.fontFamily}`;
+    return Math.max(...text.split('\n').map(line=>measurer!.measureText(line).width));
+  }
+  /** Mirrors the SDK's shrink-to-fit: one linear scale down to whichever of the box's width or height binds first. */
+  function fittedFontSize(element:Extract<LabelElement,{type:'text'}>,text:string):number{
+    const widest=lineWidth(element,text,element.fontSize);
+    return element.fontSize*Math.min(1,widest?element.transform.width*pxPerMm/widest:1,element.transform.height/element.fontSize);
+  }
+  /** Vertical placement lives on the box; the line itself is a block so an over-long line clips from its trailing edge, the way the printer truncates it. */
+  const textBoxStyle=(element:Extract<LabelElement,{type:'text'}>):string=>
+    `display:flex;align-items:${verticalPlacement[element.verticalAlign]??'center'};overflow:${element.overflow==='auto-height'?'visible':'hidden'}`;
+  /** The SDK owns the printed layout, so the canvas honours the same overflow rules instead of always wrapping and clipping. */
+  function textStyle(element:Extract<LabelElement,{type:'text'}>,_generation=0):string{
+    const text=merged(element.text);
+    const wraps=element.overflow==='word-wrap'||element.overflow==='auto-height';
+    const size=element.overflow==='shrink-to-fit'?fittedFontSize(element,text):element.fontSize;
+    // The printer truncates a long line from its tail, so an overflowing line is pinned to the start rather than centred.
+    const align=!wraps&&lineWidth(element,text,size)>element.transform.width*pxPerMm?'left':element.horizontalAlign;
+    return `font-family:${JSON.stringify(element.fontFamily)},sans-serif;font-weight:${element.fontWeight};font-size:${size*pxPerMm}px;text-align:${align};white-space:${wraps?'pre-wrap':'pre'};overflow-wrap:${wraps?'anywhere':'normal'}`;
+  }
+  const registeredFonts=new Set<string>();
+  /** An embedded face is only a byte array until it is registered, so the canvas would otherwise preview every label in the fallback font. */
+  async function registerFonts(fonts:FontResource[]){
+    if(typeof FontFace!=='function'||typeof document==='undefined')return;
+    for(const font of fonts){
+      if(registeredFonts.has(font.id))continue;
+      registeredFonts.add(font.id);
+      try{
+        const face=new FontFace(font.family,`url(data:${font.mimeType};base64,${font.data})`,{weight:String(font.weight),style:font.style});
+        document.fonts.add(await face.load());
+        fontGeneration+=1;
+      }catch{registeredFonts.delete(font.id)}
+    }
+  }
+  let fontGeneration=0;
+  $: void registerFonts($editor.document.fonts);
   $: selectionBounds=boundsOf(displayDocument.elements.filter(item=>$editor.selection.has(item.id)&&!isEffectivelyLocked(displayDocument,item)),displayDocument);
   $: rotateElement=$editor.selectedElements.length===1&&$editor.selectedElements[0].type!=='group'?$editor.selectedElements[0]:undefined;
   $: rollSettings=continuousSettings($editor.document);
@@ -145,7 +187,7 @@
       {#each [...displayDocument.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
         {#if element.type !== 'group' && isEffectivelyVisible(displayDocument, element)}
           <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={isEffectivelyLocked(displayDocument, element)} class:exact={!!sdk} class="element {element.type}" data-id={element.id} style={styleFor(element,elementRootOffset(displayDocument,element),movesWithDrag(element)?dragPreviewDelta:undefined)} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} on:dblclick={(event) => enterElement(event, element)} aria-label={element.name}>
-            {#if element.type === 'text'}<span style={`font-family:${element.fontFamily};font-size:${element.fontSize}px;text-align:${element.horizontalAlign}`}>{merged(element.text)}</span>
+            {#if element.type === 'text'}<span style={textBoxStyle(element)}><span class="text-body" style={textStyle(element,fontGeneration)}>{merged(element.text)}</span></span>
             {:else if element.type === 'barcode'}<span class="placeholder">▥ {merged(element.value)}</span>
             {:else if element.type === 'qr'}<span class="placeholder">▦</span>
             {:else if element.type === 'image' || element.type === 'svg'}
@@ -164,7 +206,7 @@
 
 <style>
   .viewport{position:absolute;inset:0;overflow:hidden;min-width:0;min-height:0;background:var(--mble-surface-sunken,#d8ddd8);touch-action:none}.pan{position:absolute;left:50%;top:50%;transform-origin:center}.media{position:relative;background:#fff;box-shadow:0 8px 28px #17231c33;overflow:hidden}.media.grid{background-image:linear-gradient(#1c66471c 1px,transparent 1px),linear-gradient(90deg,#1c66471c 1px,transparent 1px);background-size:var(--grid) var(--grid)}
-  .element{position:absolute;margin:0;padding:0;overflow:visible;border:1px dashed transparent;background:transparent;color:#111;transform-origin:center;cursor:move}.element:hover{background:transparent}.element:not(.selected):hover{border-color:var(--mble-border-strong,#948274)}.element.selected{border-color:var(--mble-primary,#ed6146);outline:1px solid white}.element.locked{cursor:not-allowed}.element span{display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden}.selection-box{position:absolute;box-sizing:border-box;border:1px solid var(--mble-primary,#ed6146);outline:1px solid white;pointer-events:none;z-index:10000}
+  .element{position:absolute;margin:0;padding:0;overflow:visible;border:1px dashed transparent;background:transparent;color:#111;transform-origin:center;cursor:move}.element:hover{background:transparent}.element:not(.selected):hover{border-color:var(--mble-border-strong,#948274)}.element.selected{border-color:var(--mble-primary,#ed6146);outline:1px solid white}.element.locked{cursor:not-allowed}.element span{display:flex;width:100%;height:100%;align-items:center;justify-content:center;overflow:hidden}.element span.text-body{display:block;width:100%;height:auto;overflow:hidden}.selection-box{position:absolute;box-sizing:border-box;border:1px solid var(--mble-primary,#ed6146);outline:1px solid white;pointer-events:none;z-index:10000}
   .selection-move{position:absolute;inset:0;pointer-events:auto;cursor:move}.handle{position:absolute;display:block;box-sizing:content-box;width:8px;height:8px;background:white;border:1px solid var(--mble-primary,#ed6146);pointer-events:auto;z-index:20}.handle.resize.nw{left:-5px;top:-5px;cursor:nwse-resize}.handle.resize.n{left:calc(50% - 5px);top:-5px;cursor:ns-resize}.handle.resize.ne{right:-5px;top:-5px;cursor:nesw-resize}.handle.resize.e{right:-5px;top:calc(50% - 5px);cursor:ew-resize}.handle.resize.se{right:-5px;bottom:-5px;cursor:nwse-resize}.handle.resize.s{left:calc(50% - 5px);bottom:-5px;cursor:ns-resize}.handle.resize.sw{left:-5px;bottom:-5px;cursor:nesw-resize}.handle.resize.w{left:-5px;top:calc(50% - 5px);cursor:ew-resize}.handle.rotate{top:-18px;left:calc(50% - 5px);cursor:grab;font-size:9px;line-height:8px;color:var(--mble-text,#17231c)}.rectangle,.ellipse,.triangle{border:1px solid #111}.ellipse{border-radius:50%}.triangle{clip-path:polygon(50% 0,100% 100%,0 100%);background:#111}.line{height:1px!important;background:#111}.placeholder{font-size:10px}.ruler{position:absolute;background:var(--mble-surface-muted,#f7f4ed);z-index:3}.ruler.horizontal{height:20px;left:20px;right:0;border-bottom:1px solid var(--mble-border-strong,#aaa)}.ruler.vertical{width:20px;top:20px;bottom:0;border-right:1px solid var(--mble-border-strong,#aaa)}.guide{position:absolute;background:var(--mble-guide,#46a8ed);pointer-events:none}.guide.x{top:0;bottom:0;width:1px}.guide.y{left:0;right:0;height:1px}
   .element.exact:not(.selected) span,.element.exact:not(.selected) .asset{visibility:hidden}
   .asset{width:100%;height:100%;pointer-events:none}

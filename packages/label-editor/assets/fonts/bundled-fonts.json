@@ -1,0 +1,54 @@
+[
+  {
+    "id": "bundled-plex-sans-400",
+    "file": "plex-sans-400.ttf",
+    "family": "IBM Plex Sans",
+    "weight": 400,
+    "style": "normal",
+    "mediaType": "font/ttf",
+    "sha256": "6dbe082463cf749cfa057d45c3048c90f4df031496498e5b5bdfd0b6babb9d16",
+    "bytes": 205252,
+    "license": "OFL-1.1",
+    "licenseUrl": "https://openfontlicense.org/open-font-license-official-text/",
+    "source": "https://fonts.google.com/specimen/IBM+Plex+Sans"
+  },
+  {
+    "id": "bundled-plex-sans-700",
+    "file": "plex-sans-700.ttf",
+    "family": "IBM Plex Sans",
+    "weight": 700,
+    "style": "normal",
+    "mediaType": "font/ttf",
+    "sha256": "e129a20e8ff7c907ffd07124b573e88c323b7b18afc934d4aa539a3e0f2fe100",
+    "bytes": 205220,
+    "license": "OFL-1.1",
+    "licenseUrl": "https://openfontlicense.org/open-font-license-official-text/",
+    "source": "https://fonts.google.com/specimen/IBM+Plex+Sans"
+  },
+  {
+    "id": "bundled-plex-mono-400",
+    "file": "plex-mono-400.ttf",
+    "family": "IBM Plex Mono",
+    "weight": 400,
+    "style": "normal",
+    "mediaType": "font/ttf",
+    "sha256": "a7fdc993f9f0387caedba4e42521136fa97e4c0837ae6239bf0413ccf8af00c2",
+    "bytes": 128812,
+    "license": "OFL-1.1",
+    "licenseUrl": "https://openfontlicense.org/open-font-license-official-text/",
+    "source": "https://fonts.google.com/specimen/IBM+Plex+Mono"
+  },
+  {
+    "id": "bundled-plex-mono-700",
+    "file": "plex-mono-700.ttf",
+    "family": "IBM Plex Mono",
+    "weight": 700,
+    "style": "normal",
+    "mediaType": "font/ttf",
+    "sha256": "5b2232ff598dd39860f606526399f64be06f0c286a638bad8a83e98c44c41ff6",
+    "bytes": 131040,
+    "license": "OFL-1.1",
+    "licenseUrl": "https://openfontlicense.org/open-font-license-official-text/",
+    "source": "https://fonts.google.com/specimen/IBM+Plex+Mono"
+  }
+]

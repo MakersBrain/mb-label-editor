@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
+import { labelFileTypes } from '../../packages/label-editor/src/lib/files.js';
 
 /** Opens a menu-bar dialog, e.g. Label > Assets…. */
 async function openMenu(page: Page, menu: string) { await page.getByLabel('Editor menus').getByText(menu, { exact: true }).click(); }
@@ -506,7 +507,7 @@ test('selecting a row previews that record on the canvas', async ({ page }) => {
   await page.getByRole('tab', { name: 'Data' }).click();
   const panel = page.locator('#sidebar-panel-data');
   await panel.locator('input[type=file]').setInputFiles({ name: 'items.csv', mimeType: 'text/csv', buffer: Buffer.from('name,price\nJam,4.5\nTea,3\n') });
-  const text = page.locator('.element.text span');
+  const text = page.locator('.element.text span.text-body');
   await expect(text).toHaveText('JAM 4.50');
   await expect(page.locator('.record-badge')).toHaveText('Record 1 of 2');
   await panel.getByRole('button', { name: 'Preview record 2' }).click();
@@ -1054,3 +1055,66 @@ test('continuous cutter preferences are isolated by printer model',async({page})
   await restoredMedia.getByLabel('Shape').selectOption('continuous');
   await restoredMedia.getByRole('button',{name:'Close Media & zones'}).click();
   await expect(cut).toHaveValue('none')});
+
+test('the file pickers use extensions the File System Access API accepts', async ({ page }) => {
+  await page.goto('/');
+  // Chromium rejects an extension containing a hyphen, so the picker options must survive validation.
+  // Without a real dialog the call still fails, but a TypeError specifically means the options were rejected.
+  const errors = await page.evaluate(async (types) => {
+    const call = async (name: 'showOpenFilePicker' | 'showSaveFilePicker', options: unknown) => {
+      try { await (window as unknown as Record<string, (value: unknown) => Promise<unknown>>)[name](options); return 'opened'; }
+      catch (error) { return (error as Error).name; }
+    };
+    return {
+      open: await call('showOpenFilePicker', { types, multiple: false }),
+      save: await call('showSaveFilePicker', { suggestedName: 'Label.mb-label.json', types })
+    };
+  }, labelFileTypes);
+  expect(errors.open).not.toBe('TypeError');
+  expect(errors.save).not.toBe('TypeError');
+});
+
+test('the canvas honours each text overflow mode instead of always wrapping', async ({ page }) => {
+  const fixture = await readFile(new URL('../../packages/label-editor/tests/fixtures/sdk-v4-text.mb-label.json', import.meta.url));
+  await page.goto('/');
+  const input = page.locator('input[type=file][accept*="mb-label"]');
+  await expect(input).toBeAttached({ timeout: 5000 });
+  await input.setInputFiles({ name: 'fixture.mb-label.json', mimeType: 'application/json', buffer: fixture });
+  await expect(page.locator('footer')).toContainText('Opened SDK compatibility');
+  const element = page.locator('.element.text[data-id="text-1"]');
+  await element.click({ force: true });
+  const body = element.locator('span.text-body');
+  const styles = async () => body.evaluate((node) => { const style = getComputedStyle(node); return { fontSize: style.fontSize, whiteSpace: style.whiteSpace, overflow: getComputedStyle(node.parentElement!).overflow }; });
+  // 3.5 mm of text must be ~13 CSS px, not the 3.5 px a raw millimetre value would give.
+  expect(Number.parseFloat((await styles()).fontSize)).toBeGreaterThan(10);
+  const overflow = page.getByRole('combobox', { name: 'Overflow' });
+  await overflow.selectOption('no-wrap');
+  expect(await styles()).toMatchObject({ whiteSpace: 'pre', overflow: 'hidden' });
+  await overflow.selectOption('word-wrap');
+  expect(await styles()).toMatchObject({ whiteSpace: 'pre-wrap', overflow: 'hidden' });
+  await overflow.selectOption('auto-height');
+  expect(await styles()).toMatchObject({ whiteSpace: 'pre-wrap', overflow: 'visible' });
+  await overflow.selectOption('shrink-to-fit');
+  await expect(async () => expect(Number.parseFloat((await styles()).fontSize)).toBeLessThan(13.3)).toPass();
+});
+
+test('an imported face is bound to the element and painted on the canvas', async ({ page }) => {
+  const fixture = await readFile(new URL('../../packages/label-editor/tests/fixtures/sdk-v4-text.mb-label.json', import.meta.url));
+  const face = await readFile(new URL('../../node_modules/@makersbrain/ui/fonts/plex-latin.woff2', import.meta.url));
+  await page.goto('/');
+  const input = page.locator('input[type=file][accept*="mb-label"]');
+  await expect(input).toBeAttached({ timeout: 5000 });
+  await input.setInputFiles({ name: 'fixture.mb-label.json', mimeType: 'application/json', buffer: fixture });
+  await expect(page.locator('footer')).toContainText('Opened SDK compatibility');
+  await page.getByText('Assets', { exact: true }).first().click();
+  // Served the way a catalogue serves it: real font bytes under an opaque media type.
+  await page.locator('input[type=file][accept*=".ttf"]').setInputFiles({ name: 'plex-latin.woff2', mimeType: 'application/octet-stream', buffer: face });
+  await page.getByText('Layers', { exact: true }).first().click();
+  const element = page.locator('.element.text[data-id="text-1"]');
+  await element.click({ force: true });
+  const font = page.getByRole('combobox', { name: 'Font' });
+  await expect(font.locator('option')).toHaveText(['System sans', 'plex-latin 400']);
+  await font.selectOption({ index: 1 });
+  await expect(element.locator('span.text-body')).toHaveCSS('font-family', 'plex-latin, sans-serif');
+  await expect(async () => expect(await page.evaluate(() => [...document.fonts].some((loaded) => loaded.family === 'plex-latin' && loaded.status === 'loaded'))).toBe(true)).toPass();
+});

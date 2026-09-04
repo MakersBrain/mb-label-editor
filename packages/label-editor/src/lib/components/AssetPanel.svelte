@@ -4,7 +4,7 @@
   import type { EditorStore } from '../store.js';
   import type { PrinterSdk } from '../print/types.js';
   import { addElement, addFont, addResource } from '../commands.js';
-  import { importAsset, importFont } from '../imports.js';
+  import { fontMimeType, importAsset, importFont } from '../imports.js';
   import { uuid, type Resource, type FontResource } from '../model.js';
   import { AssetCatalogue, type CatalogueAsset } from '../catalogue.js';
   import type { ExternalAsset, ExternalFont, ExternalResourceProvider } from '../external-resources/types.js';
@@ -13,6 +13,7 @@
   import { assetDrag, ASSET_DRAG_TYPE } from '../asset-drag.js';
   import type { Point } from '../model.js';
   import manifest from '../../../assets/public-catalogue.json';
+  import bundledFonts from '../../../assets/fonts/bundled-fonts.json';
 
   export let editor: EditorStore;
   export let sdk: PrinterSdk | undefined = undefined;
@@ -185,7 +186,9 @@
   }
   async function use(item: CatalogueAsset, at?: Point) {
     if (!item.dataBase64) return;
-    await verifiedBytes(item);
+    const data = await verifiedBytes(item);
+    const font = item.kind === 'font' ? fontMimeType(data, item.name, item.mediaType) : undefined;
+    if (font) { const imported = await importFont(new File([data as BlobPart], item.name, { type: font })); editor.execute(addFont(imported)); await saveResource(imported); await remember(item.id); status = `Added ${item.name}`; return; }
     const resource = { id: uuid(), name: item.name, mimeType: item.mediaType, sha256: item.sha256, data: item.dataBase64 };
     place(resource, 20, 20, at);
     await saveResource(resource);
@@ -198,8 +201,10 @@
       status = `Downloading ${item.title}…`;
       const blob = await resourceProvider.fetchBlob(item.contentUrl);
       const file = new File([blob], item.title, { type: blob.type });
-      if (blob.type.startsWith('font/')) {
-        const imported = await importFont(file);
+      // A catalogue may serve a face as application/octet-stream, so trust the item's own kind and the file's signature too.
+      const font = item.kinds.includes('font') || blob.type.startsWith('font/') ? fontMimeType(new Uint8Array(await blob.slice(0, 4).arrayBuffer()), item.title, blob.type) : undefined;
+      if (font) {
+        const imported = await importFont(new File([blob], item.title, { type: font }));
         editor.execute(addFont(imported));
         await saveResource(imported);
       } else {
@@ -234,6 +239,32 @@
       await remember(`remote-font:${family.id}`);
       status = `Added ${family.family}`;
       await searchRemote(remotePage);
+    } catch (error) { status = message(error); }
+  }
+  /** Static URLs so the bundler emits the faces as assets: they are fetched on demand rather than inlined into the app. */
+  const bundledFontUrls: Record<string, string> = {
+    'plex-sans-400.ttf': new URL('../../../assets/fonts/plex-sans-400.ttf', import.meta.url).href,
+    'plex-sans-700.ttf': new URL('../../../assets/fonts/plex-sans-700.ttf', import.meta.url).href,
+    'plex-mono-400.ttf': new URL('../../../assets/fonts/plex-mono-400.ttf', import.meta.url).href,
+    'plex-mono-700.ttf': new URL('../../../assets/fonts/plex-mono-700.ttf', import.meta.url).href
+  };
+  type BundledFont = (typeof bundledFonts)[number];
+  const bundledName = (item: BundledFont) => `${item.family} ${item.weight === 700 ? 'Bold' : 'Regular'}`;
+  /** Embeds a shipped face into the document, so a label prints in it without a catalogue or a network. */
+  async function useBundledFont(item: BundledFont) {
+    try {
+      status = `Adding ${bundledName(item)}…`;
+      const existing = $editor.document.fonts.find(font => font.sha256 === item.sha256);
+      if (existing) { status = `${bundledName(item)} is already in this label.`; return; }
+      const response = await fetch(bundledFontUrls[item.file]);
+      if (!response.ok) throw new Error(`${bundledName(item)} is unavailable (${response.status}).`);
+      const data = new Uint8Array(await response.arrayBuffer());
+      const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', data))].map(value => value.toString(16).padStart(2, '0')).join('');
+      if (digest !== item.sha256) throw new Error(`Bundled font hash mismatch for ${item.file}`);
+      const imported = await importFont(new File([data as BlobPart], item.file, { type: item.mediaType }), { family: item.family, weight: item.weight, style: item.style as 'normal' | 'italic' });
+      editor.execute(addFont({ ...imported, name: bundledName(item) }));
+      await saveResource({ ...imported, name: bundledName(item) });
+      status = `Added ${bundledName(item)}`;
     } catch (error) { status = message(error); }
   }
   async function saveResource(resource: Resource) {
@@ -321,8 +352,17 @@
   {:else}
     <p class="hint">Click a tile for details, double-click to place it, or drag it onto the label.</p>
   {/if}
-
-
+  <div class="bundled" role="group" aria-label="Bundled fonts">
+    <h3>Bundled fonts<small>Embedded into the label, so it prints anywhere</small></h3>
+    <div class="bundled-row">
+      {#each bundledFonts as item (item.id)}
+        <button type="button" class="bundled-font" title={`${bundledName(item)} · ${item.license} · ${Math.round(item.bytes / 1024)} kB`} on:click={() => useBundledFont(item)}>
+          <span class="glyph" aria-hidden="true">Aa</span>
+          <span class="name">{bundledName(item)}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
   {#if source === 'service' && resourceProvider}
     <div class="grid" class:font-list={remoteKind === 'fonts'} class:busy={remoteLoading} role="group" aria-label="Catalogue results">
       {#each shownAssets as item (item.id)}
@@ -404,6 +444,9 @@
   .tile:hover{border-color:var(--mble-border-strong,#948274)}
   .tile:active{cursor:grabbing}
   .tile.active{border-color:var(--mble-primary,#ed6146);box-shadow:0 0 0 1px var(--mble-primary,#ed6146)}
+  .bundled{padding:0 .1rem .4rem}.bundled h3{display:flex;flex-direction:column;gap:.1rem;margin:.2rem 0 .35rem;color:var(--mble-text-muted,#59635e);font-size:.7rem;font-weight:600}.bundled h3 small{font-weight:400}
+  .bundled-row{display:flex;flex-wrap:wrap;gap:.35rem}
+  .bundled-font{display:flex;align-items:center;gap:.35rem;padding:.25rem .45rem;border:1px solid var(--mble-border,#e5dfd5);border-radius:3px;background:var(--mble-surface,#fff);font:inherit;font-size:.72rem;cursor:pointer}.bundled-font:hover{border-color:var(--mble-border-strong,#948274)}.bundled-font .glyph{font-size:.9rem}
   .thumb{display:grid;place-items:center;aspect-ratio:1;background:#fff;border-radius:3px;overflow:hidden}
   .thumb :global(img){display:block;width:100%;height:100%;object-fit:contain;pointer-events:none}
   .thumb :global(.preview){width:100%;height:100%}

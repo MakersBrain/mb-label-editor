@@ -26,15 +26,17 @@ export async function parseDocumentStrict(text: string, validator: CanonicalDocu
   if (!result.valid) throw new Error(`Document validation failed: ${result.errors.join('; ')}`);
   return fromSdkDocument(canonical);
 }
+/** The File System Access API rejects an extension containing anything but letters, digits, `+` and `.`, so the picker filters on `.json` even though labels are saved as `.mb-label.json`. */
+export const labelFileTypes = [{ description: 'MakersBrain label', accept: { 'application/json': ['.json'] } }];
 export async function openDocument(file: File | undefined, validator: CanonicalDocumentValidator): Promise<{ document: LabelDocument; handle?: FileSystemFileHandle }> {
   let handle: FileSystemFileHandle | undefined;
-  if (!file && typeof window !== 'undefined' && (window as PickerWindow).showOpenFilePicker) [handle] = await (window as PickerWindow).showOpenFilePicker!({ types: [{ description: 'MakersBrain label', accept: { 'application/json': ['.mb-label.json'] } }], multiple: false });
+  if (!file && typeof window !== 'undefined' && (window as PickerWindow).showOpenFilePicker) [handle] = await (window as PickerWindow).showOpenFilePicker!({ types: labelFileTypes, multiple: false });
   const selected = file ?? await handle?.getFile(); if (!selected) throw new Error('No file selected');
   return { document: await parseDocumentStrict(await selected.text(), validator), handle };
 }
 export async function saveDocument(document: LabelDocument, suggestedName = `${document.title}.mb-label.json`, existing?: FileSystemFileHandle) {
   const contents = serializeDocument(document); let handle = existing;
-  if (!handle && typeof window !== 'undefined' && (window as PickerWindow).showSaveFilePicker) handle = await (window as PickerWindow).showSaveFilePicker!({ suggestedName, types: [{ description: 'MakersBrain label', accept: { 'application/json': ['.mb-label.json'] } }] });
+  if (!handle && typeof window !== 'undefined' && (window as PickerWindow).showSaveFilePicker) handle = await (window as PickerWindow).showSaveFilePicker!({ suggestedName, types: labelFileTypes });
   if (handle) { const writable = await handle.createWritable(); await writable.write(contents); await writable.close(); return handle; }
   const anchor = documentRoot().createElement('a'); anchor.href = URL.createObjectURL(new Blob([contents], { type: 'application/json' })); anchor.download = suggestedName; anchor.click(); setTimeout(() => URL.revokeObjectURL(anchor.href), 0); return undefined;
 }
