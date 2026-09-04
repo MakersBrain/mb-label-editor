@@ -41,7 +41,7 @@
     const root = parsed.documentElement;
     if (root.nodeName !== 'svg') return '';
     const box = (root.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number);
-    let [minX, minY, boxWidth, boxHeight] = box.length === 4 && box.every(Number.isFinite) ? box : [0, 0, parseFloat(root.getAttribute('width') ?? '0'), parseFloat(root.getAttribute('height') ?? '0')];
+    const [minX, minY, boxWidth, boxHeight] = box.length === 4 && box.every(Number.isFinite) ? box : [0, 0, parseFloat(root.getAttribute('width') ?? '0'), parseFloat(root.getAttribute('height') ?? '0')];
     if (!(boxWidth > 0 && boxHeight > 0)) return '';
     const scale = 256 / Math.max(boxWidth, boxHeight);
     const rasterWidth = Math.max(1, Math.round(boxWidth * scale)), rasterHeight = Math.max(1, Math.round(boxHeight * scale));

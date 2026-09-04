@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { validateContinuousPrintOptions, type PrinterDefinition, type PrinterSdk, type PrinterStatus, type PrintRequest, type PrintResult, type PrintRoute, type ProtocolExecutionProgress, type ProtocolExecutionTransport, type ProtocolPlan } from './types.js';
 import type { JobJournal } from '../jobs.js';
-import type { PersistedJob } from '../persistence/database.js';
 import { assertDocumentReadyForOutput } from '../continuous-media.js';
 import { toSdkDocument } from '../sdk-document.js';
 

@@ -1,0 +1,34 @@
+# Build outputs and vendored trees
+**/dist
+**/node_modules
+.package-consumer-*
+.worktrees
+release-artifacts
+test-results
+playwright-report
+package-lock.json
+apps/pwa/public
+packages/label-editor/assets
+packages/label-editor/openapi
+
+# Pre-existing sources are formatted in one dedicated commit at the end of the
+# runes migration (recorded in .git-blame-ignore-revs). Until then only files
+# created after this point are checked. Remove these entries in that commit.
+packages/label-editor/src
+packages/label-editor/tests
+packages/label-editor/scripts
+apps/pwa/src
+apps/pwa/index.html
+apps/pwa/vite.config.ts
+packages/label-editor/vite.config.ts
+tests
+scripts/check-license-policy.mjs
+scripts/check-workflows.mjs
+scripts/pin-sdk.mjs
+scripts/test-package.mjs
+scripts/test-pwa-release.mjs
+docs
+*.md
+playwright.config.ts
+tsconfig.json
+.claude

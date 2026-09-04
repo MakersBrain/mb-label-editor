@@ -218,7 +218,7 @@ export const distributeElements = (ids: Iterable<Id>, axis: 'horizontal' | 'vert
 export const reorderElement = (id: Id, target: 'front' | 'back' | 'forward' | 'backward'): Command => ({
   label: `Move ${target}`, apply: (doc) => changed(doc, (copy) => {
     const item = elementById(copy, id); const ordered = [...copy.elements].sort((a, b) => a.zIndex - b.zIndex); const current = ordered.indexOf(item);
-    let next = target === 'front' ? ordered.length - 1 : target === 'back' ? 0 : target === 'forward' ? Math.min(current + 1, ordered.length - 1) : Math.max(current - 1, 0);
+    const next = target === 'front' ? ordered.length - 1 : target === 'back' ? 0 : target === 'forward' ? Math.min(current + 1, ordered.length - 1) : Math.max(current - 1, 0);
     ordered.splice(current, 1); ordered.splice(next, 0, item); ordered.forEach((element, index) => { element.zIndex = index; });
   })
 });

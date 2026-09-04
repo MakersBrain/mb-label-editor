@@ -24,11 +24,9 @@ function dragEnd(){dragging=undefined;dropTarget=undefined}
 </script>
 <section>
   <div class="heading"><h2>Layers</h2><button class="add" on:click={addGroup} title="Add an empty group; drag layers onto it to nest them">+ Group</button></div>
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <ol on:dragover={(e)=>dragOver(e,undefined)} on:drop={(e)=>drop(e,undefined)} class:drop-root={dropTarget==='root'}>
     {#each list as row (row.element.id)}
       {@const element=row.element}
-      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <li class:selected={$editor.selection.has(element.id)} class:group={element.type==='group'} class:drop={dropTarget===element.id} class:dragging={dragging===element.id} style={`--depth:${row.depth}`} draggable="true" on:dragstart={(e)=>dragStart(e,element.id)} on:dragend={dragEnd} on:dragover|stopPropagation={(e)=>dragOver(e,element.id)} on:drop|stopPropagation={(e)=>drop(e,element)}>
         {#if element.type==='group'}<button class="fold" aria-label={collapsed.has(element.id)?`Expand ${element.name}`:`Collapse ${element.name}`} aria-expanded={!collapsed.has(element.id)} on:click|stopPropagation={()=>toggle(element.id)}>{collapsed.has(element.id)?'▸':'▾'}</button>{:else}<span class="fold" aria-hidden="true"></span>{/if}
         <button class="name" on:click={(e)=>editor.select([element.id],e.shiftKey)}>{element.name}{#if element.type==='group'}<span class="count">{row.children}</span>{/if}</button>

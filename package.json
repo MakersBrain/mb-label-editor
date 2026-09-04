@@ -4,13 +4,19 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "check": "npm run check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "check:licenses": "node scripts/check-license-policy.mjs",
     "check:runes": "node scripts/check-runes.mjs",
+    "lint": "eslint . --max-warnings 121",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test:browser": "playwright test",
     "test:package": "node scripts/test-package.mjs",
     "test:pwa-release": "node scripts/test-pwa-release.mjs",
@@ -18,5 +24,15 @@
     "sdk:pin": "node scripts/pin-sdk.mjs",
     "release:candidate": "sh scripts/release-candidate.sh"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "eslint": "^10.10.0",
+    "eslint-plugin-svelte": "^3.23.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-svelte": "^4.1.1",
+    "svelte-eslint-parser": "^1.8.1",
+    "typescript-eslint": "^8.69.0"
+  }
 }

@@ -25,7 +25,10 @@ const markupRules = [
   { rule: 'on: directive', pattern: /\son:[a-zA-Z]+(?:\|[a-zA-Z]+)*\s*=/ },
   { rule: '<slot>', pattern: /<slot(\s|>|\/)/ },
 ];
-const optOutRule = { rule: '<svelte:options runes={false}>', pattern: /<svelte:options\b[^>]*\brunes\s*=\s*\{\s*false\s*\}/ };
+const optOutRule = {
+  rule: '<svelte:options runes={false}>',
+  pattern: /<svelte:options\b[^>]*\brunes\s*=\s*\{\s*false\s*\}/,
+};
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -97,10 +100,13 @@ for (const file of files) {
   const display = relative(root, file);
   seen.add(name);
   const { findings, optOut } = inspect(await readFile(file, 'utf8'));
-  if (optOut) errors.push(`${display}:${optOut.line}: ${optOut.rule} is not allowed; every component compiles in runes mode`);
+  if (optOut)
+    errors.push(`${display}:${optOut.line}: ${optOut.rule} is not allowed; every component compiles in runes mode`);
   const listed = allowList?.has(name) ?? false;
   if (findings.length && !listed) {
-    errors.push(`${display} uses legacy syntax but is not in svelte.legacy.mjs:\n${findings.map((item) => `  line ${item.line}: ${item.rule}`).join('\n')}`);
+    errors.push(
+      `${display} uses legacy syntax but is not in svelte.legacy.mjs:\n${findings.map((item) => `  line ${item.line}: ${item.rule}`).join('\n')}`,
+    );
   } else if (!findings.length && listed) {
     errors.push(`${display} is listed in svelte.legacy.mjs but has no legacy syntax; remove the stale entry`);
   } else if (findings.length) {
@@ -110,7 +116,8 @@ for (const file of files) {
 
 if (allowList) {
   for (const name of allowList) {
-    if (!seen.has(name)) errors.push(`svelte.legacy.mjs lists ${name}, which does not exist under ${sourceRoots.join(' or ')}`);
+    if (!seen.has(name))
+      errors.push(`svelte.legacy.mjs lists ${name}, which does not exist under ${sourceRoots.join(' or ')}`);
   }
 } else {
   for (const config of configs) {
