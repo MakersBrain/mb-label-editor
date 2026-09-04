@@ -113,7 +113,7 @@
       >Connect database…</button
     >
   </div>
-  {#if error}<p class="error">{error}</p>{/if}
+  {#if error}<p class="mb-notice bad" role="alert">{error}</p>{/if}
   {#if editor.document.template}
     {@const template = editor.document.template}
     <div class="sheet-tools">
@@ -132,7 +132,7 @@
           oninput={(e) => record(+e.currentTarget.value)}
         /> <span class="muted">{template.currentRecord + 1} of {template.records.length}</span></label
       >
-      <dl>
+      <dl class="mb-datalist">
         {#each template.fields as field}<dt>{field}</dt>
           <dd>{template.records[template.currentRecord]?.[field] ?? ''}</dd>{/each}
       </dl>
@@ -176,9 +176,7 @@
       </ul>
     </details>
   {:else}
-    <p class="muted empty">
-      No data yet. Import a CSV to get an editable sheet of records; each row becomes one label.
-    </p>
+    <p class="mb-empty">No data yet. Import a CSV to get an editable sheet of records; each row becomes one label.</p>
     <div class="starters">
       <button
         type="button"
@@ -229,9 +227,6 @@
     color: var(--mble-text-muted);
     font-size: var(--mble-text-small);
   }
-  .empty {
-    margin: 0.4rem 0;
-  }
   .starters,
   .sheet-tools {
     display: flex;
@@ -252,20 +247,11 @@
     opacity: 0;
     width: 1px;
   }
-  dl,
   .mapping {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     font-size: var(--mble-text-small);
     gap: 0.3rem;
-  }
-  dt,
-  dd {
-    margin: 0;
-    padding: 0.15rem;
-  }
-  .error {
-    color: var(--mble-danger);
   }
   .help {
     margin: 0 0 0.5rem;

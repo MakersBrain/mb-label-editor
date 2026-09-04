@@ -125,14 +125,14 @@
     <button onclick={refresh} disabled={busy}>Refresh</button>
   </div>
   {#if selectedPrinter}
-    <p class:warning={!selectedPrinter.online || !selectedPrinter.enabled}>
+    <p class="mb-notice" class:warn={!selectedPrinter.online || !selectedPrinter.enabled}>
       <strong>{selectedPrinter.displayName}</strong> · {selectedPrinter.model} · {selectedPrinter.enabled
         ? selectedPrinter.online
           ? 'Online'
           : 'Offline — this label will queue'
         : 'Disabled'}
     </p>
-    {#if selectedPrinter.model !== printer?.id}<p class="warning">
+    {#if selectedPrinter.model !== printer?.id}<p class="mb-notice bad">
         Unsupported or mismatched printer model. Select the matching SDK model before printing.
       </p>{/if}
     <button onclick={print} disabled={printing || !selectedPrinter.enabled || selectedPrinter.model !== printer?.id}
@@ -140,11 +140,17 @@
     >
   {/if}
   {#if current}
-    <dl>
+    {@const state = current.terminalOutcome ?? current.state}
+    <dl class="mb-datalist">
       <dt>Job</dt>
       <dd>{current.id}</dd>
       <dt>State</dt>
-      <dd>{current.terminalOutcome ?? current.state}</dd>
+      <dd>
+        <span
+          class={`mb-badge ${/fail|error|cancel|reject/i.test(state) ? 'bad' : /done|complete|succe|printed/i.test(state) ? 'good' : 'busy'}`}
+          ><span class="mb-dot"></span>{state}</span
+        >
+      </dd>
       <dt>Progress</dt>
       <dd>{current.bytesSent}/{current.totalBytes} bytes</dd>
     </dl>
@@ -181,14 +187,6 @@
   p,
   dl {
     font-size: var(--mble-text-small);
-  }
-  .warning {
-    color: var(--mble-danger);
-  }
-  dl {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.15rem 0.6rem;
   }
   dt {
     color: var(--mble-text-muted);

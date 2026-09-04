@@ -305,7 +305,7 @@
       </p>
     </div>
   {/if}
-  {#if error}<p class="error" role="alert">{error}</p>{/if}
+  {#if error}<p class="mb-notice bad error" role="alert">{error}</p>{/if}
   <p class="guidance">
     Opening the PDF does not print automatically. In the PDF viewer choose Print, select the matching paper size, use
     Actual size or 100%, disable Fit to page, and test on plain paper before using label stock.
@@ -378,7 +378,6 @@
   }
   .error {
     grid-column: 1/-1;
-    color: var(--mble-danger);
   }
   .guidance,
   .actions {

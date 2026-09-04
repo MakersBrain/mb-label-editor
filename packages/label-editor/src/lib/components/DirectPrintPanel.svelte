@@ -359,7 +359,10 @@
       <h2>Printer</h2>
       <strong>{printer?.displayName ?? 'No printer selected'}</strong>
     </div>
-    <span class="connection"><i></i>{displayConnection}</span>
+    <span
+      class={`connection mb-badge ${displayConnection === 'connected' ? 'good' : displayConnection === 'connecting' ? 'busy' : displayConnection === 'error' ? 'bad' : 'neutral'}`}
+      ><span class="mb-dot"></span>{displayConnection}</span
+    >
   </div>
   <div class="media-summary">
     <span>Media</span><strong>{reportedMedia.width} × {reportedMedia.length} mm</strong>
@@ -464,7 +467,7 @@
   </div>
   {#if cancellation}<button class="cancel" onclick={() => cancellation?.abort()}>Cancel current job</button>{/if}
   <p class="message" aria-live="polite">{message}</p>
-  {#if printerStatus}<dl>
+  {#if printerStatus}<dl class="mb-datalist">
       {#if printerStatus.phase}<dt>State</dt>
         <dd>{printerStatus.phase}</dd>{/if}{#if printerStatus.battery !== undefined}<dt>Battery</dt>
         <dd>{printerStatus.battery}%</dd>{/if}{#if printerStatus.paper}<dt>Paper</dt>
@@ -501,27 +504,7 @@
     font-size: var(--mble-text-body);
   }
   .connection {
-    display: flex;
-    gap: 0.32rem;
-    align-items: center;
     text-transform: capitalize;
-    font-size: var(--mble-text-micro);
-    color: var(--mble-text-muted);
-  }
-  .connection i {
-    width: 0.48rem;
-    height: 0.48rem;
-    border-radius: 50%;
-    background: var(--mble-text-muted);
-  }
-  .printer-card[data-state='connected'] .connection i {
-    background: var(--mble-success);
-  }
-  .printer-card[data-state='connecting'] .connection i {
-    background: var(--mble-warning);
-  }
-  .printer-card[data-state='error'] .connection i {
-    background: var(--mble-danger);
   }
   .media-summary {
     display: grid;
@@ -611,9 +594,6 @@
     margin-top: 0.35rem;
   }
   dl {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.18rem 0.55rem;
     margin: 0.55rem 0 0;
     padding-top: 0.5rem;
     border-top: 1px solid var(--mble-border);

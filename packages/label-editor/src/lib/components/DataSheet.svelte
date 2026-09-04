@@ -93,7 +93,7 @@
 </script>
 
 {#if template}
-  <div class="sheet-wrap">
+  <div class="sheet-wrap mb-table-wrap">
     <table class="sheet" aria-label="Data records">
       <thead
         ><tr
@@ -291,12 +291,5 @@
   .count {
     margin-left: auto;
     color: var(--mble-text-muted);
-  }
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
   }
 </style>

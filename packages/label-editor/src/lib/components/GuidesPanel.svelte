@@ -72,9 +72,4 @@
     gap: 0.4rem;
     align-items: flex-end;
   }
-  .hint {
-    margin: 0.6rem 0 0;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-  }
 </style>

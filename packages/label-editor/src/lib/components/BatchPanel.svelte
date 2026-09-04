@@ -268,15 +268,17 @@
         ></label
       >{/if}<button onclick={calculate} disabled={busy || calculating || !document.template?.records.length}
       >{calculating ? 'Calculating…' : 'Calculate roll lengths'}</button
-    >{#if lengthRows.length}<table>
-        <thead><tr><th>Record</th><th>Length</th><th>Status</th></tr></thead><tbody
-          >{#each lengthRows as row}<tr class:invalid={!row.valid}
-              ><td>{row.record + 1}</td><td>{row.length === undefined ? '—' : `${row.length.toFixed(1)} mm`}</td><td
-                >{row.status}</td
-              ></tr
-            >{/each}</tbody
-        >
-      </table>
+    >{#if lengthRows.length}<div class="mb-table-wrap">
+        <table>
+          <thead><tr><th>Record</th><th>Length</th><th>Status</th></tr></thead><tbody
+            >{#each lengthRows as row}<tr class:invalid={!row.valid}
+                ><td>{row.record + 1}</td><td>{row.length === undefined ? '—' : `${row.length.toFixed(1)} mm`}</td><td
+                  >{row.status}</td
+                ></tr
+              >{/each}</tbody
+          >
+        </table>
+      </div>
       {@const valid = lengthRows.filter((row) => row.length !== undefined)}{#if valid.length}{@const mediaLength =
           valid.reduce((sum, row) => sum + row.length!, 0) * copies}{@const requiredFeedLength =
           requiredFeedPerLabel * valid.length * copies}{@const operatorFeedLength =

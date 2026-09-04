@@ -74,9 +74,7 @@ describe('design tokens', () => {
     expect(extraDark).toEqual([]);
   });
   it('declares no token nothing references', () => {
-    // Declared ahead of the pattern adoption (type scale, tinted notices and badges); emptied as those land.
-    const adoptedLater = new Set(['--mble-primary-hover', '--mble-primary-border']);
-    const unused = [...light, ...scales].filter((token) => !referenced.has(token) && !adoptedLater.has(token));
+    const unused = [...light, ...scales].filter((token) => !referenced.has(token));
     expect(unused).toEqual([]);
   });
   it('uses tokens without fallbacks', () => {

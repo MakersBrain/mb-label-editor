@@ -355,10 +355,10 @@
           ? `${hardMinimum}–${hardMaximum} mm for ${selectedPrinter.displayName}`
           : 'generic export limits until a printer is selected'}.
       </p>
-      {#each calculationWarnings as warning}<p class="hint warning" role="status">{warning}</p>{/each}
-      {#if calculationError}<p class="hint warning" role="alert">{calculationError}</p>{/if}
+      {#each calculationWarnings as warning}<p class="mb-notice warn" role="status">{warning}</p>{/each}
+      {#if calculationError}<p class="mb-notice bad" role="alert">{calculationError}</p>{/if}
       {#if selectedPrinter}<button type="button" onclick={resetRollLimits}>Reset to printer defaults</button>{/if}
-      {#if !sdk?.measure}<p class="hint warning">
+      {#if !sdk?.measure}<p class="mb-notice warn">
           Fit content requires an updated printer SDK with authoritative layout measurement. Fixed length remains
           available.
         </p>{/if}
@@ -411,14 +411,6 @@
     display: flex;
     flex-direction: column;
     font-size: var(--mble-text-small);
-  }
-  .hint {
-    margin: 0.4rem 0 0;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-  }
-  .warning {
-    color: var(--mble-danger);
   }
   fieldset {
     margin: 0.5rem 0;

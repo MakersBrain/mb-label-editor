@@ -31,7 +31,6 @@
   --mble-primary-hover: #833a23;
   --mble-primary-text: #ffffff;
   --mble-primary-tint: #fdf1ec;
-  --mble-primary-border: #f0bfab;
   --mble-focus: #c05f3d;
   --mble-success: #2f6e56;
   --mble-success-tint: #dfebe1;
@@ -72,7 +71,6 @@
     --mble-primary-hover: #e39c80;
     --mble-primary-text: #130f0d;
     --mble-primary-tint: #2e1d15;
-    --mble-primary-border: #5a3121;
     --mble-focus: #e39c80;
     --mble-success: #6fa98a;
     --mble-success-tint: #17251e;
@@ -107,7 +105,6 @@
   --mble-primary-hover: #e39c80;
   --mble-primary-text: #130f0d;
   --mble-primary-tint: #2e1d15;
-  --mble-primary-border: #5a3121;
   --mble-focus: #e39c80;
   --mble-success: #6fa98a;
   --mble-success-tint: #17251e;

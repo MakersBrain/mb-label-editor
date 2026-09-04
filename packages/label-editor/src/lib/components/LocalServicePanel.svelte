@@ -381,9 +381,13 @@
           >{/if}
       </div>
       {#if wifi}
-        <dl aria-label="Brother Wi-Fi status">
+        <dl class="mb-datalist" aria-label="Brother Wi-Fi status">
           <dt>Connected</dt>
-          <dd>{wifi.status.connected ? 'yes' : 'no'}</dd>
+          <dd>
+            <span class={`mb-badge ${wifi.status.connected ? 'good' : 'bad'}`}
+              ><span class="mb-dot"></span>{wifi.status.connected ? 'yes' : 'no'}</span
+            >
+          </dd>
           {#if wifi.status.ipAddress}<dt>IP address</dt>
             <dd>{wifi.status.ipAddress}</dd>{/if}
           {#if wifi.status.ssid}<dt>SSID</dt>
@@ -413,7 +417,7 @@
           {#each Object.entries(report.sections) as [section, values]}
             <details>
               <summary>{section}</summary>
-              <dl>
+              <dl class="mb-datalist">
                 {#each Object.entries(values) as [key, value]}<dt>{key}</dt>
                   <dd>{value}</dd>{/each}
               </dl>
@@ -520,7 +524,7 @@
           {:else}
             <div class="review" aria-label="Wi-Fi configuration review">
               <strong>Review before applying</strong>
-              <dl>
+              <dl class="mb-datalist">
                 <dt>Printer</dt>
                 <dd>{wifiPreparation.summary.connection} · {wifiPreparation.summary.device}</dd>
                 <dt>SSID</dt>
@@ -666,9 +670,6 @@
     color: var(--mble-text-muted);
   }
   dl {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 0.2rem 0.55rem;
     margin: 0.35rem 0;
     font-size: var(--mble-text-small);
   }

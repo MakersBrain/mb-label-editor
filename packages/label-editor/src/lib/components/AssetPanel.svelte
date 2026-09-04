@@ -746,10 +746,12 @@
         </div>
       {/each}
     </div>
-    {#if onlyFavorites && !shownAssets.length && !shownFonts.length}<p class="empty">
+    {#if onlyFavorites && !shownAssets.length && !shownFonts.length}<p class="mb-empty">
         No favourite {remoteKind} yet. Star a tile to keep it here.
       </p>
-    {:else if !onlyFavorites && !remoteLoading && remoteTotal === 0}<p class="empty">No matching {remoteKind}.</p>{/if}
+    {:else if !onlyFavorites && !remoteLoading && remoteTotal === 0}<p class="mb-empty">
+        No matching {remoteKind}.
+      </p>{/if}
     {#if !onlyFavorites}<nav class="pager">
         <button type="button" onclick={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}
           >Previous</button
@@ -797,7 +799,7 @@
         </div>
       {/each}
     </div>
-    {#if !all.length}<p class="empty">
+    {#if !all.length}<p class="mb-empty">
         {onlyFavorites
           ? 'No favourites match. Star a tile to keep it here.'
           : 'Nothing in this browser matches. Import a file below or switch to the catalogue.'}
@@ -1170,12 +1172,6 @@
     border-color: var(--mble-primary);
     color: var(--mble-primary-text);
   }
-  .empty,
-  .hint {
-    margin: 0;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-micro);
-  }
   .pager {
     display: flex;
     align-items: center;
@@ -1226,11 +1222,6 @@
     flex-wrap: wrap;
     gap: 0.3rem;
     margin-top: 0.2rem;
-  }
-  .primary {
-    background: var(--mble-primary);
-    color: var(--mble-primary-text);
-    border-color: var(--mble-primary);
   }
   .render-profile {
     display: flex;

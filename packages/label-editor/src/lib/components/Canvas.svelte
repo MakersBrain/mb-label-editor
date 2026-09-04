@@ -847,7 +847,7 @@
     {#if editor.document.template?.records.length}
       {@const origin = chromeAt({ x: 0, y: 0 })}
       <span
-        class="record-badge"
+        class="record-badge mb-badge busy"
         role="status"
         style={`left:${origin.x + 6}px;top:${origin.y + 6}px`}
         title="Values from this record are shown; pick another row in the Data tab"
@@ -1232,12 +1232,6 @@
     background: var(--mble-surface);
     color: var(--mble-danger);
   }
-  .record-badge {
-    border-radius: 999px;
-    background: var(--mble-primary);
-    color: var(--mble-primary-text);
-    font-weight: 600;
-  }
   .preview-warning {
     transform: translateY(-100%);
     background: var(--mble-warning-tint);
@@ -1272,16 +1266,5 @@
     resize: none;
     pointer-events: auto;
     z-index: calc(var(--mble-z-canvas-chrome) + 3);
-  }
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
   }
 </style>

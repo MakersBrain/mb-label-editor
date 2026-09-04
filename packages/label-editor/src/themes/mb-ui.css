@@ -20,7 +20,6 @@
   --mble-primary-hover: var(--mb-accent-hover);
   --mble-primary-text: var(--primary-foreground);
   --mble-primary-tint: var(--mb-accent-tint);
-  --mble-primary-border: var(--mb-accent-border);
   --mble-focus: var(--ring);
   --mble-success: var(--success);
   --mble-success-tint: var(--mb-success-tint);

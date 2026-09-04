@@ -76,18 +76,23 @@
     or <code>if-empty:</code> follows it. Dates must be written <code>YYYY-MM-DD</code> in the data.
   </p>
   <h3>Transforms</h3>
-  <table>
-    <thead><tr><th>Transform</th><th>Effect</th><th>Example</th></tr></thead>
-    <tbody
-      >{#each transforms as item}<tr
-          ><td><code>{item.syntax}</code></td><td>{item.effect}</td><td
-            ><button type="button" class="example" title="Try this example" onclick={() => (expression = item.example)}
-              ><code>{item.example}</code></button
-            ></td
-          ></tr
-        >{/each}</tbody
-    >
-  </table>
+  <div class="mb-table-wrap">
+    <table>
+      <thead><tr><th>Transform</th><th>Effect</th><th>Example</th></tr></thead>
+      <tbody
+        >{#each transforms as item}<tr
+            ><td><code>{item.syntax}</code></td><td>{item.effect}</td><td
+              ><button
+                type="button"
+                class="example"
+                title="Try this example"
+                onclick={() => (expression = item.example)}><code>{item.example}</code></button
+              ></td
+            ></tr
+          >{/each}</tbody
+      >
+    </table>
+  </div>
   <h3>Try it</h3>
   <p class="muted">
     {template

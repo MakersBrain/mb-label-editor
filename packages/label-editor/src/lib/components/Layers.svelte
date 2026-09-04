@@ -406,9 +406,4 @@
     color: var(--mble-text-muted);
     font-size: var(--mble-text-micro);
   }
-  .hint {
-    margin: 0.4rem 0 0;
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-micro);
-  }
 </style>
