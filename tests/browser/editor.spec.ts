@@ -64,7 +64,10 @@ test('fit-content continuous labels preview and export a finite resolved cut len
   await expect(dialog.getByText('Calculated length (mm)')).not.toContainText('Calculating…',{timeout:10000});
   await dialog.getByRole('button',{name:'Close Media & zones'}).click();
   await expect(page.locator('.media.continuous .cut-line')).toBeVisible();
-  const initialCut=Number((await page.locator('.cut-line').textContent())?.match(/[\d.]+/)?.[0]);
+  const cutLength=async()=>Number((await page.locator('.cut-line').textContent())?.match(/[\d.]+/)?.[0]);
+  // The canvas preview is debounced behind the dialog's own calculation; wait for the fitted length to replace the authored 30 mm.
+  await expect.poll(cutLength).toBeLessThan(30);
+  const initialCut=await cutLength();
   await page.getByLabel('Y (mm)').fill('40');
   await page.getByLabel('Y (mm)').press('Tab');
   await expect.poll(async()=>Number((await page.locator('.cut-line').textContent())?.match(/[\d.]+/)?.[0])).toBeGreaterThan(initialCut+30);

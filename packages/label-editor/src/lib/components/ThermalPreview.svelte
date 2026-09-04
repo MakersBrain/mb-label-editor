@@ -12,7 +12,9 @@
   let error = '';
   let source: HTMLCanvasElement | undefined;
   let crisp = false;
-  $: { document.modifiedAt; void draw(); }
+  // Re-render only for a new prepared document; pan, zoom and selection never reach the WASM rasteriser.
+  let drawnDocument: LabelDocument | undefined;
+  $: if (document !== drawnDocument) { drawnDocument = document; void draw(); }
   $: { zoom; paint(); }
   async function draw() {
     const current = ++generation;
@@ -20,7 +22,7 @@
       const preview = await sdk.render(document, { exactThermal: true, record: document.template?.currentRecord });
       if (current !== generation) return;
       await tick();
-      const full = globalThis.document.createElement('canvas');
+      const full = source ?? globalThis.document.createElement('canvas');
       full.width = preview.width; full.height = preview.height;
       const context = full.getContext('2d');
       if (!context) throw new Error('Canvas unavailable');

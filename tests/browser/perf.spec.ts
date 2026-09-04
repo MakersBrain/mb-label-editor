@@ -10,8 +10,8 @@ import { expect, test } from '@playwright/test';
 const budget = {
   longTaskMs: 250,
   idbWriteTransactions: 1,
-  sdkRenders: 150,
-  sdkMeasures: 150,
+  sdkRenders: 2,
+  sdkMeasures: 2,
 };
 
 declare global {

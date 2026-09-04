@@ -2,7 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   ContinuousMediaError,
+  continuousSettings,
   defaultDocument,
+  documentLayoutFingerprint,
   fromSdkDocument,
   isResolvedLabelDocument,
   printableBoundsForResizedMedia,
@@ -158,5 +160,18 @@ describe('continuous settings serialization', () => {
     await expect(prepareDocumentForOutput(continuous(), {
       measurer: { measure: async () => { throw new Error('group or zone cycle: clone-a'); } },
     })).rejects.toMatchObject({ code: 'continuous.invalid_zone' });
+  });
+});
+
+describe('layout fingerprint', () => {
+  it('is stable across key order and memoised settings, and changes when layout changes', () => {
+    const base = defaultDocument('2026-01-01T00:00:00Z');
+    base.elements = [{ id: 'a', name: 'a', type: 'rectangle', transform: { x: 1, y: 1, width: 5, height: 5, rotation: 0 }, zIndex: 0, visible: true, locked: false, strokeWidth: 0.2, filled: false }];
+    const reordered = JSON.parse(JSON.stringify({ ...base, elements: base.elements.map((item) => ({ zIndex: item.zIndex, id: item.id, transform: item.transform, name: item.name, type: item.type, visible: item.visible, locked: item.locked, strokeWidth: 0.2, filled: false })) })) as typeof base;
+    expect(documentLayoutFingerprint(reordered)).toBe(documentLayoutFingerprint(base));
+    expect(documentLayoutFingerprint(base)).toMatch(/^[0-9a-f]{16}$/);
+    const moved = { ...base, elements: [{ ...base.elements[0], transform: { ...base.elements[0].transform, x: 2 } }] };
+    expect(documentLayoutFingerprint(moved)).not.toBe(documentLayoutFingerprint(base));
+    expect(continuousSettings(base)).toBe(continuousSettings(base));
   });
 });

@@ -28,7 +28,8 @@
   let calculationWarnings:string[]=[];
   let calculationError='';
   let calculationGeneration=0;
-  $: { $editor.document; rollSettings.lengthMode; rollSettings.fixedLengthMm; rollSettings.leadingMarginMm; rollSettings.trailingMarginMm; void calculateLength(); }
+  let calculationInputs:[unknown,unknown,unknown]|undefined;
+  $: { const inputs:[unknown,unknown,unknown]=[$editor.document,sdk,selectedPrinter]; if(!calculationInputs||inputs.some((item,index)=>item!==calculationInputs![index])){calculationInputs=inputs;void calculateLength()} }
   async function calculateLength(){
     const generation=++calculationGeneration;
     if($editor.document.media.shape!=='continuous'||!sdk?.measure){calculatedLength=undefined;calculationWarnings=[];calculationError='';return}

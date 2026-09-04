@@ -9,14 +9,15 @@
   import { prepareDocumentForOutput } from '../output-preparation.js';
   import type { DocumentMaterializer } from '../materialization.js';
   import {GestureTracker}from'../gestures.js';
+  import { onDestroy } from 'svelte';
   import type { EditorStore } from '../store.js';
   import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import ThermalPreview from'./ThermalPreview.svelte';
-  import type { Bounds, FontResource, LabelElement, Point } from '../model.js'; import { elementAncestry, isEffectivelyLocked, isEffectivelyVisible } from '../model.js';
+  import type { Bounds, FontResource, LabelDocument, LabelElement, Point } from '../model.js'; import { elementAncestry, isEffectivelyLocked, isEffectivelyVisible } from '../model.js';
   export let editor: EditorStore;
   export let sdk:PrinterSdk|undefined=undefined;
   export let printer:PrinterDefinition|undefined=undefined;
   export let materializer:Pick<DocumentMaterializer,'materializeRecord'>|undefined=undefined;
-  let previewDocument:import('../model.js').LabelDocument|undefined;
+  let previewDocument:LabelDocument|undefined;
   let previewError='';
   let previewWarning='';
   let previewGeneration=0;
@@ -169,7 +170,11 @@
   $: selectionBounds=boundsOf(displayDocument.elements.filter(item=>$editor.selection.has(item.id)&&!isEffectivelyLocked(displayDocument,item)),displayDocument);
   $: rotateElement=$editor.selectedElements.length===1&&$editor.selectedElements[0].type!=='group'?$editor.selectedElements[0]:undefined;
   $: rollSettings=continuousSettings($editor.document);
-  $: { $editor.document; rollSettings.lengthMode; rollSettings.fixedLengthMm; rollSettings.leadingMarginMm; rollSettings.trailingMarginMm; printer?.id; void preparePreview(); }
+  // The SDK preview depends on the document, printer and SDK only; selection, pan and zoom must not re-run it.
+  let previewTimer:ReturnType<typeof setTimeout>|undefined;let previewInputs:[LabelDocument,string|undefined,PrinterSdk|undefined]|undefined;
+  $: schedulePreview($editor.document,printer?.id,sdk);
+  function schedulePreview(document:LabelDocument,printerId:string|undefined,currentSdk:PrinterSdk|undefined){if(previewInputs&&previewInputs[0]===document&&previewInputs[1]===printerId&&previewInputs[2]===currentSdk)return;previewInputs=[document,printerId,currentSdk];if(previewTimer)clearTimeout(previewTimer);previewTimer=setTimeout(()=>{previewTimer=undefined;void preparePreview()},120)}
+  onDestroy(()=>{if(previewTimer)clearTimeout(previewTimer)});
   $: displayHeight=previewDocument?.media.height??$editor.document.media.height;
   async function preparePreview(){const generation=++previewGeneration;if(!sdk){previewDocument=undefined;previewError='';previewWarning='';return}try{const continuous=printer?.continuousMedia;const prepared=await prepareDocumentForOutput($editor.document,{materializer,measurer:sdk.measure?sdk as import('../continuous-media.js').DocumentMeasurer:undefined},{limits:printer?{minimumLengthMm:continuous?.minimumLengthMm??printer.media.minHeight,maximumLengthMm:continuous?.maximumLengthMm??printer.media.maxHeight,source:'printer',printerModel:printer.id}:undefined});if(generation===previewGeneration){previewDocument=prepared.document;previewError='';const warnings=prepared.warnings.filter(item=>item.severity==='warning').map(item=>item.message);if(rollSettings.lengthMode==='fixed'&&prepared.contentBounds&&prepared.contentBounds.y+prepared.contentBounds.height>prepared.resolvedLengthMm&&!warnings.some(item=>item.includes('fixed cut line')))warnings.push('Visible content extends past the fixed cut line.');previewWarning=warnings.join(' ')}}catch(error){if(generation===previewGeneration){previewDocument=undefined;previewWarning='';previewError=error instanceof Error?error.message:String(error)}}}
 </script>

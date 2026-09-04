@@ -74,8 +74,13 @@ export function defaultContinuousSettings(document: LabelDocument): ContinuousMe
   };
 }
 
+const settingsCache = new WeakMap<object, ContinuousMediaSettingsV1>();
+/** Effective roll settings for a document. Memoised per media object so reactive consumers see a stable value; treat the result as read-only. */
 export function continuousSettings(document: LabelDocument): ContinuousMediaSettingsV1 {
-  return structuredClone(document.media.continuousSettings ?? defaultContinuousSettings(document));
+  const key = document.media.continuousSettings ?? document.media;
+  let settings = settingsCache.get(key);
+  if (!settings) { settings = structuredClone(document.media.continuousSettings ?? defaultContinuousSettings(document)); settingsCache.set(key, settings); }
+  return settings;
 }
 
 export function isResolvedLabelDocument(document: LabelDocument): document is ResolvedLabelDocument {
@@ -271,14 +276,19 @@ export function normalizeContinuousMeasurementError(error: unknown): ContinuousM
   }
   return new ContinuousMediaError('continuous.measurement_unavailable', `Authoritative continuous-media measurement failed: ${message}`);
 }
+/** FNV-1a over the stable serialisation; two 32-bit lanes keep the digest 16 hex characters without BigInt per byte. */
 function hashStable(value: unknown): string {
   const input = stableStringify(value);
-  let hash = 0xcbf29ce484222325n;
-  for (const byte of new TextEncoder().encode(input)) { hash ^= BigInt(byte); hash = BigInt.asUintN(64, hash * 0x100000001b3n); }
-  return hash.toString(16).padStart(16, '0');
+  let low = 0x811c9dc5; let high = 0x811c9dc5 ^ 0x5bd1e995;
+  for (let index = 0; index < input.length; index++) {
+    const code = input.charCodeAt(index);
+    low = Math.imul(low ^ code, 16777619);
+    high = Math.imul(high ^ ((code * 31) & 0xffff), 16777619);
+  }
+  return ((high >>> 0).toString(16).padStart(8, '0') + (low >>> 0).toString(16).padStart(8, '0'));
 }
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  if (value && typeof value === 'object') return `{${Object.entries(value as Record<string, unknown>).filter(([, item]) => item !== undefined).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(',')}}`;
+  if (value && typeof value === 'object') return `{${Object.entries(value as Record<string, unknown>).filter(([, item]) => item !== undefined).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)).map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(',')}}`;
   return JSON.stringify(value) ?? 'null';
 }
