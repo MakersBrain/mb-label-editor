@@ -1,34 +1,353 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import 'fake-indexeddb/auto';import {describe,expect,it,vi} from 'vitest';import {defaultDocument,EditorDatabase,materializeBatch,resizeElement,rotateElements,snapModeForModifiers,snapMove,WebBluetoothTransport,WebSerialTransport,WebUsbTransport,DeviceError,type LabelElement,type SerialReader} from '../src/index.js';
-const shape=(id:string,x:number,y=0):LabelElement=>({id,name:id,type:'rectangle',transform:{x,y,width:5,height:5,rotation:0},zIndex:0,visible:true,locked:false,strokeWidth:.2,filled:false});
-describe('interaction acceptance',()=>{it('snaps a multi-selection to stationary edges and grid',()=>{const result=snapMove([shape('moving',1),shape('fixed',10)],new Set(['moving']),{x:3.8,y:.2},{x:0,y:0,width:50,height:30},{grid:1,gridEnabled:true,threshold:.5,guides:[]});expect(result.delta.x).toBe(4);expect(result.delta.y).toBe(0);expect(result.guides).toContainEqual({axis:'x',value:10})});it('resizes and rotates through undoable commands',()=>{let doc=defaultDocument();doc.elements=[shape('a',0)];doc=resizeElement('a',{width:12,height:8}).apply(doc);doc=rotateElements(['a'],375).apply(doc);expect(doc.elements[0].transform).toMatchObject({width:12,height:8,rotation:15})})});
-describe('modifier snapping',()=>{it('maps drag modifiers to explicit snap targets and gives Alt precedence',()=>{expect(snapModeForModifiers({altKey:true,ctrlKey:false,metaKey:false,shiftKey:false})).toBe('none');expect(snapModeForModifiers({altKey:false,ctrlKey:true,metaKey:false,shiftKey:false})).toBe('elements');expect(snapModeForModifiers({altKey:false,ctrlKey:false,metaKey:false,shiftKey:true})).toBe('grid');expect(snapModeForModifiers({altKey:true,ctrlKey:true,metaKey:false,shiftKey:true})).toBe('none');expect(snapModeForModifiers({altKey:false,ctrlKey:true,metaKey:false,shiftKey:true})).toBe('elements')});it('applies the isolated target selected by each modifier',()=>{const elements=[shape('moving',1.2),shape('fixed',10.3)];const base={grid:2,gridEnabled:true,threshold:.25,guides:[]};const raw={x:3.9,y:0};expect(snapMove(elements,new Set(['moving']),raw,{x:0,y:0,width:50,height:30},{...base,mode:'none'})).toEqual({delta:raw,guides:[]});expect(snapMove(elements,new Set(['moving']),raw,{x:0,y:0,width:50,height:30},{...base,mode:'grid'}).delta.x).toBeCloseTo(4.8,8);const elementOnly=snapMove(elements,new Set(['moving']),raw,{x:0,y:0,width:50,height:30},{...base,mode:'elements'});expect(elementOnly.delta.x).toBeCloseTo(4.1,8);expect(elementOnly.guides).toContainEqual({axis:'x',value:10.3})});it('snaps to zone boundaries in all-target mode',()=>{const result=snapMove([shape('moving',1)],new Set(['moving']),{x:13.8,y:0},{x:0,y:0,width:50,height:30},{grid:1,gridEnabled:false,threshold:.5,guides:[],zones:[{id:'zone',name:'Zone',x:20,y:0,width:20,height:20}]});expect(result.delta.x).toBe(14);expect(result.guides).toContainEqual({axis:'x',value:20})})});
-describe('zone-local snapping',()=>{it('uses rendered root coordinates for assigned-zone elements',()=>{const doc=defaultDocument();doc.media.zones=[{id:'zone',name:'Zone',x:20,y:0,width:20,height:20}];const moving=shape('moving',1);moving.constraints=[{kind:'zone',value:'zone'}];doc.elements=[moving];const result=snapMove(doc.elements,new Set(['moving']),{x:13.8,y:0},{x:0,y:0,width:50,height:30},{grid:1,gridEnabled:false,threshold:.5,guides:[],zones:doc.media.zones},doc);expect(result.delta.x).toBeCloseTo(14,8);expect(result.guides).toContainEqual({axis:'x',value:40})})});
-describe('batch and preferences',()=>{it('materializes deterministic records',()=>{const doc=defaultDocument();doc.elements=[{id:'t',name:'T',type:'text',text:'Hello {{name|upper}}',fontFamily:'sans',fontSize:12,fontWeight:400,horizontalAlign:'left',verticalAlign:'top',overflow:'clip',transform:{x:0,y:0,width:10,height:5,rotation:0},zIndex:0,visible:true,locked:false}];doc.template={fields:['name'],records:[{name:'Ada'},{name:'Lin'}],currentRecord:0};expect(materializeBatch(doc).map(item=>(item.elements[0] as {text:string}).text)).toEqual(['Hello ADA','Hello LIN'])});it('persists user preferences and library metadata',async()=>{const db=new EditorDatabase();const preferences={gridSize:2,showGrid:true,showRulers:false,snapping:true,theme:'dark' as const};await db.savePreferences(preferences);expect(await db.getPreferences()).toEqual(preferences);const doc=defaultDocument();await db.saveDocument(doc);expect((await db.listDocuments())[0].id).toBe(doc.id)})});
-describe('browser device outcomes',()=>{it('surfaces permission denial without a write',async()=>{vi.stubGlobal('isSecureContext',true);const transport=new WebBluetoothTransport({service:'svc',writeCharacteristic:'write'}, {requestDevice:async()=>{throw new DOMException('cancelled','NotFoundError')}});await expect(transport.connect()).rejects.toMatchObject({code:'permission-denied'} satisfies Partial<DeviceError>);const usb=new WebUsbTransport({filters:[{vendorId:1}]},{requestDevice:async()=>{throw new DOMException('cancelled','NotFoundError')}});await expect(usb.connect()).rejects.toMatchObject({code:'permission-denied'} satisfies Partial<DeviceError>);vi.unstubAllGlobals()})});
-it('cancels a pending WebUSB response read without waiting for its timeout',async()=>{vi.stubGlobal('isSecureContext',true);const transferIn=vi.fn(()=>new Promise<never>(()=>{}));const transport=new WebUsbTransport({filters:[{vendorId:1}],inEndpoint:2,outEndpoint:1},{requestDevice:async()=>({opened:false,configuration:{interfaces:[{interfaceNumber:0,alternates:[{alternateSetting:0,endpoints:[]}]}]},open:async()=>{},selectConfiguration:async()=>{},claimInterface:async()=>{},selectAlternateInterface:async()=>{},transferOut:async()=>({status:'ok'}),transferIn,close:async()=>{}})});await transport.connect();const controller=new AbortController();const response=transport.waitResponse('printer',10_000,undefined,controller.signal);controller.abort();await expect(response).rejects.toMatchObject({name:'AbortError'});expect(transferIn).toHaveBeenCalledOnce();await transport.disconnect();vi.unstubAllGlobals()});
-it('ignores a Phomemo USB query echo and returns the notification',async()=>{vi.stubGlobal('isSecureContext',true);const reads=[[0x1f,0x11,0x08],[0x1a,0x04,100]];const transport=new WebUsbTransport({filters:[{vendorId:0x0483}],inEndpoint:1,outEndpoint:2,physicalWriteLimit:64},{requestDevice:async()=>({opened:false,configuration:{interfaces:[{interfaceNumber:0,alternates:[{alternateSetting:0,endpoints:[]}]}]},open:async()=>{},selectConfiguration:async()=>{},claimInterface:async()=>{},selectAlternateInterface:async()=>{},transferOut:async()=>({status:'ok'}),transferIn:async()=>{const bytes=Uint8Array.from(reads.shift()??[]);return{status:'ok',data:new DataView(bytes.buffer)}},close:async()=>{}})});await transport.connect();expect(await transport.waitResponse('printer',100,'phomemo-notification')).toEqual(Uint8Array.from([0x1a,0x04,100]));await transport.disconnect();vi.unstubAllGlobals()});
-it('opens paired Bluetooth SPP through Web Serial and assembles split Brother status',async()=>{vi.stubGlobal('isSecureContext',true);const writes:Uint8Array[]=[];const reads=[new Uint8Array([0x80,0x20]),new Uint8Array(30)];const reader:SerialReader={read:async()=>reads.length?{done:false,value:reads.shift()}:{done:true},cancel:async()=>{},releaseLock:()=>{}};let requestOptions:unknown;let openOptions:unknown;const transport=new WebSerialTransport({unfiltered:true}, {requestPort:async options=>{requestOptions=options;return{readable:{getReader:()=>reader},writable:{getWriter:()=>({write:async data=>{writes.push(data)},close:async()=>{},releaseLock:()=>{}})},open:async options=>{openOptions=options},close:async()=>{}}}});await transport.connect();await transport.subscribe('printer');await transport.write(new Uint8Array([1,2,3]));expect((await transport.waitResponse('printer',100,'brother-status32')).length).toBe(32);expect(writes).toEqual([new Uint8Array([1,2,3])]);expect(requestOptions).toBeUndefined();expect(openOptions).toMatchObject({baudRate:115200,dataBits:8,stopBits:1,parity:'none',flowControl:'none'});await transport.disconnect();vi.unstubAllGlobals()});
-it('writes optimistically over BLE and settles on what the link accepts',async()=>{vi.stubGlobal('isSecureContext',true);
-  const writes:number[]=[];const accepted=100;let requestOptions:unknown;
-  const characteristic={startNotifications:async()=>characteristic,addEventListener:()=>{},
-    writeValueWithoutResponse:async(data:BufferSource)=>{const length=(data as ArrayBuffer).byteLength;if(length>accepted)throw new Error('GATT operation failed for unknown reason');writes.push(length)}};
-  const transport=new WebBluetoothTransport({service:'svc',writeCharacteristic:'write'},{requestDevice:async options=>{requestOptions=options;return{gatt:{connected:true,connect:async()=>({getPrimaryService:async()=>({getCharacteristic:async()=>characteristic}),disconnect(){}}),disconnect(){}}}}});
+import 'fake-indexeddb/auto';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  defaultDocument,
+  EditorDatabase,
+  materializeBatch,
+  resizeElement,
+  rotateElements,
+  snapModeForModifiers,
+  snapMove,
+  WebBluetoothTransport,
+  WebSerialTransport,
+  WebUsbTransport,
+  DeviceError,
+  type LabelElement,
+  type SerialReader,
+} from '../src/index.js';
+const shape = (id: string, x: number, y = 0): LabelElement => ({
+  id,
+  name: id,
+  type: 'rectangle',
+  transform: { x, y, width: 5, height: 5, rotation: 0 },
+  zIndex: 0,
+  visible: true,
+  locked: false,
+  strokeWidth: 0.2,
+  filled: false,
+});
+describe('interaction acceptance', () => {
+  it('snaps a multi-selection to stationary edges and grid', () => {
+    const result = snapMove(
+      [shape('moving', 1), shape('fixed', 10)],
+      new Set(['moving']),
+      { x: 3.8, y: 0.2 },
+      { x: 0, y: 0, width: 50, height: 30 },
+      { grid: 1, gridEnabled: true, threshold: 0.5, guides: [] },
+    );
+    expect(result.delta.x).toBe(4);
+    expect(result.delta.y).toBe(0);
+    expect(result.guides).toContainEqual({ axis: 'x', value: 10 });
+  });
+  it('resizes and rotates through undoable commands', () => {
+    let doc = defaultDocument();
+    doc.elements = [shape('a', 0)];
+    doc = resizeElement('a', { width: 12, height: 8 }).apply(doc);
+    doc = rotateElements(['a'], 375).apply(doc);
+    expect(doc.elements[0].transform).toMatchObject({ width: 12, height: 8, rotation: 15 });
+  });
+});
+describe('modifier snapping', () => {
+  it('maps drag modifiers to explicit snap targets and gives Alt precedence', () => {
+    expect(snapModeForModifiers({ altKey: true, ctrlKey: false, metaKey: false, shiftKey: false })).toBe('none');
+    expect(snapModeForModifiers({ altKey: false, ctrlKey: true, metaKey: false, shiftKey: false })).toBe('elements');
+    expect(snapModeForModifiers({ altKey: false, ctrlKey: false, metaKey: false, shiftKey: true })).toBe('grid');
+    expect(snapModeForModifiers({ altKey: true, ctrlKey: true, metaKey: false, shiftKey: true })).toBe('none');
+    expect(snapModeForModifiers({ altKey: false, ctrlKey: true, metaKey: false, shiftKey: true })).toBe('elements');
+  });
+  it('applies the isolated target selected by each modifier', () => {
+    const elements = [shape('moving', 1.2), shape('fixed', 10.3)];
+    const base = { grid: 2, gridEnabled: true, threshold: 0.25, guides: [] };
+    const raw = { x: 3.9, y: 0 };
+    expect(
+      snapMove(elements, new Set(['moving']), raw, { x: 0, y: 0, width: 50, height: 30 }, { ...base, mode: 'none' }),
+    ).toEqual({ delta: raw, guides: [] });
+    expect(
+      snapMove(elements, new Set(['moving']), raw, { x: 0, y: 0, width: 50, height: 30 }, { ...base, mode: 'grid' })
+        .delta.x,
+    ).toBeCloseTo(4.8, 8);
+    const elementOnly = snapMove(
+      elements,
+      new Set(['moving']),
+      raw,
+      { x: 0, y: 0, width: 50, height: 30 },
+      { ...base, mode: 'elements' },
+    );
+    expect(elementOnly.delta.x).toBeCloseTo(4.1, 8);
+    expect(elementOnly.guides).toContainEqual({ axis: 'x', value: 10.3 });
+  });
+  it('snaps to zone boundaries in all-target mode', () => {
+    const result = snapMove(
+      [shape('moving', 1)],
+      new Set(['moving']),
+      { x: 13.8, y: 0 },
+      { x: 0, y: 0, width: 50, height: 30 },
+      {
+        grid: 1,
+        gridEnabled: false,
+        threshold: 0.5,
+        guides: [],
+        zones: [{ id: 'zone', name: 'Zone', x: 20, y: 0, width: 20, height: 20 }],
+      },
+    );
+    expect(result.delta.x).toBe(14);
+    expect(result.guides).toContainEqual({ axis: 'x', value: 20 });
+  });
+});
+describe('zone-local snapping', () => {
+  it('uses rendered root coordinates for assigned-zone elements', () => {
+    const doc = defaultDocument();
+    doc.media.zones = [{ id: 'zone', name: 'Zone', x: 20, y: 0, width: 20, height: 20 }];
+    const moving = shape('moving', 1);
+    moving.constraints = [{ kind: 'zone', value: 'zone' }];
+    doc.elements = [moving];
+    const result = snapMove(
+      doc.elements,
+      new Set(['moving']),
+      { x: 13.8, y: 0 },
+      { x: 0, y: 0, width: 50, height: 30 },
+      { grid: 1, gridEnabled: false, threshold: 0.5, guides: [], zones: doc.media.zones },
+      doc,
+    );
+    expect(result.delta.x).toBeCloseTo(14, 8);
+    expect(result.guides).toContainEqual({ axis: 'x', value: 40 });
+  });
+});
+describe('batch and preferences', () => {
+  it('materializes deterministic records', () => {
+    const doc = defaultDocument();
+    doc.elements = [
+      {
+        id: 't',
+        name: 'T',
+        type: 'text',
+        text: 'Hello {{name|upper}}',
+        fontFamily: 'sans',
+        fontSize: 12,
+        fontWeight: 400,
+        horizontalAlign: 'left',
+        verticalAlign: 'top',
+        overflow: 'clip',
+        transform: { x: 0, y: 0, width: 10, height: 5, rotation: 0 },
+        zIndex: 0,
+        visible: true,
+        locked: false,
+      },
+    ];
+    doc.template = { fields: ['name'], records: [{ name: 'Ada' }, { name: 'Lin' }], currentRecord: 0 };
+    expect(materializeBatch(doc).map((item) => (item.elements[0] as { text: string }).text)).toEqual([
+      'Hello ADA',
+      'Hello LIN',
+    ]);
+  });
+  it('persists user preferences and library metadata', async () => {
+    const db = new EditorDatabase();
+    const preferences = { gridSize: 2, showGrid: true, showRulers: false, snapping: true, theme: 'dark' as const };
+    await db.savePreferences(preferences);
+    expect(await db.getPreferences()).toEqual(preferences);
+    const doc = defaultDocument();
+    await db.saveDocument(doc);
+    expect((await db.listDocuments())[0].id).toBe(doc.id);
+  });
+});
+describe('browser device outcomes', () => {
+  it('surfaces permission denial without a write', async () => {
+    vi.stubGlobal('isSecureContext', true);
+    const transport = new WebBluetoothTransport(
+      { service: 'svc', writeCharacteristic: 'write' },
+      {
+        requestDevice: async () => {
+          throw new DOMException('cancelled', 'NotFoundError');
+        },
+      },
+    );
+    await expect(transport.connect()).rejects.toMatchObject({
+      code: 'permission-denied',
+    } satisfies Partial<DeviceError>);
+    const usb = new WebUsbTransport(
+      { filters: [{ vendorId: 1 }] },
+      {
+        requestDevice: async () => {
+          throw new DOMException('cancelled', 'NotFoundError');
+        },
+      },
+    );
+    await expect(usb.connect()).rejects.toMatchObject({ code: 'permission-denied' } satisfies Partial<DeviceError>);
+    vi.unstubAllGlobals();
+  });
+});
+it('cancels a pending WebUSB response read without waiting for its timeout', async () => {
+  vi.stubGlobal('isSecureContext', true);
+  const transferIn = vi.fn(() => new Promise<never>(() => {}));
+  const transport = new WebUsbTransport(
+    { filters: [{ vendorId: 1 }], inEndpoint: 2, outEndpoint: 1 },
+    {
+      requestDevice: async () => ({
+        opened: false,
+        configuration: { interfaces: [{ interfaceNumber: 0, alternates: [{ alternateSetting: 0, endpoints: [] }] }] },
+        open: async () => {},
+        selectConfiguration: async () => {},
+        claimInterface: async () => {},
+        selectAlternateInterface: async () => {},
+        transferOut: async () => ({ status: 'ok' }),
+        transferIn,
+        close: async () => {},
+      }),
+    },
+  );
   await transport.connect();
-  expect(requestOptions).toEqual({acceptAllDevices:true,optionalServices:['svc']});
+  const controller = new AbortController();
+  const response = transport.waitResponse('printer', 10_000, undefined, controller.signal);
+  controller.abort();
+  await expect(response).rejects.toMatchObject({ name: 'AbortError' });
+  expect(transferIn).toHaveBeenCalledOnce();
+  await transport.disconnect();
+  vi.unstubAllGlobals();
+});
+it('ignores a Phomemo USB query echo and returns the notification', async () => {
+  vi.stubGlobal('isSecureContext', true);
+  const reads = [
+    [0x1f, 0x11, 0x08],
+    [0x1a, 0x04, 100],
+  ];
+  const transport = new WebUsbTransport(
+    { filters: [{ vendorId: 0x0483 }], inEndpoint: 1, outEndpoint: 2, physicalWriteLimit: 64 },
+    {
+      requestDevice: async () => ({
+        opened: false,
+        configuration: { interfaces: [{ interfaceNumber: 0, alternates: [{ alternateSetting: 0, endpoints: [] }] }] },
+        open: async () => {},
+        selectConfiguration: async () => {},
+        claimInterface: async () => {},
+        selectAlternateInterface: async () => {},
+        transferOut: async () => ({ status: 'ok' }),
+        transferIn: async () => {
+          const bytes = Uint8Array.from(reads.shift() ?? []);
+          return { status: 'ok', data: new DataView(bytes.buffer) };
+        },
+        close: async () => {},
+      }),
+    },
+  );
+  await transport.connect();
+  expect(await transport.waitResponse('printer', 100, 'phomemo-notification')).toEqual(
+    Uint8Array.from([0x1a, 0x04, 100]),
+  );
+  await transport.disconnect();
+  vi.unstubAllGlobals();
+});
+it('opens paired Bluetooth SPP through Web Serial and assembles split Brother status', async () => {
+  vi.stubGlobal('isSecureContext', true);
+  const writes: Uint8Array[] = [];
+  const reads = [new Uint8Array([0x80, 0x20]), new Uint8Array(30)];
+  const reader: SerialReader = {
+    read: async () => (reads.length ? { done: false, value: reads.shift() } : { done: true }),
+    cancel: async () => {},
+    releaseLock: () => {},
+  };
+  let requestOptions: unknown;
+  let openOptions: unknown;
+  const transport = new WebSerialTransport(
+    { unfiltered: true },
+    {
+      requestPort: async (options) => {
+        requestOptions = options;
+        return {
+          readable: { getReader: () => reader },
+          writable: {
+            getWriter: () => ({
+              write: async (data) => {
+                writes.push(data);
+              },
+              close: async () => {},
+              releaseLock: () => {},
+            }),
+          },
+          open: async (options) => {
+            openOptions = options;
+          },
+          close: async () => {},
+        };
+      },
+    },
+  );
+  await transport.connect();
+  await transport.subscribe('printer');
+  await transport.write(new Uint8Array([1, 2, 3]));
+  expect((await transport.waitResponse('printer', 100, 'brother-status32')).length).toBe(32);
+  expect(writes).toEqual([new Uint8Array([1, 2, 3])]);
+  expect(requestOptions).toBeUndefined();
+  expect(openOptions).toMatchObject({
+    baudRate: 115200,
+    dataBits: 8,
+    stopBits: 1,
+    parity: 'none',
+    flowControl: 'none',
+  });
+  await transport.disconnect();
+  vi.unstubAllGlobals();
+});
+it('writes optimistically over BLE and settles on what the link accepts', async () => {
+  vi.stubGlobal('isSecureContext', true);
+  const writes: number[] = [];
+  const accepted = 100;
+  let requestOptions: unknown;
+  const characteristic = {
+    startNotifications: async () => characteristic,
+    addEventListener: () => {},
+    writeValueWithoutResponse: async (data: BufferSource) => {
+      const length = (data as ArrayBuffer).byteLength;
+      if (length > accepted) throw new Error('GATT operation failed for unknown reason');
+      writes.push(length);
+    },
+  };
+  const transport = new WebBluetoothTransport(
+    { service: 'svc', writeCharacteristic: 'write' },
+    {
+      requestDevice: async (options) => {
+        requestOptions = options;
+        return {
+          gatt: {
+            connected: true,
+            connect: async () => ({
+              getPrimaryService: async () => ({ getCharacteristic: async () => characteristic }),
+              disconnect() {},
+            }),
+            disconnect() {},
+          },
+        };
+      },
+    },
+  );
+  await transport.connect();
+  expect(requestOptions).toEqual({ acceptAllDevices: true, optionalServices: ['svc'] });
   expect(transport.physicalWriteLimit).toBe(180);
   await transport.write(new Uint8Array(180));
   // The 180-byte attempt is rejected, so it halves to 90 and carries the payload.
-  expect(writes).toEqual([90,90]);
-  writes.length=0;
+  expect(writes).toEqual([90, 90]);
+  writes.length = 0;
   await transport.write(new Uint8Array(180));
-  expect(writes).toEqual([90,90]);
-  vi.unstubAllGlobals()});
-it('reports a port that will not open as nothing sent',async()=>{vi.stubGlobal('isSecureContext',true);
-  const transport=new WebSerialTransport({unfiltered:true},{requestPort:async()=>({open:async()=>{throw new DOMException('Failed to open serial port.','NetworkError')},close:async()=>{}})} as never);
-  const failure=await transport.connect().then(()=>undefined,error=>error as DeviceError);
-  if(!failure)throw new Error('expected the open to fail');
+  expect(writes).toEqual([90, 90]);
+  vi.unstubAllGlobals();
+});
+it('reports a port that will not open as nothing sent', async () => {
+  vi.stubGlobal('isSecureContext', true);
+  const transport = new WebSerialTransport({ unfiltered: true }, {
+    requestPort: async () => ({
+      open: async () => {
+        throw new DOMException('Failed to open serial port.', 'NetworkError');
+      },
+      close: async () => {},
+    }),
+  } as never);
+  const failure = await transport.connect().then(
+    () => undefined,
+    (error) => error as DeviceError,
+  );
+  if (!failure) throw new Error('expected the open to fail');
   expect(failure.code).toBe('connect-failed');
   expect(failure.message).toContain('Nothing was sent');
   expect(failure.message).not.toContain('inspect the job');
-  vi.unstubAllGlobals()});
+  vi.unstubAllGlobals();
+});

@@ -69,8 +69,14 @@ export interface ExternalResourceProvider {
   fontFacets?(query?: string): Promise<ExternalResourceFacets>;
   fetchBlob(path: string): Promise<Blob>;
 }
-export interface ExternalFacetValue { value: string; count: number }
-export interface ExternalResourceFacets { providers: ExternalFacetValue[]; categories: ExternalFacetValue[] }
+export interface ExternalFacetValue {
+  value: string;
+  count: number;
+}
+export interface ExternalResourceFacets {
+  providers: ExternalFacetValue[];
+  categories: ExternalFacetValue[];
+}
 
 export interface ExternalResourceConnection {
   version: 1;
@@ -84,10 +90,13 @@ export interface ExternalResourceConnection {
 export interface ExternalResourceProviderFactory {
   readonly kind: string;
   readonly displayName: string;
-  create(connection: ExternalResourceConnection, options: {
-    getAccessToken: () => string | undefined;
-    fetch?: typeof globalThis.fetch;
-  }): ExternalResourceProvider;
+  create(
+    connection: ExternalResourceConnection,
+    options: {
+      getAccessToken: () => string | undefined;
+      fetch?: typeof globalThis.fetch;
+    },
+  ): ExternalResourceProvider;
 }
 
 export interface ExternalResourceProviderSummary {

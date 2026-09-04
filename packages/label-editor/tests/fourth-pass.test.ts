@@ -1,6 +1,165 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import 'fake-indexeddb/auto';import Ajv2020 from'ajv/dist/2020.js';import{describe,expect,it}from'vitest';import siblingSchema from '../../../../mb-printer-sdk/schema/mb-label-v4.schema.json';import catalogueJson from'../assets/public-catalogue.json';import fixtureJson from'./fixtures/sdk-v4-text.mb-label.json';import{AssetCatalogue,defaultDocument,EditorDatabase,expandClonedZones,GestureTracker,groupElements,JobJournal,layoutBatch,materializeZonePages,publishableAssets,toSdkDocument,validateCatalogue,type CatalogueAsset,type LabelElement}from'../src/index.js';
-describe('authoritative sibling JSON Schema',()=>{const validate=new Ajv2020({strict:false}).compile(siblingSchema);it('validates empty canonical documents emitted by the editor',()=>{expect(validate(toSdkDocument(defaultDocument())),JSON.stringify(validate.errors)).toBe(true)});it('validates logical editor groups after canonical transform neutralization',()=>{let doc=defaultDocument();const shape=(id:string,x:number)=>({id,name:id,type:'rectangle' as const,transform:{x,y:1,width:5,height:5,rotation:0},zIndex:x,visible:true,locked:false,strokeWidth:.2,filled:false});doc.elements=[shape('a',2),shape('b',12)];doc=groupElements(['a','b']).apply(doc);expect(validate(toSdkDocument(doc)),JSON.stringify(validate.errors)).toBe(true)});it('accepts the sibling non-empty compatibility fixture',()=>{expect(validate(fixtureJson),JSON.stringify(validate.errors)).toBe(true)})});
-describe('asset publication policy',()=>{const assets=catalogueJson as CatalogueAsset[];it('checks provenance and excludes private collections from release output',()=>{expect(validateCatalogue(assets)).toEqual([]);expect(publishableAssets(assets).map(asset=>asset.id)).toEqual(['synthetic-plus','synthetic-frame','synthetic-font-sample','synthetic-template']);const catalogue=new AssetCatalogue(assets);catalogue.favorite('synthetic-plus');expect(catalogue.categories).toEqual(['frames','interface','private collection','templates','typography']);expect(catalogue.search({query:'plus',favorites:true}).map(asset=>asset.id)).toEqual(['synthetic-plus']);expect(catalogue.search({visibility:'private'}).map(asset=>asset.id)).toEqual(['synthetic-private-circle'])});it('rejects unverified public assets',()=>{expect(validateCatalogue([{...assets[0],redistributionStatus:'private-only'}])).toContain('synthetic-plus: public asset is not verified')})});
-describe('zones, touch and recoverable jobs',()=>{it('expands clone zones once while preserving zone-local coordinates',()=>{const doc=defaultDocument();doc.media.zones=[{id:'a',name:'A',x:0,y:0,width:20,height:20},{id:'b',name:'B',x:25,y:0,width:20,height:20,cloneOf:'a'},{id:'c',name:'C',x:0,y:22,width:20,height:8}];const element={id:'x',name:'X',type:'rectangle',transform:{x:1,y:2,width:5,height:5,rotation:0},zIndex:0,visible:true,locked:false,strokeWidth:.2,filled:false,constraints:[{kind:'zone',value:'a'}]} as LabelElement;doc.elements=[element];const expanded=expandClonedZones(doc);expect(expanded.elements.map(item=>[item.id,item.transform.x,item.constraints?.find(value=>value.kind==='zone')?.value])).toEqual([['x',1,'a'],['x@b',1,'b']]);expect(expanded.media.zones?.find(item=>item.id==='b')?.cloneOf).toBeUndefined();expect(layoutBatch(7,doc.media.zones).at(-1)).toEqual({record:6,page:2,zone:'a'})});it('tracks one-finger pan and two-finger pinch deterministically',()=>{const gesture=new GestureTracker();gesture.start(1,{x:0,y:0});expect(gesture.move(1,{x:5,y:3})).toMatchObject({panDelta:{x:5,y:3},zoomFactor:1});gesture.start(2,{x:15,y:3});expect(gesture.move(2,{x:25,y:3})?.zoomFactor).toBe(2)});it('persists ambiguous jobs for explicit recovery without replay',async()=>{const journal=new JobJournal(new EditorDatabase());const job=await journal.begin(defaultDocument(),'web-bluetooth');await journal.finish(job,{outcome:'outcome-unknown',lastCompletedAction:2,bytesSent:64});expect(await journal.recover()).toHaveLength(1)})});
-describe('operational zone batches',()=>{it('materializes records with zone-local coordinates so the SDK applies each origin once',()=>{const doc=defaultDocument();doc.media.zones=[{id:'left',name:'Left',x:0,y:0,width:20,height:20},{id:'right',name:'Right',x:25,y:0,width:20,height:20}];doc.template={fields:['name'],records:[{name:'A'},{name:'B'},{name:'C'}],currentRecord:0};doc.elements=[{id:'text',name:'Name',type:'text',text:'{{name}}',fontFamily:'sans-serif',fontSize:4,fontWeight:400,horizontalAlign:'left',verticalAlign:'top',overflow:'word-wrap',transform:{x:1,y:2,width:10,height:5,rotation:0},zIndex:0,visible:true,locked:false}];const pages=materializeZonePages(doc,doc.media.zones);expect(pages).toHaveLength(2);expect(pages[0].elements.map(item=>[item.type==='text'?item.text:'',item.transform.x,item.constraints?.find(value=>value.kind==='zone')?.value])).toEqual([['A',1,'left'],['B',1,'right']]);expect((toSdkDocument(pages[0]).elements[1].constraints as {zone:string}).zone).toBe('right');expect(pages[1].elements.map(item=>[item.type==='text'?item.text:'',item.transform.x])).toEqual([['C',1]]);expect(pages.every(page=>page.template===undefined)).toBe(true)})});
+import 'fake-indexeddb/auto';
+import Ajv2020 from 'ajv/dist/2020.js';
+import { describe, expect, it } from 'vitest';
+import siblingSchema from '../../../../mb-printer-sdk/schema/mb-label-v4.schema.json';
+import catalogueJson from '../assets/public-catalogue.json';
+import fixtureJson from './fixtures/sdk-v4-text.mb-label.json';
+import {
+  AssetCatalogue,
+  defaultDocument,
+  EditorDatabase,
+  expandClonedZones,
+  GestureTracker,
+  groupElements,
+  JobJournal,
+  layoutBatch,
+  materializeZonePages,
+  publishableAssets,
+  toSdkDocument,
+  validateCatalogue,
+  type CatalogueAsset,
+  type LabelElement,
+} from '../src/index.js';
+describe('authoritative sibling JSON Schema', () => {
+  const validate = new Ajv2020({ strict: false }).compile(siblingSchema);
+  it('validates empty canonical documents emitted by the editor', () => {
+    expect(validate(toSdkDocument(defaultDocument())), JSON.stringify(validate.errors)).toBe(true);
+  });
+  it('validates logical editor groups after canonical transform neutralization', () => {
+    let doc = defaultDocument();
+    const shape = (id: string, x: number) => ({
+      id,
+      name: id,
+      type: 'rectangle' as const,
+      transform: { x, y: 1, width: 5, height: 5, rotation: 0 },
+      zIndex: x,
+      visible: true,
+      locked: false,
+      strokeWidth: 0.2,
+      filled: false,
+    });
+    doc.elements = [shape('a', 2), shape('b', 12)];
+    doc = groupElements(['a', 'b']).apply(doc);
+    expect(validate(toSdkDocument(doc)), JSON.stringify(validate.errors)).toBe(true);
+  });
+  it('accepts the sibling non-empty compatibility fixture', () => {
+    expect(validate(fixtureJson), JSON.stringify(validate.errors)).toBe(true);
+  });
+});
+describe('asset publication policy', () => {
+  const assets = catalogueJson as CatalogueAsset[];
+  it('checks provenance and excludes private collections from release output', () => {
+    expect(validateCatalogue(assets)).toEqual([]);
+    expect(publishableAssets(assets).map((asset) => asset.id)).toEqual([
+      'synthetic-plus',
+      'synthetic-frame',
+      'synthetic-font-sample',
+      'synthetic-template',
+    ]);
+    const catalogue = new AssetCatalogue(assets);
+    catalogue.favorite('synthetic-plus');
+    expect(catalogue.categories).toEqual(['frames', 'interface', 'private collection', 'templates', 'typography']);
+    expect(catalogue.search({ query: 'plus', favorites: true }).map((asset) => asset.id)).toEqual(['synthetic-plus']);
+    expect(catalogue.search({ visibility: 'private' }).map((asset) => asset.id)).toEqual(['synthetic-private-circle']);
+  });
+  it('rejects unverified public assets', () => {
+    expect(validateCatalogue([{ ...assets[0], redistributionStatus: 'private-only' }])).toContain(
+      'synthetic-plus: public asset is not verified',
+    );
+  });
+});
+describe('zones, touch and recoverable jobs', () => {
+  it('expands clone zones once while preserving zone-local coordinates', () => {
+    const doc = defaultDocument();
+    doc.media.zones = [
+      { id: 'a', name: 'A', x: 0, y: 0, width: 20, height: 20 },
+      { id: 'b', name: 'B', x: 25, y: 0, width: 20, height: 20, cloneOf: 'a' },
+      { id: 'c', name: 'C', x: 0, y: 22, width: 20, height: 8 },
+    ];
+    const element = {
+      id: 'x',
+      name: 'X',
+      type: 'rectangle',
+      transform: { x: 1, y: 2, width: 5, height: 5, rotation: 0 },
+      zIndex: 0,
+      visible: true,
+      locked: false,
+      strokeWidth: 0.2,
+      filled: false,
+      constraints: [{ kind: 'zone', value: 'a' }],
+    } as LabelElement;
+    doc.elements = [element];
+    const expanded = expandClonedZones(doc);
+    expect(
+      expanded.elements.map((item) => [
+        item.id,
+        item.transform.x,
+        item.constraints?.find((value) => value.kind === 'zone')?.value,
+      ]),
+    ).toEqual([
+      ['x', 1, 'a'],
+      ['x@b', 1, 'b'],
+    ]);
+    expect(expanded.media.zones?.find((item) => item.id === 'b')?.cloneOf).toBeUndefined();
+    expect(layoutBatch(7, doc.media.zones).at(-1)).toEqual({ record: 6, page: 2, zone: 'a' });
+  });
+  it('tracks one-finger pan and two-finger pinch deterministically', () => {
+    const gesture = new GestureTracker();
+    gesture.start(1, { x: 0, y: 0 });
+    expect(gesture.move(1, { x: 5, y: 3 })).toMatchObject({ panDelta: { x: 5, y: 3 }, zoomFactor: 1 });
+    gesture.start(2, { x: 15, y: 3 });
+    expect(gesture.move(2, { x: 25, y: 3 })?.zoomFactor).toBe(2);
+  });
+  it('persists ambiguous jobs for explicit recovery without replay', async () => {
+    const journal = new JobJournal(new EditorDatabase());
+    const job = await journal.begin(defaultDocument(), 'web-bluetooth');
+    await journal.finish(job, { outcome: 'outcome-unknown', lastCompletedAction: 2, bytesSent: 64 });
+    expect(await journal.recover()).toHaveLength(1);
+  });
+});
+describe('operational zone batches', () => {
+  it('materializes records with zone-local coordinates so the SDK applies each origin once', () => {
+    const doc = defaultDocument();
+    doc.media.zones = [
+      { id: 'left', name: 'Left', x: 0, y: 0, width: 20, height: 20 },
+      { id: 'right', name: 'Right', x: 25, y: 0, width: 20, height: 20 },
+    ];
+    doc.template = { fields: ['name'], records: [{ name: 'A' }, { name: 'B' }, { name: 'C' }], currentRecord: 0 };
+    doc.elements = [
+      {
+        id: 'text',
+        name: 'Name',
+        type: 'text',
+        text: '{{name}}',
+        fontFamily: 'sans-serif',
+        fontSize: 4,
+        fontWeight: 400,
+        horizontalAlign: 'left',
+        verticalAlign: 'top',
+        overflow: 'word-wrap',
+        transform: { x: 1, y: 2, width: 10, height: 5, rotation: 0 },
+        zIndex: 0,
+        visible: true,
+        locked: false,
+      },
+    ];
+    const pages = materializeZonePages(doc, doc.media.zones);
+    expect(pages).toHaveLength(2);
+    expect(
+      pages[0].elements.map((item) => [
+        item.type === 'text' ? item.text : '',
+        item.transform.x,
+        item.constraints?.find((value) => value.kind === 'zone')?.value,
+      ]),
+    ).toEqual([
+      ['A', 1, 'left'],
+      ['B', 1, 'right'],
+    ]);
+    expect((toSdkDocument(pages[0]).elements[1].constraints as { zone: string }).zone).toBe('right');
+    expect(pages[1].elements.map((item) => [item.type === 'text' ? item.text : '', item.transform.x])).toEqual([
+      ['C', 1],
+    ]);
+    expect(pages.every((page) => page.template === undefined)).toBe(true);
+  });
+});

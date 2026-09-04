@@ -56,23 +56,30 @@ export class AssetCatalogClient implements ExternalResourceProvider {
     this.displayName = options.displayName?.trim() || 'MakersBrain asset catalog';
     this.#token = options.token;
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
-    this.#client = createClient<paths>({ baseUrl, fetch: request => this.#fetch(request) });
+    this.#client = createClient<paths>({ baseUrl, fetch: (request) => this.#fetch(request) });
     this.#client.use({
       onRequest: ({ request }) => {
         const token = this.token();
         if (token) request.headers.set('Authorization', `Bearer ${token}`);
         return request;
-      }
+      },
     });
   }
 
   async searchAssets(options: AssetSearchOptions = {}): Promise<RemoteAssetPage> {
     const { data, error, response } = await this.#client.GET('/v1/assets', {
-      params: { query: {
-        q: options.query, provider: options.providers, category: options.categories,
-        kind: options.kinds, tag: options.tags, style: options.styles,
-        page: options.page, pageSize: options.pageSize
-      } }
+      params: {
+        query: {
+          q: options.query,
+          provider: options.providers,
+          category: options.categories,
+          kind: options.kinds,
+          tag: options.tags,
+          style: options.styles,
+          page: options.page,
+          pageSize: options.pageSize,
+        },
+      },
     });
     if (!data) throw responseError(response, error);
     return data;
@@ -86,10 +93,16 @@ export class AssetCatalogClient implements ExternalResourceProvider {
 
   async searchFonts(options: FontSearchOptions = {}): Promise<RemoteFontPage> {
     const { data, error, response } = await this.#client.GET('/v1/fonts', {
-      params: { query: {
-        q: options.query, provider: options.providers, category: options.categories,
-        availability: options.availability, page: options.page, pageSize: options.pageSize
-      } }
+      params: {
+        query: {
+          q: options.query,
+          provider: options.providers,
+          category: options.categories,
+          availability: options.availability,
+          page: options.page,
+          pageSize: options.pageSize,
+        },
+      },
     });
     if (!data) throw responseError(response, error);
     return data;
@@ -103,7 +116,8 @@ export class AssetCatalogClient implements ExternalResourceProvider {
 
   async cacheFont(id: string, variants: string[] = []): Promise<RemoteFont> {
     const { data, error, response } = await this.#client.POST('/v1/fonts/{family_id}/cache', {
-      params: { path: { family_id: id } }, body: { variants }
+      params: { path: { family_id: id } },
+      body: { variants },
     });
     if (!data) throw responseError(response, error);
     return data;
@@ -129,11 +143,16 @@ export class AssetCatalogClient implements ExternalResourceProvider {
 }
 
 async function safeError(response: Response): Promise<unknown> {
-  try { return await response.clone().json(); } catch { return undefined; }
+  try {
+    return await response.clone().json();
+  } catch {
+    return undefined;
+  }
 }
 function responseError(response: Response, detail: unknown): Error {
-  const value = detail && typeof detail === 'object' && 'detail' in detail
-    ? JSON.stringify((detail as { detail: unknown }).detail)
-    : response.statusText;
+  const value =
+    detail && typeof detail === 'object' && 'detail' in detail
+      ? JSON.stringify((detail as { detail: unknown }).detail)
+      : response.statusText;
   return new Error(`Asset catalog returned ${response.status}${value ? `: ${value}` : ''}`);
 }

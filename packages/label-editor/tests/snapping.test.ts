@@ -2,7 +2,17 @@
 import { describe, expect, it } from 'vitest';
 import { guidesEqual, snapMove, snapTargets, snapWithTargets, type LabelElement } from '../src/index.js';
 
-const shape = (id: string, x: number): LabelElement => ({ id, name: id, type: 'rectangle', transform: { x, y: 1, width: 5, height: 5, rotation: 0 }, zIndex: 0, visible: true, locked: false, strokeWidth: 0.2, filled: false });
+const shape = (id: string, x: number): LabelElement => ({
+  id,
+  name: id,
+  type: 'rectangle',
+  transform: { x, y: 1, width: 5, height: 5, rotation: 0 },
+  zIndex: 0,
+  visible: true,
+  locked: false,
+  strokeWidth: 0.2,
+  filled: false,
+});
 const media = { x: 0, y: 0, width: 50, height: 30 };
 
 describe('precomputed snap targets', () => {
@@ -12,8 +22,14 @@ describe('precomputed snap targets', () => {
     const base = { grid: 2, gridEnabled: true, threshold: 0.25, guides: [{ axis: 'x' as const, value: 30.1 }] };
     const targets = snapTargets(elements, selected, media, base);
     for (const mode of ['all', 'grid', 'elements', 'none'] as const) {
-      for (const delta of [{ x: 3.9, y: 0 }, { x: 24, y: 0.1 }, { x: -0.9, y: 2.2 }]) {
-        expect(snapWithTargets(targets, delta, { ...base, mode })).toEqual(snapMove(elements, selected, delta, media, { ...base, mode }));
+      for (const delta of [
+        { x: 3.9, y: 0 },
+        { x: 24, y: 0.1 },
+        { x: -0.9, y: 2.2 },
+      ]) {
+        expect(snapWithTargets(targets, delta, { ...base, mode })).toEqual(
+          snapMove(elements, selected, delta, media, { ...base, mode }),
+        );
       }
     }
   });

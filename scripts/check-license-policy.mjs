@@ -1,2 +1,51 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import{createHash}from'node:crypto';import{readFile}from'node:fs/promises';const root=new URL('../',import.meta.url);const license=await readFile(new URL('LICENSE',root),'utf8');if(!license.includes('GNU AFFERO GENERAL PUBLIC LICENSE')||!license.includes('Version 3, 19 November 2007')||license.length<30000)throw new Error('LICENSE must contain the complete AGPL v3 text');const manifests=new Map;for(const path of['package.json','packages/label-editor/package.json','apps/pwa/package.json']){const manifest=JSON.parse(await readFile(new URL(path,root),'utf8'));if(manifest.license!=='AGPL-3.0-or-later')throw new Error(`${path}: license must be AGPL-3.0-or-later`);manifests.set(path,manifest)}const library=manifests.get('packages/label-editor/package.json');const pwa=manifests.get('apps/pwa/package.json');if(library.dependencies?.['@makersbrain/ui']||library.peerDependencies?.['@makersbrain/ui'])throw new Error('reusable editor package must remain independent of @makersbrain/ui');if(!pwa.dependencies?.['@makersbrain/ui'])throw new Error('first-party PWA must declare its MB UI integration');const notices=await readFile(new URL('THIRD_PARTY_NOTICES.md',root),'utf8');for(const item of['@makersbrain/ui','AGPL-3.0-only','Bitter','IBM Plex Sans','SIL Open Font License 1.1'])if(!notices.includes(item))throw new Error(`THIRD_PARTY_NOTICES.md is missing ${item}`);const assets=JSON.parse(await readFile(new URL('packages/label-editor/assets/public-catalogue.json',root),'utf8'));for(const asset of assets){if(asset.visibility==='public'&&(asset.redistributionStatus!=='verified'||!asset.source||!asset.author||!asset.license||!asset.licenseUrl||!asset.sha256))throw new Error(`${asset.id}: incomplete public redistribution provenance`);if(asset.visibility==='private'&&asset.redistributionStatus!=='private-only'&&asset.redistributionStatus!=='unavailable')throw new Error(`${asset.id}: private material crosses publication boundary`);if(asset.dataBase64){const actual=createHash('sha256').update(Buffer.from(asset.dataBase64,'base64')).digest('hex');if(actual!==asset.sha256)throw new Error(`${asset.id}: content hash does not match full resource`)}}console.log(`license policy: ${assets.filter(asset=>asset.visibility==='public').length} public, ${assets.filter(asset=>asset.visibility==='private').length} private assets checked; standalone/MB UI boundary checked`);
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+const root = new URL('../', import.meta.url);
+const license = await readFile(new URL('LICENSE', root), 'utf8');
+if (
+  !license.includes('GNU AFFERO GENERAL PUBLIC LICENSE') ||
+  !license.includes('Version 3, 19 November 2007') ||
+  license.length < 30000
+)
+  throw new Error('LICENSE must contain the complete AGPL v3 text');
+const manifests = new Map();
+for (const path of ['package.json', 'packages/label-editor/package.json', 'apps/pwa/package.json']) {
+  const manifest = JSON.parse(await readFile(new URL(path, root), 'utf8'));
+  if (manifest.license !== 'AGPL-3.0-or-later') throw new Error(`${path}: license must be AGPL-3.0-or-later`);
+  manifests.set(path, manifest);
+}
+const library = manifests.get('packages/label-editor/package.json');
+const pwa = manifests.get('apps/pwa/package.json');
+if (library.dependencies?.['@makersbrain/ui'] || library.peerDependencies?.['@makersbrain/ui'])
+  throw new Error('reusable editor package must remain independent of @makersbrain/ui');
+if (!pwa.dependencies?.['@makersbrain/ui']) throw new Error('first-party PWA must declare its MB UI integration');
+const notices = await readFile(new URL('THIRD_PARTY_NOTICES.md', root), 'utf8');
+for (const item of ['@makersbrain/ui', 'AGPL-3.0-only', 'Bitter', 'IBM Plex Sans', 'SIL Open Font License 1.1'])
+  if (!notices.includes(item)) throw new Error(`THIRD_PARTY_NOTICES.md is missing ${item}`);
+const assets = JSON.parse(await readFile(new URL('packages/label-editor/assets/public-catalogue.json', root), 'utf8'));
+for (const asset of assets) {
+  if (
+    asset.visibility === 'public' &&
+    (asset.redistributionStatus !== 'verified' ||
+      !asset.source ||
+      !asset.author ||
+      !asset.license ||
+      !asset.licenseUrl ||
+      !asset.sha256)
+  )
+    throw new Error(`${asset.id}: incomplete public redistribution provenance`);
+  if (
+    asset.visibility === 'private' &&
+    asset.redistributionStatus !== 'private-only' &&
+    asset.redistributionStatus !== 'unavailable'
+  )
+    throw new Error(`${asset.id}: private material crosses publication boundary`);
+  if (asset.dataBase64) {
+    const actual = createHash('sha256').update(Buffer.from(asset.dataBase64, 'base64')).digest('hex');
+    if (actual !== asset.sha256) throw new Error(`${asset.id}: content hash does not match full resource`);
+  }
+}
+console.log(
+  `license policy: ${assets.filter((asset) => asset.visibility === 'public').length} public, ${assets.filter((asset) => asset.visibility === 'private').length} private assets checked; standalone/MB UI boundary checked`,
+);

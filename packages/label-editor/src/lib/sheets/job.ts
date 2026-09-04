@@ -2,9 +2,7 @@
 import { cloneDocument, type LabelDocument } from '../model.js';
 import { materializeRecord } from '../template/materialize.js';
 
-export type SheetJobSelection =
-  | { mode: 'copies'; copies: number }
-  | { mode: 'records'; recordIndexes?: number[] };
+export type SheetJobSelection = { mode: 'copies'; copies: number } | { mode: 'records'; recordIndexes?: number[] };
 
 export function materializeSheetJob(document: LabelDocument, selection: SheetJobSelection): LabelDocument[] {
   if (selection.mode === 'copies') {

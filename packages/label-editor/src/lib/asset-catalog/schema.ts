@@ -4,909 +4,909 @@
  */
 
 export interface paths {
-    "/healthz": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_healthz_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/healthz': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/catalog": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Catalog Summary */
-        get: operations["catalog_summary_v1_catalog_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Health */
+    get: operations['health_healthz_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/catalog': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/facets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Facets */
-        get: operations["facets_v1_facets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Catalog Summary */
+    get: operations['catalog_summary_v1_catalog_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/facets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/assets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search Assets */
-        get: operations["search_assets_v1_assets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Facets */
+    get: operations['facets_v1_facets_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/assets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/assets/{asset_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Asset */
-        get: operations["get_asset_v1_assets__asset_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Search Assets */
+    get: operations['search_assets_v1_assets_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/assets/{asset_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/assets/{asset_id}/content": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Asset Content */
-        get: operations["asset_content_v1_assets__asset_id__content_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Asset */
+    get: operations['get_asset_v1_assets__asset_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/assets/{asset_id}/content': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/assets/{asset_id}/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Asset Preview */
-        get: operations["asset_preview_v1_assets__asset_id__preview_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Asset Content */
+    get: operations['asset_content_v1_assets__asset_id__content_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/assets/{asset_id}/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/font-facets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Font Facets */
-        get: operations["font_facets_v1_font_facets_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Asset Preview */
+    get: operations['asset_preview_v1_assets__asset_id__preview_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/font-facets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/fonts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search Fonts */
-        get: operations["search_fonts_v1_fonts_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Font Facets */
+    get: operations['font_facets_v1_font_facets_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/fonts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/fonts/{family_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Font */
-        get: operations["get_font_v1_fonts__family_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Search Fonts */
+    get: operations['search_fonts_v1_fonts_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/fonts/{family_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/fonts/{family_id}/cache": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Cache Font */
-        post: operations["cache_font_v1_fonts__family_id__cache_post"];
-        /** Remove Cached Font */
-        delete: operations["remove_cached_font_v1_fonts__family_id__cache_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Get Font */
+    get: operations['get_font_v1_fonts__family_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/fonts/{family_id}/cache': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/fonts/{family_id}/files/{face_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Font File */
-        get: operations["font_file_v1_fonts__family_id__files__face_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Cache Font */
+    post: operations['cache_font_v1_fonts__family_id__cache_post'];
+    /** Remove Cached Font */
+    delete: operations['remove_cached_font_v1_fonts__family_id__cache_delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/fonts/{family_id}/files/{face_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/fonts/{family_id}/css": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Font Css */
-        get: operations["font_css_v1_fonts__family_id__css_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Font File */
+    get: operations['font_file_v1_fonts__family_id__files__face_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/fonts/{family_id}/css': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/fonts/{family_id}/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Font Preview */
-        get: operations["font_preview_v1_fonts__family_id__preview_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Font Css */
+    get: operations['font_css_v1_fonts__family_id__css_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/fonts/{family_id}/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /** Font Preview */
+    get: operations['font_preview_v1_fonts__family_id__preview_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** AssetResponse */
-        AssetResponse: {
-            /** Id */
-            id: string;
-            /** Provider */
-            provider: string;
-            /** Category */
-            category: string;
-            /** Kinds */
-            kinds: string[];
-            /** Title */
-            title: string;
-            /** Description */
-            description: string;
-            /** Tags */
-            tags: string[];
-            /** Aliases */
-            aliases: string[];
-            /** Objects */
-            objects: string[];
-            /** Visibletext */
-            visibleText: string;
-            /** Style */
-            style: string;
-            /** Confidence */
-            confidence: number | null;
-            /** Sourceids */
-            sourceIds: string[];
-            /** Groups */
-            groups: string[];
-            /** Codes */
-            codes: string[];
-            /** Contenturl */
-            contentUrl: string;
-            /** Previewurl */
-            previewUrl: string;
-        };
-        /** FacetValue */
-        FacetValue: {
-            /** Value */
-            value: string;
-            /** Count */
-            count: number;
-        };
-        /** FacetsResponse */
-        FacetsResponse: {
-            /** Providers */
-            providers: components["schemas"]["FacetValue"][];
-            /** Categories */
-            categories: components["schemas"]["FacetValue"][];
-            /** Kinds */
-            kinds: components["schemas"]["FacetValue"][];
-            /** Styles */
-            styles: components["schemas"]["FacetValue"][];
-            /** Tags */
-            tags: components["schemas"]["FacetValue"][];
-            /** Revision */
-            revision: string;
-        };
-        /** FontCacheRequest */
-        FontCacheRequest: {
-            /** Variants */
-            variants?: string[];
-        };
-        /** FontFaceResponse */
-        FontFaceResponse: {
-            /** Id */
-            id: string;
-            /** Variant */
-            variant: string;
-            /** Style */
-            style: string;
-            /** Weight */
-            weight: number;
-            /** Familyname */
-            familyName: string;
-            /** Format */
-            format: string;
-            /** Cached */
-            cached: boolean;
-            /** Sha256 */
-            sha256: string | null;
-            /** Fileurl */
-            fileUrl: string;
-        };
-        /** FontFacetsResponse */
-        FontFacetsResponse: {
-            /** Providers */
-            providers: components["schemas"]["FacetValue"][];
-            /** Categories */
-            categories: components["schemas"]["FacetValue"][];
-            /** Availability */
-            availability: components["schemas"]["FacetValue"][];
-            /** Subsets */
-            subsets: components["schemas"]["FacetValue"][];
-            /** Tags */
-            tags: components["schemas"]["FacetValue"][];
-            /** Revision */
-            revision: string;
-        };
-        /** FontFamilyResponse */
-        FontFamilyResponse: {
-            /** Id */
-            id: string;
-            /** Family */
-            family: string;
-            /** Provider */
-            provider: string;
-            /** Category */
-            category: string;
-            /** Variants */
-            variants: string[];
-            /** Subsets */
-            subsets: string[];
-            /** Tags */
-            tags: string[];
-            /** Aliases */
-            aliases: string[];
-            /** License */
-            license: string;
-            /** Version */
-            version: string;
-            /** Lastmodified */
-            lastModified: string;
-            /** Availability */
-            availability: string;
-            /** Archivebytes */
-            archiveBytes: number | null;
-            /** Faces */
-            faces: components["schemas"]["FontFaceResponse"][];
-            /** Cssurl */
-            cssUrl: string;
-            /** Previewurl */
-            previewUrl: string;
-            /** Cacheurl */
-            cacheUrl: string;
-        };
-        /** FontSearchResponse */
-        FontSearchResponse: {
-            /** Items */
-            items: components["schemas"]["FontFamilyResponse"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Pagesize */
-            pageSize: number;
-            /** Pages */
-            pages: number;
-            /** Revision */
-            revision: string;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** SearchResponse */
-        SearchResponse: {
-            /** Items */
-            items: components["schemas"]["AssetResponse"][];
-            /** Total */
-            total: number;
-            /** Page */
-            page: number;
-            /** Pagesize */
-            pageSize: number;
-            /** Pages */
-            pages: number;
-            /** Revision */
-            revision: string;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
+  schemas: {
+    /** AssetResponse */
+    AssetResponse: {
+      /** Id */
+      id: string;
+      /** Provider */
+      provider: string;
+      /** Category */
+      category: string;
+      /** Kinds */
+      kinds: string[];
+      /** Title */
+      title: string;
+      /** Description */
+      description: string;
+      /** Tags */
+      tags: string[];
+      /** Aliases */
+      aliases: string[];
+      /** Objects */
+      objects: string[];
+      /** Visibletext */
+      visibleText: string;
+      /** Style */
+      style: string;
+      /** Confidence */
+      confidence: number | null;
+      /** Sourceids */
+      sourceIds: string[];
+      /** Groups */
+      groups: string[];
+      /** Codes */
+      codes: string[];
+      /** Contenturl */
+      contentUrl: string;
+      /** Previewurl */
+      previewUrl: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** FacetValue */
+    FacetValue: {
+      /** Value */
+      value: string;
+      /** Count */
+      count: number;
+    };
+    /** FacetsResponse */
+    FacetsResponse: {
+      /** Providers */
+      providers: components['schemas']['FacetValue'][];
+      /** Categories */
+      categories: components['schemas']['FacetValue'][];
+      /** Kinds */
+      kinds: components['schemas']['FacetValue'][];
+      /** Styles */
+      styles: components['schemas']['FacetValue'][];
+      /** Tags */
+      tags: components['schemas']['FacetValue'][];
+      /** Revision */
+      revision: string;
+    };
+    /** FontCacheRequest */
+    FontCacheRequest: {
+      /** Variants */
+      variants?: string[];
+    };
+    /** FontFaceResponse */
+    FontFaceResponse: {
+      /** Id */
+      id: string;
+      /** Variant */
+      variant: string;
+      /** Style */
+      style: string;
+      /** Weight */
+      weight: number;
+      /** Familyname */
+      familyName: string;
+      /** Format */
+      format: string;
+      /** Cached */
+      cached: boolean;
+      /** Sha256 */
+      sha256: string | null;
+      /** Fileurl */
+      fileUrl: string;
+    };
+    /** FontFacetsResponse */
+    FontFacetsResponse: {
+      /** Providers */
+      providers: components['schemas']['FacetValue'][];
+      /** Categories */
+      categories: components['schemas']['FacetValue'][];
+      /** Availability */
+      availability: components['schemas']['FacetValue'][];
+      /** Subsets */
+      subsets: components['schemas']['FacetValue'][];
+      /** Tags */
+      tags: components['schemas']['FacetValue'][];
+      /** Revision */
+      revision: string;
+    };
+    /** FontFamilyResponse */
+    FontFamilyResponse: {
+      /** Id */
+      id: string;
+      /** Family */
+      family: string;
+      /** Provider */
+      provider: string;
+      /** Category */
+      category: string;
+      /** Variants */
+      variants: string[];
+      /** Subsets */
+      subsets: string[];
+      /** Tags */
+      tags: string[];
+      /** Aliases */
+      aliases: string[];
+      /** License */
+      license: string;
+      /** Version */
+      version: string;
+      /** Lastmodified */
+      lastModified: string;
+      /** Availability */
+      availability: string;
+      /** Archivebytes */
+      archiveBytes: number | null;
+      /** Faces */
+      faces: components['schemas']['FontFaceResponse'][];
+      /** Cssurl */
+      cssUrl: string;
+      /** Previewurl */
+      previewUrl: string;
+      /** Cacheurl */
+      cacheUrl: string;
+    };
+    /** FontSearchResponse */
+    FontSearchResponse: {
+      /** Items */
+      items: components['schemas']['FontFamilyResponse'][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Pagesize */
+      pageSize: number;
+      /** Pages */
+      pages: number;
+      /** Revision */
+      revision: string;
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components['schemas']['ValidationError'][];
+    };
+    /** SearchResponse */
+    SearchResponse: {
+      /** Items */
+      items: components['schemas']['AssetResponse'][];
+      /** Total */
+      total: number;
+      /** Page */
+      page: number;
+      /** Pagesize */
+      pageSize: number;
+      /** Pages */
+      pages: number;
+      /** Revision */
+      revision: string;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+      /** Input */
+      input?: unknown;
+      /** Context */
+      ctx?: Record<string, never>;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    health_healthz_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
+  health_healthz_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    catalog_summary_v1_catalog_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
         };
+      };
     };
-    facets_v1_facets_get: {
-        parameters: {
-            query?: {
-                q?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FacetsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  catalog_summary_v1_catalog_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    search_assets_v1_assets_get: {
-        parameters: {
-            query?: {
-                /** @description Free-text semantic search */
-                q?: string;
-                provider?: string[] | null;
-                category?: string[] | null;
-                kind?: string[] | null;
-                tag?: string[] | null;
-                style?: string[] | null;
-                page?: number;
-                pageSize?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SearchResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
         };
+      };
     };
-    get_asset_v1_assets__asset_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                asset_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssetResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  facets_v1_facets_get: {
+    parameters: {
+      query?: {
+        q?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    asset_content_v1_assets__asset_id__content_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                asset_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['FacetsResponse'];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
-    asset_preview_v1_assets__asset_id__preview_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                asset_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  search_assets_v1_assets_get: {
+    parameters: {
+      query?: {
+        /** @description Free-text semantic search */
+        q?: string;
+        provider?: string[] | null;
+        category?: string[] | null;
+        kind?: string[] | null;
+        tag?: string[] | null;
+        style?: string[] | null;
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    font_facets_v1_font_facets_get: {
-        parameters: {
-            query?: {
-                q?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FontFacetsResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['SearchResponse'];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
-    search_fonts_v1_fonts_get: {
-        parameters: {
-            query?: {
-                q?: string;
-                provider?: string[] | null;
-                category?: string[] | null;
-                availability?: string[] | null;
-                page?: number;
-                pageSize?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FontSearchResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  get_asset_v1_assets__asset_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        asset_id: string;
+      };
+      cookie?: never;
     };
-    get_font_v1_fonts__family_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                family_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FontFamilyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['AssetResponse'];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
-    cache_font_v1_fonts__family_id__cache_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                family_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["FontCacheRequest"] | null;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FontFamilyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  asset_content_v1_assets__asset_id__content_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        asset_id: string;
+      };
+      cookie?: never;
     };
-    remove_cached_font_v1_fonts__family_id__cache_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                family_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FontFamilyResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': unknown;
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
-    font_file_v1_fonts__family_id__files__face_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                family_id: string;
-                face_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  asset_preview_v1_assets__asset_id__preview_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        asset_id: string;
+      };
+      cookie?: never;
     };
-    font_css_v1_fonts__family_id__css_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                family_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+        content: {
+          'application/json': unknown;
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
     };
-    font_preview_v1_fonts__family_id__preview_get: {
-        parameters: {
-            query?: {
-                text?: string;
-                size?: number;
-            };
-            header?: never;
-            path: {
-                family_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  font_facets_v1_font_facets_get: {
+    parameters: {
+      query?: {
+        q?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FontFacetsResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  search_fonts_v1_fonts_get: {
+    parameters: {
+      query?: {
+        q?: string;
+        provider?: string[] | null;
+        category?: string[] | null;
+        availability?: string[] | null;
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FontSearchResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  get_font_v1_fonts__family_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FontFamilyResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  cache_font_v1_fonts__family_id__cache_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['FontCacheRequest'] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FontFamilyResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  remove_cached_font_v1_fonts__family_id__cache_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FontFamilyResponse'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  font_file_v1_fonts__family_id__files__face_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+        face_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  font_css_v1_fonts__family_id__css_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  font_preview_v1_fonts__family_id__preview_get: {
+    parameters: {
+      query?: {
+        text?: string;
+        size?: number;
+      };
+      header?: never;
+      path: {
+        family_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
 }

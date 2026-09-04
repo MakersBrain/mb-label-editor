@@ -21,7 +21,10 @@ try {
   console.error(`Cannot read ${requested ?? 'main'} from ${sdk}. Clone mb-printer-sdk beside this repository.`);
   process.exit(1);
 }
-if (!/^[0-9a-f]{40}$/.test(commit)) { console.error(`Not a commit: ${commit}`); process.exit(1); }
+if (!/^[0-9a-f]{40}$/.test(commit)) {
+  console.error(`Not a commit: ${commit}`);
+  process.exit(1);
+}
 
 try {
   git('merge-base', '--is-ancestor', commit, 'origin/main');

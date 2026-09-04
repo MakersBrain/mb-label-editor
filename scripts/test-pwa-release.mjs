@@ -9,23 +9,28 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const dist = join(root, 'apps/pwa/dist');
 const prefix = '/mb-label-editor/';
 const types = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
-  '.wasm': 'application/wasm', '.webmanifest': 'application/manifest+json',
-  '.svg': 'image/svg+xml'
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.wasm': 'application/wasm',
+  '.webmanifest': 'application/manifest+json',
+  '.svg': 'image/svg+xml',
 };
 
 const localRequests = [];
 const localServer = createServer((request, response) => {
   let body = '';
   request.setEncoding('utf8');
-  request.on('data', (chunk) => { body += chunk; });
+  request.on('data', (chunk) => {
+    body += chunk;
+  });
   request.on('end', () => {
     localRequests.push({
       method: request.method ?? '',
       url: request.url ?? '',
       authorization: request.headers.authorization ?? '',
       accept: request.headers.accept ?? '',
-      body
+      body,
     });
     response.setHeader('access-control-allow-origin', '*');
     response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
@@ -45,7 +50,7 @@ const localServer = createServer((request, response) => {
     }
   });
 });
-await new Promise(resolve => localServer.listen(0, '127.0.0.1', resolve));
+await new Promise((resolve) => localServer.listen(0, '127.0.0.1', resolve));
 const localAddress = localServer.address();
 if (!localAddress || typeof localAddress === 'string') throw new Error('local test server did not bind');
 
@@ -85,14 +90,14 @@ const server = createServer(async (request, response) => {
   }
 });
 
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const address = server.address();
 if (!address || typeof address === 'string') throw new Error('release PWA server did not bind');
 
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
-  args: ['--no-sandbox']
+  args: ['--no-sandbox'],
 });
 
 try {
@@ -100,19 +105,19 @@ try {
   const page = await context.newPage();
   const url = `http://127.0.0.1:${address.port}${prefix}`;
   await page.goto(url);
-  if (await page.title() !== 'MakersBrain Label Editor') throw new Error('non-root PWA failed to load');
+  if ((await page.title()) !== 'MakersBrain Label Editor') throw new Error('non-root PWA failed to load');
 
   const manifest = await page.locator('link[rel=manifest]').getAttribute('href');
   const manifestResponse = await context.request.get(new URL(manifest ?? '', url).href);
   if (!manifestResponse.ok()) throw new Error('non-root manifest failed');
-  const wasmResponse = await context.request.get(new URL(
-    (await page.locator('script[type=module]').getAttribute('src')) ?? '', url
-  ).href).catch(() => undefined);
+  const wasmResponse = await context.request
+    .get(new URL((await page.locator('script[type=module]').getAttribute('src')) ?? '', url).href)
+    .catch(() => undefined);
   if (wasmResponse && !wasmResponse.ok()) throw new Error('non-root module failed');
 
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
-  if (!await page.evaluate(() => !!navigator.serviceWorker.controller)) {
+  if (!(await page.evaluate(() => !!navigator.serviceWorker.controller))) {
     throw new Error('service worker did not control the release page');
   }
   if (localRequests.length !== 0) {
@@ -120,35 +125,38 @@ try {
   }
 
   const localOrigin = `http://127.0.0.1:${localAddress.port}`;
-  await page.evaluate(async ({ localOrigin }) => {
-    const catalogUrl = new URL('v1/catalog', location.href);
-    const api = await fetch(catalogUrl, {
-      headers: { authorization: 'Bearer release-test' }
-    });
-    if (!api.ok) throw new Error('same-origin API fixture failed');
-    const repeatedApi = await fetch(catalogUrl, {
-      headers: { authorization: 'Bearer release-test' }
-    });
-    if (!repeatedApi.ok) throw new Error('same-origin API repeat failed');
-    const local = await fetch(`${localOrigin}/v1/status`);
-    if (!local.ok) throw new Error('cross-origin local fixture failed');
-    const pair = await fetch(`${localOrigin}/v1/pair`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ secret: 'release-pair-secret' })
-    });
-    if (!pair.ok) throw new Error('cross-origin pairing fixture failed');
-    const events = await fetch(`${localOrigin}/v1/jobs/release/events`, {
-      headers: { authorization: 'Bearer release-pair-grant', accept: 'text/event-stream' }
-    });
-    if (!events.ok || !(await events.text()).includes('"terminal":true')) {
-      throw new Error('cross-origin event stream fixture failed');
-    }
-    const access = await fetch(new URL('access-expired', location.href));
-    if (!access.redirected || !access.url.includes('/cdn-cgi/access/login')) {
-      throw new Error('Access redirect fixture failed');
-    }
-  }, { localOrigin });
+  await page.evaluate(
+    async ({ localOrigin }) => {
+      const catalogUrl = new URL('v1/catalog', location.href);
+      const api = await fetch(catalogUrl, {
+        headers: { authorization: 'Bearer release-test' },
+      });
+      if (!api.ok) throw new Error('same-origin API fixture failed');
+      const repeatedApi = await fetch(catalogUrl, {
+        headers: { authorization: 'Bearer release-test' },
+      });
+      if (!repeatedApi.ok) throw new Error('same-origin API repeat failed');
+      const local = await fetch(`${localOrigin}/v1/status`);
+      if (!local.ok) throw new Error('cross-origin local fixture failed');
+      const pair = await fetch(`${localOrigin}/v1/pair`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ secret: 'release-pair-secret' }),
+      });
+      if (!pair.ok) throw new Error('cross-origin pairing fixture failed');
+      const events = await fetch(`${localOrigin}/v1/jobs/release/events`, {
+        headers: { authorization: 'Bearer release-pair-grant', accept: 'text/event-stream' },
+      });
+      if (!events.ok || !(await events.text()).includes('"terminal":true')) {
+        throw new Error('cross-origin event stream fixture failed');
+      }
+      const access = await fetch(new URL('access-expired', location.href));
+      if (!access.redirected || !access.url.includes('/cdn-cgi/access/login')) {
+        throw new Error('Access redirect fixture failed');
+      }
+    },
+    { localOrigin },
+  );
 
   const cacheEvidence = await page.evaluate(async () => {
     const urls = [];
@@ -164,32 +172,43 @@ try {
     const rootResponse = await caches.match(new URL('./', location.href).href);
     return { urls, bodies, root: await rootResponse?.text() };
   });
-  if (cacheEvidence.urls.some(item => item.includes('/v1/') || item.includes('/cdn-cgi/') || item.includes('access-expired'))) {
+  if (
+    cacheEvidence.urls.some(
+      (item) => item.includes('/v1/') || item.includes('/cdn-cgi/') || item.includes('access-expired'),
+    )
+  ) {
     throw new Error(`private or Access response entered Cache API: ${cacheEvidence.urls.join(', ')}`);
   }
   if (!cacheEvidence.root?.includes('<title>MakersBrain Label Editor</title>')) {
     throw new Error('Access redirect replaced the cached application shell');
   }
-  if (cacheEvidence.bodies.some(item => item?.includes('release-pair-secret') || item?.includes('release-pair-grant'))) {
+  if (
+    cacheEvidence.bodies.some((item) => item?.includes('release-pair-secret') || item?.includes('release-pair-grant'))
+  ) {
     throw new Error('pairing material entered a Cache API response');
   }
   if (catalogRequests !== 2 || catalogAuthorization !== 'Bearer release-test') {
     throw new Error(`asset API was cached or lost Authorization: requests=${catalogRequests}`);
   }
-  const applicationRequests = localRequests.filter(item => item.method !== 'OPTIONS');
+  const applicationRequests = localRequests.filter((item) => item.method !== 'OPTIONS');
   if (applicationRequests.length !== 3) {
     throw new Error(`expected status, pair, and event-stream requests, received ${applicationRequests.length}`);
   }
-  if (!applicationRequests.some(item => item.url === '/v1/pair' && item.body.includes('release-pair-secret'))) {
+  if (!applicationRequests.some((item) => item.url === '/v1/pair' && item.body.includes('release-pair-secret'))) {
     throw new Error('pairing request did not reach the active document boundary');
   }
-  if (!applicationRequests.some(item => item.url.endsWith('/events') && item.authorization === 'Bearer release-pair-grant')) {
+  if (
+    !applicationRequests.some(
+      (item) => item.url.endsWith('/events') && item.authorization === 'Bearer release-pair-grant',
+    )
+  ) {
     throw new Error('event stream did not reach the active document boundary');
   }
 
   await context.setOffline(true);
   await page.reload();
-  if (await page.title() !== 'MakersBrain Label Editor') throw new Error('installed non-root PWA failed offline reload');
+  if ((await page.title()) !== 'MakersBrain Label Editor')
+    throw new Error('installed non-root PWA failed offline reload');
   await context.close();
   console.log('non-root PWA, API/pairing/SSE cache boundaries, Access redirect, and offline acceptance passed');
 } finally {

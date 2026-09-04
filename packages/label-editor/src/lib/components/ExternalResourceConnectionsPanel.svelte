@@ -4,7 +4,11 @@
   import type { ExternalResourceConnection } from '../external-resources/types.js';
   import type { ExternalResourceConnectionManager } from '../external-resources/manager.js';
 
-  interface Props { manager: ExternalResourceConnectionManager; onChange?: (connections: ExternalResourceConnection[]) => void; onSelect?: (id: string) => void }
+  interface Props {
+    manager: ExternalResourceConnectionManager;
+    onChange?: (connections: ExternalResourceConnection[]) => void;
+    onSelect?: (id: string) => void;
+  }
   let { manager, onChange = () => {}, onSelect = () => {} }: Props = $props();
 
   // The form seeds itself from the manager once; refresh() re-reads it after every change.
@@ -47,8 +51,11 @@
       edit(item);
       refresh();
       status = `Saved ${item.name}.`;
-    } catch (error) { status = message(error); }
-    finally { busy = false; }
+    } catch (error) {
+      status = message(error);
+    } finally {
+      busy = false;
+    }
   }
 
   function choose(id: string) {
@@ -65,8 +72,11 @@
       await manager.test(item.id);
       status = `${item.name} is reachable.`;
       refresh();
-    } catch (error) { status = message(error); }
-    finally { busy = false; }
+    } catch (error) {
+      status = message(error);
+    } finally {
+      busy = false;
+    }
   }
 
   function remove(item: ExternalResourceConnection) {
@@ -77,8 +87,8 @@
     status = `Removed ${item.name}.`;
   }
 
-  const providerName = (kind: string) => providers.find(item => item.kind === kind)?.displayName ?? kind;
-  const message = (error: unknown) => error instanceof Error ? error.message : String(error);
+  const providerName = (kind: string) => providers.find((item) => item.kind === kind)?.displayName ?? kind;
+  const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 </script>
 
 <section>
@@ -89,25 +99,166 @@
     <ul>
       {#each connections as item (item.id)}
         <li class:active={item.id === selectedId}>
-          <label><input type="radio" name="active-resource-connection" value={item.id} checked={item.id === selectedId} disabled={!item.enabled} onchange={() => choose(item.id)}><span><strong>{item.name}</strong><small>{providerName(item.providerKind)} · {item.endpoint} · {item.enabled ? 'Enabled' : 'Disabled'}</small></span></label>
-          <div><button onclick={() => edit(item)}>Edit</button><button onclick={() => test(item)} disabled={busy || !item.enabled}>Test</button><button onclick={() => remove(item)}>Remove</button></div>
+          <label
+            ><input
+              type="radio"
+              name="active-resource-connection"
+              value={item.id}
+              checked={item.id === selectedId}
+              disabled={!item.enabled}
+              onchange={() => choose(item.id)}
+            /><span
+              ><strong>{item.name}</strong><small
+                >{providerName(item.providerKind)} · {item.endpoint} · {item.enabled ? 'Enabled' : 'Disabled'}</small
+              ></span
+            ></label
+          >
+          <div>
+            <button onclick={() => edit(item)}>Edit</button><button
+              onclick={() => test(item)}
+              disabled={busy || !item.enabled}>Test</button
+            ><button onclick={() => remove(item)}>Remove</button>
+          </div>
         </li>
       {/each}
     </ul>
   {:else}<p>No external resource connections.</p>{/if}
 
-  <form onsubmit={(event)=>{event.preventDefault();(save)()}}>
+  <form
+    onsubmit={(event) => {
+      event.preventDefault();
+      save();
+    }}
+  >
     <h3>{editingId ? 'Edit connection' : 'Add connection'}</h3>
-    <label>Name<input bind:value={name} required placeholder="Workshop assets"></label>
-    <label>Provider<select bind:value={providerKind} required>{#each providers as provider}<option value={provider.kind}>{provider.displayName}</option>{/each}</select></label>
-    <label>Endpoint<input type="url" bind:value={endpoint} required placeholder="https://assets.example.com"></label>
-    <label>Session token<input type="password" bind:value={token} autocomplete="off" placeholder={editingId && manager.hasSessionToken(editingId) ? 'Token is set for this session' : 'Optional bearer token'}></label>
-    <label class="enabled"><input type="checkbox" bind:checked={enabled}> Enabled</label>
-    <div class="form-actions"><button type="submit" disabled={busy || !providers.length}>{editingId ? 'Save connection' : 'Add connection'}</button>{#if editingId}<button type="button" onclick={() => edit()}>Add another</button>{/if}</div>
+    <label>Name<input bind:value={name} required placeholder="Workshop assets" /></label>
+    <label
+      >Provider<select bind:value={providerKind} required
+        >{#each providers as provider}<option value={provider.kind}>{provider.displayName}</option>{/each}</select
+      ></label
+    >
+    <label>Endpoint<input type="url" bind:value={endpoint} required placeholder="https://assets.example.com" /></label>
+    <label
+      >Session token<input
+        type="password"
+        bind:value={token}
+        autocomplete="off"
+        placeholder={editingId && manager.hasSessionToken(editingId)
+          ? 'Token is set for this session'
+          : 'Optional bearer token'}
+      /></label
+    >
+    <label class="enabled"><input type="checkbox" bind:checked={enabled} /> Enabled</label>
+    <div class="form-actions">
+      <button type="submit" disabled={busy || !providers.length}
+        >{editingId ? 'Save connection' : 'Add connection'}</button
+      >{#if editingId}<button type="button" onclick={() => edit()}>Add another</button>{/if}
+    </div>
   </form>
   <p aria-live="polite">{status}</p>
 </section>
 
 <style>
-  section{padding:.8rem;min-width:min(34rem,80vw)}h2,h3{margin:0 0 .45rem}h2{font-size:1rem}h3{font-size:.82rem}.intro,p,small{color:var(--mble-text-muted,#59635e);font-size:.75rem}ul{list-style:none;padding:0;margin:.6rem 0}li{display:flex;justify-content:space-between;gap:.7rem;padding:.5rem;border:1px solid var(--mble-border,#ddd);border-radius:.35rem;margin:.35rem 0}li.active{border-color:var(--mble-primary,#1c6647)}li label{display:flex;flex-direction:row;align-items:start;gap:.45rem;margin:0;min-width:0}li span{display:flex;flex-direction:column;min-width:0}li small{overflow:hidden;text-overflow:ellipsis}li div,.form-actions{display:flex;gap:.3rem;align-items:center}form{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;padding-top:.65rem;border-top:1px solid var(--mble-border,#ddd)}form h3,.form-actions{grid-column:1/-1}form label{display:flex;flex-direction:column;gap:.2rem;font-size:.75rem}.enabled{flex-direction:row;align-items:center}input,select{box-sizing:border-box;min-width:0;width:100%}.enabled input{width:auto}@media(max-width:40rem){section{min-width:0}form{grid-template-columns:1fr}li{flex-direction:column;align-items:stretch}}
+  section {
+    padding: 0.8rem;
+    min-width: min(34rem, 80vw);
+  }
+  h2,
+  h3 {
+    margin: 0 0 0.45rem;
+  }
+  h2 {
+    font-size: 1rem;
+  }
+  h3 {
+    font-size: 0.82rem;
+  }
+  .intro,
+  p,
+  small {
+    color: var(--mble-text-muted, #59635e);
+    font-size: 0.75rem;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0.6rem 0;
+  }
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.7rem;
+    padding: 0.5rem;
+    border: 1px solid var(--mble-border, #ddd);
+    border-radius: 0.35rem;
+    margin: 0.35rem 0;
+  }
+  li.active {
+    border-color: var(--mble-primary, #1c6647);
+  }
+  li label {
+    display: flex;
+    flex-direction: row;
+    align-items: start;
+    gap: 0.45rem;
+    margin: 0;
+    min-width: 0;
+  }
+  li span {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  li small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  li div,
+  .form-actions {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+  }
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--mble-border, #ddd);
+  }
+  form h3,
+  .form-actions {
+    grid-column: 1/-1;
+  }
+  form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.75rem;
+  }
+  .enabled {
+    flex-direction: row;
+    align-items: center;
+  }
+  input,
+  select {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+  }
+  .enabled input {
+    width: auto;
+  }
+  @media (max-width: 40rem) {
+    section {
+      min-width: 0;
+    }
+    form {
+      grid-template-columns: 1fr;
+    }
+    li {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
 </style>

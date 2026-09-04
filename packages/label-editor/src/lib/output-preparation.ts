@@ -31,7 +31,10 @@ export interface PreparedDocumentOutput extends ContinuousResolution {
   materialized: boolean;
 }
 
-const measurementCaches = new WeakMap<DocumentMeasurer, Map<string, Promise<Awaited<ReturnType<DocumentMeasurer['measure']>>>>>();
+const measurementCaches = new WeakMap<
+  DocumentMeasurer,
+  Map<string, Promise<Awaited<ReturnType<DocumentMeasurer['measure']>>>>
+>();
 
 export async function prepareDocumentForOutput(
   source: LabelDocument,
@@ -48,7 +51,12 @@ export async function prepareDocumentForOutput(
   }
   const continuous = document.media.shape === 'continuous';
   const fitContent = continuous && continuousSettings(document).lengthMode === 'fit-content';
-  const measurement = continuous && services.measurer ? await cachedMeasurement(document, services.measurer) : fitContent ? await requireMeasurement(document, services.measurer) : undefined;
+  const measurement =
+    continuous && services.measurer
+      ? await cachedMeasurement(document, services.measurer)
+      : fitContent
+        ? await requireMeasurement(document, services.measurer)
+        : undefined;
   const resolution = resolveContinuousDocument(
     options.preserveTemplateSource && materialized ? source : document,
     measurement,
@@ -66,9 +74,29 @@ async function requireMeasurement(document: LabelDocument, measurer: DocumentMea
   return await cachedMeasurement(document, measurer);
 }
 
-async function cachedMeasurement(document:LabelDocument,measurer:DocumentMeasurer){const cache=measurementCaches.get(measurer)??new Map<string,Promise<Awaited<ReturnType<DocumentMeasurer['measure']>>>>();measurementCaches.set(measurer,cache);const key=documentLayoutFingerprint(document);let pending=cache.get(key);if(!pending){pending=measurer.measure(document);cache.set(key,pending);if(cache.size>64)cache.delete(cache.keys().next().value!);pending.catch(()=>cache.delete(key))}try{return await pending}catch(error){throw normalizeContinuousMeasurementError(error)}}
+async function cachedMeasurement(document: LabelDocument, measurer: DocumentMeasurer) {
+  const cache =
+    measurementCaches.get(measurer) ?? new Map<string, Promise<Awaited<ReturnType<DocumentMeasurer['measure']>>>>();
+  measurementCaches.set(measurer, cache);
+  const key = documentLayoutFingerprint(document);
+  let pending = cache.get(key);
+  if (!pending) {
+    pending = measurer.measure(document);
+    cache.set(key, pending);
+    if (cache.size > 64) cache.delete(cache.keys().next().value!);
+    pending.catch(() => cache.delete(key));
+  }
+  try {
+    return await pending;
+  } catch (error) {
+    throw normalizeContinuousMeasurementError(error);
+  }
+}
 
-function selectedRecord(document: LabelDocument, options: PrepareDocumentOptions): { record?: Record<string, string>; index?: number } {
+function selectedRecord(
+  document: LabelDocument,
+  options: PrepareDocumentOptions,
+): { record?: Record<string, string>; index?: number } {
   if (options.record) return { record: options.record, index: options.recordIndex };
   const template = document.template;
   if (!template?.records.length) return {};

@@ -14,12 +14,16 @@ function fixture(options: { blocked?: boolean; clickError?: Error; navigationErr
   const revoked: string[] = [];
   const scheduled: Array<{ callback: () => void; delayMs: number }> = [];
   const blobs: Blob[] = [];
-  const click = vi.fn(() => { if (options.clickError) throw options.clickError; });
+  const click = vi.fn(() => {
+    if (options.clickError) throw options.clickError;
+  });
   const anchor: BrowserDownloadAnchor = { href: '', download: '', click };
   const close = vi.fn();
   const location = {
     _href: '',
-    get href() { return this._href; },
+    get href() {
+      return this._href;
+    },
     set href(value: string) {
       if (options.navigationError) throw options.navigationError;
       this._href = value;
@@ -33,9 +37,12 @@ function fixture(options: { blocked?: boolean; clickError?: Error; navigationErr
   };
   const port: BrowserFilePort = {
     createDownloadAnchor: () => anchor,
-    createObjectUrl: (blob) => { blobs.push(blob); return `blob:test-${blobs.length}`; },
+    createObjectUrl: (blob) => {
+      blobs.push(blob);
+      return `blob:test-${blobs.length}`;
+    },
     revokeObjectUrl: (url) => revoked.push(url),
-    openWindow: () => options.blocked ? null : popup,
+    openWindow: () => (options.blocked ? null : popup),
     schedule: (callback, delayMs) => scheduled.push({ callback, delayMs }),
   };
   return { port, anchor, click, popup, close, blobs, revoked, scheduled };
@@ -56,7 +63,9 @@ describe('browser file handoff', () => {
 
   it('revokes immediately when the browser rejects the download click', () => {
     const test = fixture({ clickError: new Error('click failed') });
-    expect(() => downloadBytes(new Uint8Array(), { filename: 'label.png', mimeType: 'image/png' }, test.port)).toThrow('click failed');
+    expect(() => downloadBytes(new Uint8Array(), { filename: 'label.png', mimeType: 'image/png' }, test.port)).toThrow(
+      'click failed',
+    );
     expect(test.revoked).toEqual(['blob:test-1']);
     expect(test.scheduled).toEqual([]);
   });
@@ -72,15 +81,23 @@ describe('browser file handoff', () => {
 
   it('keeps an opened PDF alive for the viewer and closes cleanly on navigation failure', async () => {
     const success = fixture();
-    await expect(openPdfInNewWindow(async () => new Uint8Array([1]), { title: 'Sheet' }, success.port)).resolves.toBe(true);
-    expect(success.popup).toMatchObject({ opener: null, document: { title: 'Sheet' }, location: { href: 'blob:test-1' } });
+    await expect(openPdfInNewWindow(async () => new Uint8Array([1]), { title: 'Sheet' }, success.port)).resolves.toBe(
+      true,
+    );
+    expect(success.popup).toMatchObject({
+      opener: null,
+      document: { title: 'Sheet' },
+      location: { href: 'blob:test-1' },
+    });
     expect(success.revoked).toEqual([]);
     expect(success.scheduled[0]?.delayMs).toBe(PDF_WINDOW_URL_LIFETIME_MS);
     success.scheduled[0]?.callback();
     expect(success.revoked).toEqual(['blob:test-1']);
 
     const failed = fixture({ navigationError: new Error('navigation failed') });
-    await expect(openPdfInNewWindow(async () => new Uint8Array([1]), {}, failed.port)).rejects.toThrow('navigation failed');
+    await expect(openPdfInNewWindow(async () => new Uint8Array([1]), {}, failed.port)).rejects.toThrow(
+      'navigation failed',
+    );
     expect(failed.revoked).toEqual(['blob:test-1']);
     expect(failed.close).toHaveBeenCalledOnce();
     expect(failed.scheduled).toEqual([]);
@@ -100,6 +117,8 @@ describe('font import', () => {
     expect(fontMimeType(new Uint8Array([0x4f, 0x54, 0x54, 0x4f]), 'download', '')).toBe('font/otf');
     expect(fontMimeType(new Uint8Array([0x77, 0x4f, 0x46, 0x46]), 'download', '')).toBe('font/woff');
     expect(fontMimeType(new Uint8Array([0x89, 0x50, 0x4e, 0x47]), 'download', '')).toBeUndefined();
-    await expect(importFont(file([0x89, 0x50, 0x4e, 0x47], 'logo', 'application/octet-stream'))).rejects.toThrow(/Unsupported font type/);
+    await expect(importFont(file([0x89, 0x50, 0x4e, 0x47], 'logo', 'application/octet-stream'))).rejects.toThrow(
+      /Unsupported font type/,
+    );
   });
 });

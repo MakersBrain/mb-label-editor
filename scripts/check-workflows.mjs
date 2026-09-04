@@ -21,7 +21,8 @@ for (const name of files) {
 }
 
 const pin = (await readFile(new URL('.github/sdk-ref', root), 'utf8')).trim();
-if (!/^[0-9a-f]{40}$/.test(pin)) errors.push('.github/sdk-ref must be a full commit SHA of an mb-printer-sdk commit on main');
+if (!/^[0-9a-f]{40}$/.test(pin))
+  errors.push('.github/sdk-ref must be a full commit SHA of an mb-printer-sdk commit on main');
 
 for (const name of files) {
   const workflow = await readFile(new URL(name, directory), 'utf8');
@@ -49,17 +50,9 @@ for (const required of [
 }
 
 const deploy = await readFile(new URL('deploy-pages.yml', directory), 'utf8');
-for (const required of [
-  'pages: write',
-  'id-token: write',
-  'artifact.tar',
-  'name: github-pages',
-  'deploy-pages',
-]) {
+for (const required of ['pages: write', 'id-token: write', 'artifact.tar', 'name: github-pages', 'deploy-pages']) {
   if (!deploy.includes(required)) errors.push(`deploy-pages.yml: missing ${required}`);
 }
 
 if (errors.length) throw new Error(errors.join('\n'));
-console.log(
-  `${files.length} workflow files satisfy SPDX, pinned-action, registry, provenance, and Pages policy`,
-);
+console.log(`${files.length} workflow files satisfy SPDX, pinned-action, registry, provenance, and Pages policy`);

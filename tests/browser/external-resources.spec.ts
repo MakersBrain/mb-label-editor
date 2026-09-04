@@ -5,9 +5,13 @@ test.use({ serviceWorkers: 'block' });
 
 test('manages multiple external resource connections without persisting tokens', async ({ page }) => {
   const authorizations: (string | undefined)[] = [];
-  await page.route('https://assets.example.test/**', async route => {
+  await page.route('https://assets.example.test/**', async (route) => {
     authorizations.push(route.request().headers().authorization);
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [], total: 0, page: 1, pageSize: 1, pages: 1, revision: 'test' }) });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [], total: 0, page: 1, pageSize: 1, pages: 1, revision: 'test' }),
+    });
   });
 
   await page.goto('/');
@@ -28,7 +32,7 @@ test('manages multiple external resource connections without persisting tokens',
 
   const stored = await page.evaluate(() => ({
     connections: localStorage.getItem('mb-external-resource-connections-v1'),
-    values: Object.values(localStorage)
+    values: Object.values(localStorage),
   }));
   expect(JSON.parse(stored.connections ?? '[]')).toHaveLength(2);
   expect(stored.connections).not.toContain('resource-session-secret');

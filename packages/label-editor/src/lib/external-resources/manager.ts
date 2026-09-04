@@ -4,7 +4,7 @@ import type {
   ExternalResourceConnection,
   ExternalResourceProvider,
   ExternalResourceProviderFactory,
-  ExternalResourceProviderSummary
+  ExternalResourceProviderSummary,
 } from './types.js';
 
 export interface ExternalResourceConnectionInput {
@@ -23,7 +23,11 @@ export class ExternalResourceConnectionManager {
   #providers = new Map<string, ExternalResourceProvider>();
   #selectedId = '';
 
-  constructor(factories: ExternalResourceProviderFactory[] = [], connections: ExternalResourceConnection[] = [], selectedId = '') {
+  constructor(
+    factories: ExternalResourceProviderFactory[] = [],
+    connections: ExternalResourceConnection[] = [],
+    selectedId = '',
+  ) {
     for (const factory of factories) this.register(factory);
     this.replace(connections);
     this.select(selectedId);
@@ -36,55 +40,78 @@ export class ExternalResourceConnectionManager {
   }
 
   providers(): ExternalResourceProviderSummary[] {
-    return [...this.#factories.values()].map(factory => ({ kind: factory.kind, displayName: factory.displayName }));
+    return [...this.#factories.values()].map((factory) => ({ kind: factory.kind, displayName: factory.displayName }));
   }
 
-  connections(): ExternalResourceConnection[] { return structuredClone(this.#connections); }
-  selectedId() { return this.#selectedId; }
-  selected(): ExternalResourceProvider | undefined { return this.provider(this.#selectedId); }
+  connections(): ExternalResourceConnection[] {
+    return structuredClone(this.#connections);
+  }
+  selectedId() {
+    return this.#selectedId;
+  }
+  selected(): ExternalResourceProvider | undefined {
+    return this.provider(this.#selectedId);
+  }
 
   replace(value: unknown) {
-    this.#connections = Array.isArray(value) ? value.map(connection).filter((item): item is ExternalResourceConnection => !!item) : [];
+    this.#connections = Array.isArray(value)
+      ? value.map(connection).filter((item): item is ExternalResourceConnection => !!item)
+      : [];
     this.#providers.clear();
-    if (!this.#connections.some(item => item.id === this.#selectedId && item.enabled)) this.#selectedId = this.#connections.find(item => item.enabled)?.id ?? '';
+    if (!this.#connections.some((item) => item.id === this.#selectedId && item.enabled))
+      this.#selectedId = this.#connections.find((item) => item.enabled)?.id ?? '';
   }
 
   upsert(input: ExternalResourceConnectionInput): ExternalResourceConnection {
-    if (!this.#factories.has(input.providerKind)) throw new Error(`Unknown external resource provider: ${input.providerKind}`);
+    if (!this.#factories.has(input.providerKind))
+      throw new Error(`Unknown external resource provider: ${input.providerKind}`);
     const endpoint = normalizeEndpoint(input.endpoint);
     const name = input.name.trim();
     if (!name) throw new Error('Connection name is required.');
-    const item: ExternalResourceConnection = { version: 1, id: input.id || uuid(), name, providerKind: input.providerKind, endpoint, enabled: input.enabled ?? true };
-    const index = this.#connections.findIndex(value => value.id === item.id);
-    if (index >= 0) this.#connections[index] = item; else this.#connections.push(item);
+    const item: ExternalResourceConnection = {
+      version: 1,
+      id: input.id || uuid(),
+      name,
+      providerKind: input.providerKind,
+      endpoint,
+      enabled: input.enabled ?? true,
+    };
+    const index = this.#connections.findIndex((value) => value.id === item.id);
+    if (index >= 0) this.#connections[index] = item;
+    else this.#connections.push(item);
     this.#providers.delete(item.id);
     if (!this.#selectedId && item.enabled) this.#selectedId = item.id;
     return structuredClone(item);
   }
 
   remove(id: string) {
-    this.#connections = this.#connections.filter(item => item.id !== id);
+    this.#connections = this.#connections.filter((item) => item.id !== id);
     this.#tokens.delete(id);
     this.#providers.delete(id);
-    if (this.#selectedId === id) this.#selectedId = this.#connections.find(item => item.enabled)?.id ?? '';
+    if (this.#selectedId === id) this.#selectedId = this.#connections.find((item) => item.enabled)?.id ?? '';
   }
 
   select(id: string) {
-    this.#selectedId = this.#connections.some(item => item.id === id && item.enabled) ? id : this.#connections.find(item => item.enabled)?.id ?? '';
+    this.#selectedId = this.#connections.some((item) => item.id === id && item.enabled)
+      ? id
+      : (this.#connections.find((item) => item.enabled)?.id ?? '');
   }
 
   setSessionToken(id: string, token: string) {
     const value = token.trim();
-    if (value) this.#tokens.set(id, value); else this.#tokens.delete(id);
+    if (value) this.#tokens.set(id, value);
+    else this.#tokens.delete(id);
     this.#providers.delete(id);
   }
 
-  hasSessionToken(id: string) { return this.#tokens.has(id); }
+  hasSessionToken(id: string) {
+    return this.#tokens.has(id);
+  }
 
   provider(id: string): ExternalResourceProvider | undefined {
     const existing = this.#providers.get(id);
     if (existing) return existing;
-    const item = this.#connections.find(value => value.id === id && value.enabled);
+    const item = this.#connections.find((value) => value.id === id && value.enabled);
     if (!item) return undefined;
     const factory = this.#factories.get(item.providerKind);
     if (!factory) return undefined;
@@ -111,7 +138,27 @@ function normalizeEndpoint(value: string) {
 function connection(value: unknown): ExternalResourceConnection | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const item = value as Partial<ExternalResourceConnection>;
-  if (item.version !== 1 || typeof item.id !== 'string' || !item.id || typeof item.name !== 'string' || !item.name.trim() || typeof item.providerKind !== 'string' || typeof item.endpoint !== 'string' || typeof item.enabled !== 'boolean') return undefined;
-  try { return { version: 1, id: item.id, name: item.name.trim(), providerKind: item.providerKind, endpoint: normalizeEndpoint(item.endpoint), enabled: item.enabled }; }
-  catch { return undefined; }
+  if (
+    item.version !== 1 ||
+    typeof item.id !== 'string' ||
+    !item.id ||
+    typeof item.name !== 'string' ||
+    !item.name.trim() ||
+    typeof item.providerKind !== 'string' ||
+    typeof item.endpoint !== 'string' ||
+    typeof item.enabled !== 'boolean'
+  )
+    return undefined;
+  try {
+    return {
+      version: 1,
+      id: item.id,
+      name: item.name.trim(),
+      providerKind: item.providerKind,
+      endpoint: normalizeEndpoint(item.endpoint),
+      enabled: item.enabled,
+    };
+  } catch {
+    return undefined;
+  }
 }

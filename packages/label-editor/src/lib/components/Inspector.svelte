@@ -1,43 +1,320 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import type { EditorStore } from '../store.svelte.js'; import { patchElement } from '../commands.js'; let { editor }: { editor: EditorStore } = $props();
-  const number=(value:string)=>Number.isFinite(Number(value))?Number(value):0;
-  const patch=(id:string,value:Record<string,unknown>)=>editor.execute(patchElement(id,value));
+  import type { EditorStore } from '../store.svelte.js';
+  import { patchElement } from '../commands.js';
+  let { editor }: { editor: EditorStore } = $props();
+  const number = (value: string) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+  const patch = (id: string, value: Record<string, unknown>) => editor.execute(patchElement(id, value));
   /** Binding the face by id keeps the printed font exact: family alone cannot tell two weights of one family apart. */
-  function chooseFont(id:string,value:string){
-    const font=editor.document.fonts.find(item=>item.id===value);
-    patch(id,font?{fontResourceId:font.id,fontFamily:font.family,fontWeight:font.weight}:{fontResourceId:undefined,fontFamily:'sans-serif',fontWeight:400});
+  function chooseFont(id: string, value: string) {
+    const font = editor.document.fonts.find((item) => item.id === value);
+    patch(
+      id,
+      font
+        ? { fontResourceId: font.id, fontFamily: font.family, fontWeight: font.weight }
+        : { fontResourceId: undefined, fontFamily: 'sans-serif', fontWeight: 400 },
+    );
   }
 </script>
-<section><h2>Inspector</h2>
-  {#if editor.selectedElements.length===1}{#each editor.selectedElements as element}
-    <label>Name <input value={element.name} onchange={(e)=>patch(element.id,{name:e.currentTarget.value})}></label>
-    <div class="grid">
-      <label>X (mm)<input type="number" step=".1" value={element.transform.x} onchange={(e)=>patch(element.id,{transform:{...element.transform,x:number(e.currentTarget.value)}})}></label>
-      <label>Y (mm)<input type="number" step=".1" value={element.transform.y} onchange={(e)=>patch(element.id,{transform:{...element.transform,y:number(e.currentTarget.value)}})}></label>
-      <label>Width<input type="number" min=".1" step=".1" value={element.transform.width} onchange={(e)=>patch(element.id,{transform:{...element.transform,width:number(e.currentTarget.value)}})}></label>
-      <label>Height<input type="number" min=".1" step=".1" value={element.transform.height} onchange={(e)=>patch(element.id,{transform:{...element.transform,height:number(e.currentTarget.value)}})}></label>
-      <label>Rotation<input type="number" step="1" value={element.transform.rotation} onchange={(e)=>patch(element.id,{transform:{...element.transform,rotation:number(e.currentTarget.value)}})}></label>
-      <label>Layer<input type="number" step="1" value={element.zIndex} onchange={(e)=>patch(element.id,{zIndex:number(e.currentTarget.value)})}></label>
-    </div>
-    {#if element.type==='text'}
-      <label>Text<textarea value={element.text} onchange={(e)=>patch(element.id,{text:e.currentTarget.value})}></textarea></label>
-      <div class="grid"><label>Font<select value={element.fontResourceId??'sans-serif'} onchange={(e)=>chooseFont(element.id,e.currentTarget.value)}><option value="sans-serif">System sans</option>{#each editor.document.fonts as font}<option value={font.id}>{font.family} {font.weight}</option>{/each}</select></label><label>Size (mm)<input type="number" min=".1" step=".1" value={element.fontSize} onchange={(e)=>patch(element.id,{fontSize:number(e.currentTarget.value)})}></label></div>
-      <label>Overflow<select value={element.overflow} onchange={(e)=>patch(element.id,{overflow:e.currentTarget.value})}><option>no-wrap</option><option>word-wrap</option><option>clip</option><option>shrink-to-fit</option><option>auto-height</option></select></label>
-      <div class="grid"><label>Horizontal<select value={element.horizontalAlign} onchange={(e)=>patch(element.id,{horizontalAlign:e.currentTarget.value})}><option>left</option><option>center</option><option>right</option></select></label><label>Vertical<select value={element.verticalAlign} onchange={(e)=>patch(element.id,{verticalAlign:e.currentTarget.value})}><option>top</option><option>middle</option><option>bottom</option></select></label></div>
-    {:else if element.type==='image'}
-      <label>Resource<select value={element.resourceId} onchange={(e)=>patch(element.id,{resourceId:e.currentTarget.value})}>{#each editor.document.resources as resource}<option value={resource.id}>{resource.name}</option>{/each}</select></label><label>Fit / aspect<select value={element.fit} onchange={(e)=>patch(element.id,{fit:e.currentTarget.value})}><option>contain</option><option>cover</option><option>stretch</option></select></label>
-      <fieldset><legend>Crop (source-relative)</legend><div class="grid">{#each ['x','y','width','height'] as key}<label>{key}<input type="number" step=".01" min={key==='width'||key==='height'?0.01:0} value={element.crop?.[key as keyof typeof element.crop]??(key==='width'||key==='height'?1:0)} onchange={(e)=>patch(element.id,{crop:{x:element.crop?.x??0,y:element.crop?.y??0,width:element.crop?.width??1,height:element.crop?.height??1,[key]:number(e.currentTarget.value)}})}></label>{/each}</div></fieldset>
-      <label>Thermal rendering<select value={element.dither?.algorithm??'auto'} onchange={(e)=>patch(element.id,{dither:{algorithm:e.currentTarget.value,threshold:element.dither?.threshold??128}})}><option value="auto">Auto · balanced graphics</option><option value="floyd-steinberg">Photo · smooth tones</option><option value="atkinson">Photo · lighter detail</option><option value="bayer">Logo · crisp pattern</option><option value="threshold">Line art · solid black/white</option></select></label>
-      {#if (element.dither?.algorithm??'auto')==='threshold'}<label>Black/white threshold<input type="range" min="0" max="255" value={element.dither?.threshold??128} oninput={(e)=>patch(element.id,{dither:{algorithm:'threshold',threshold:number(e.currentTarget.value)}})}><span>{element.dither?.threshold??128}</span></label>{/if}
-      <label class="check"><input type="checkbox" checked={element.invert===true} onchange={(e)=>patch(element.id,{invert:e.currentTarget.checked})}> Invert picture colors</label>
-      <p class="render-help">Applied non-destructively at the selected printer's { editor.document.media.dpi } dpi. The original image is preserved.</p>
-    {:else if element.type==='svg'}<label>SVG resource<select value={element.resourceId} onchange={(e)=>patch(element.id,{resourceId:e.currentTarget.value})}>{#each editor.document.resources.filter(r=>r.mimeType==='image/svg+xml') as resource}<option value={resource.id}>{resource.name}</option>{/each}</select></label>
-    {:else if element.type==='barcode'}<label>Data<input value={element.value} onchange={(e)=>patch(element.id,{value:e.currentTarget.value})}></label><label>Symbology<select value={element.symbology} onchange={(e)=>patch(element.id,{symbology:e.currentTarget.value})}><option value="code128">Code 128</option><option value="ean13">EAN-13</option><option value="upca">UPC-A</option><option value="code39">Code 39</option></select></label><label class="check"><input type="checkbox" checked={element.showText} onchange={(e)=>patch(element.id,{showText:e.currentTarget.checked})}> Human-readable text</label>
-    {:else if element.type==='qr'}<label>Data<textarea value={element.value} onchange={(e)=>patch(element.id,{value:e.currentTarget.value})}></textarea></label><label>Error correction<select value={element.errorCorrection} onchange={(e)=>patch(element.id,{errorCorrection:e.currentTarget.value})}><option>L</option><option>M</option><option>Q</option><option>H</option></select></label>
-    {:else if element.type==='line'||element.type==='rectangle'||element.type==='ellipse'||element.type==='triangle'}<div class="grid"><label>Stroke (mm)<input type="number" min="0" step=".1" value={element.strokeWidth} onchange={(e)=>patch(element.id,{strokeWidth:number(e.currentTarget.value)})}></label>{#if element.type!=='line'}<label class="check"><input type="checkbox" checked={element.filled} onchange={(e)=>patch(element.id,{filled:e.currentTarget.checked})}> Filled</label>{/if}</div>
-    {:else if element.type==='group'}<p>{element.childIds.length} child elements</p>{/if}
-    <label>Assigned zone<select value={String(element.constraints?.find(item=>item.kind==='zone')?.value??'')} onchange={(e)=>patch(element.id,{constraints:[...(element.constraints??[]).filter(item=>item.kind!=='zone'),...(e.currentTarget.value?[{kind:'zone',value:e.currentTarget.value}]:[])]})}><option value="">None</option>{#each editor.document.media.zones??[] as zone}<option value={zone.id}>{zone.name}</option>{/each}</select></label>
-  {/each}{:else}<p>{editor.selectedElements.length ? `${editor.selectedElements.length} elements selected` : 'Select an element to inspect it.'}</p>{/if}
+
+<section>
+  <h2>Inspector</h2>
+  {#if editor.selectedElements.length === 1}{#each editor.selectedElements as element}
+      <label
+        >Name <input value={element.name} onchange={(e) => patch(element.id, { name: e.currentTarget.value })} /></label
+      >
+      <div class="grid">
+        <label
+          >X (mm)<input
+            type="number"
+            step=".1"
+            value={element.transform.x}
+            onchange={(e) =>
+              patch(element.id, { transform: { ...element.transform, x: number(e.currentTarget.value) } })}
+          /></label
+        >
+        <label
+          >Y (mm)<input
+            type="number"
+            step=".1"
+            value={element.transform.y}
+            onchange={(e) =>
+              patch(element.id, { transform: { ...element.transform, y: number(e.currentTarget.value) } })}
+          /></label
+        >
+        <label
+          >Width<input
+            type="number"
+            min=".1"
+            step=".1"
+            value={element.transform.width}
+            onchange={(e) =>
+              patch(element.id, { transform: { ...element.transform, width: number(e.currentTarget.value) } })}
+          /></label
+        >
+        <label
+          >Height<input
+            type="number"
+            min=".1"
+            step=".1"
+            value={element.transform.height}
+            onchange={(e) =>
+              patch(element.id, { transform: { ...element.transform, height: number(e.currentTarget.value) } })}
+          /></label
+        >
+        <label
+          >Rotation<input
+            type="number"
+            step="1"
+            value={element.transform.rotation}
+            onchange={(e) =>
+              patch(element.id, { transform: { ...element.transform, rotation: number(e.currentTarget.value) } })}
+          /></label
+        >
+        <label
+          >Layer<input
+            type="number"
+            step="1"
+            value={element.zIndex}
+            onchange={(e) => patch(element.id, { zIndex: number(e.currentTarget.value) })}
+          /></label
+        >
+      </div>
+      {#if element.type === 'text'}
+        <label
+          >Text<textarea value={element.text} onchange={(e) => patch(element.id, { text: e.currentTarget.value })}
+          ></textarea></label
+        >
+        <div class="grid">
+          <label
+            >Font<select
+              value={element.fontResourceId ?? 'sans-serif'}
+              onchange={(e) => chooseFont(element.id, e.currentTarget.value)}
+              ><option value="sans-serif">System sans</option>{#each editor.document.fonts as font}<option
+                  value={font.id}>{font.family} {font.weight}</option
+                >{/each}</select
+            ></label
+          ><label
+            >Size (mm)<input
+              type="number"
+              min=".1"
+              step=".1"
+              value={element.fontSize}
+              onchange={(e) => patch(element.id, { fontSize: number(e.currentTarget.value) })}
+            /></label
+          >
+        </div>
+        <label
+          >Overflow<select
+            value={element.overflow}
+            onchange={(e) => patch(element.id, { overflow: e.currentTarget.value })}
+            ><option>no-wrap</option><option>word-wrap</option><option>clip</option><option>shrink-to-fit</option
+            ><option>auto-height</option></select
+          ></label
+        >
+        <div class="grid">
+          <label
+            >Horizontal<select
+              value={element.horizontalAlign}
+              onchange={(e) => patch(element.id, { horizontalAlign: e.currentTarget.value })}
+              ><option>left</option><option>center</option><option>right</option></select
+            ></label
+          ><label
+            >Vertical<select
+              value={element.verticalAlign}
+              onchange={(e) => patch(element.id, { verticalAlign: e.currentTarget.value })}
+              ><option>top</option><option>middle</option><option>bottom</option></select
+            ></label
+          >
+        </div>
+      {:else if element.type === 'image'}
+        <label
+          >Resource<select
+            value={element.resourceId}
+            onchange={(e) => patch(element.id, { resourceId: e.currentTarget.value })}
+            >{#each editor.document.resources as resource}<option value={resource.id}>{resource.name}</option
+              >{/each}</select
+          ></label
+        ><label
+          >Fit / aspect<select value={element.fit} onchange={(e) => patch(element.id, { fit: e.currentTarget.value })}
+            ><option>contain</option><option>cover</option><option>stretch</option></select
+          ></label
+        >
+        <fieldset>
+          <legend>Crop (source-relative)</legend>
+          <div class="grid">
+            {#each ['x', 'y', 'width', 'height'] as key}<label
+                >{key}<input
+                  type="number"
+                  step=".01"
+                  min={key === 'width' || key === 'height' ? 0.01 : 0}
+                  value={element.crop?.[key as keyof typeof element.crop] ??
+                    (key === 'width' || key === 'height' ? 1 : 0)}
+                  onchange={(e) =>
+                    patch(element.id, {
+                      crop: {
+                        x: element.crop?.x ?? 0,
+                        y: element.crop?.y ?? 0,
+                        width: element.crop?.width ?? 1,
+                        height: element.crop?.height ?? 1,
+                        [key]: number(e.currentTarget.value),
+                      },
+                    })}
+                /></label
+              >{/each}
+          </div>
+        </fieldset>
+        <label
+          >Thermal rendering<select
+            value={element.dither?.algorithm ?? 'auto'}
+            onchange={(e) =>
+              patch(element.id, {
+                dither: { algorithm: e.currentTarget.value, threshold: element.dither?.threshold ?? 128 },
+              })}
+            ><option value="auto">Auto · balanced graphics</option><option value="floyd-steinberg"
+              >Photo · smooth tones</option
+            ><option value="atkinson">Photo · lighter detail</option><option value="bayer">Logo · crisp pattern</option
+            ><option value="threshold">Line art · solid black/white</option></select
+          ></label
+        >
+        {#if (element.dither?.algorithm ?? 'auto') === 'threshold'}<label
+            >Black/white threshold<input
+              type="range"
+              min="0"
+              max="255"
+              value={element.dither?.threshold ?? 128}
+              oninput={(e) =>
+                patch(element.id, { dither: { algorithm: 'threshold', threshold: number(e.currentTarget.value) } })}
+            /><span>{element.dither?.threshold ?? 128}</span></label
+          >{/if}
+        <label class="check"
+          ><input
+            type="checkbox"
+            checked={element.invert === true}
+            onchange={(e) => patch(element.id, { invert: e.currentTarget.checked })}
+          /> Invert picture colors</label
+        >
+        <p class="render-help">
+          Applied non-destructively at the selected printer's {editor.document.media.dpi} dpi. The original image is preserved.
+        </p>
+      {:else if element.type === 'svg'}<label
+          >SVG resource<select
+            value={element.resourceId}
+            onchange={(e) => patch(element.id, { resourceId: e.currentTarget.value })}
+            >{#each editor.document.resources.filter((r) => r.mimeType === 'image/svg+xml') as resource}<option
+                value={resource.id}>{resource.name}</option
+              >{/each}</select
+          ></label
+        >
+      {:else if element.type === 'barcode'}<label
+          >Data<input
+            value={element.value}
+            onchange={(e) => patch(element.id, { value: e.currentTarget.value })}
+          /></label
+        ><label
+          >Symbology<select
+            value={element.symbology}
+            onchange={(e) => patch(element.id, { symbology: e.currentTarget.value })}
+            ><option value="code128">Code 128</option><option value="ean13">EAN-13</option><option value="upca"
+              >UPC-A</option
+            ><option value="code39">Code 39</option></select
+          ></label
+        ><label class="check"
+          ><input
+            type="checkbox"
+            checked={element.showText}
+            onchange={(e) => patch(element.id, { showText: e.currentTarget.checked })}
+          /> Human-readable text</label
+        >
+      {:else if element.type === 'qr'}<label
+          >Data<textarea value={element.value} onchange={(e) => patch(element.id, { value: e.currentTarget.value })}
+          ></textarea></label
+        ><label
+          >Error correction<select
+            value={element.errorCorrection}
+            onchange={(e) => patch(element.id, { errorCorrection: e.currentTarget.value })}
+            ><option>L</option><option>M</option><option>Q</option><option>H</option></select
+          ></label
+        >
+      {:else if element.type === 'line' || element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle'}<div
+          class="grid"
+        >
+          <label
+            >Stroke (mm)<input
+              type="number"
+              min="0"
+              step=".1"
+              value={element.strokeWidth}
+              onchange={(e) => patch(element.id, { strokeWidth: number(e.currentTarget.value) })}
+            /></label
+          >{#if element.type !== 'line'}<label class="check"
+              ><input
+                type="checkbox"
+                checked={element.filled}
+                onchange={(e) => patch(element.id, { filled: e.currentTarget.checked })}
+              /> Filled</label
+            >{/if}
+        </div>
+      {:else if element.type === 'group'}<p>{element.childIds.length} child elements</p>{/if}
+      <label
+        >Assigned zone<select
+          value={String(element.constraints?.find((item) => item.kind === 'zone')?.value ?? '')}
+          onchange={(e) =>
+            patch(element.id, {
+              constraints: [
+                ...(element.constraints ?? []).filter((item) => item.kind !== 'zone'),
+                ...(e.currentTarget.value ? [{ kind: 'zone', value: e.currentTarget.value }] : []),
+              ],
+            })}
+          ><option value="">None</option>{#each editor.document.media.zones ?? [] as zone}<option value={zone.id}
+              >{zone.name}</option
+            >{/each}</select
+        ></label
+      >
+    {/each}{:else}<p>
+      {editor.selectedElements.length
+        ? `${editor.selectedElements.length} elements selected`
+        : 'Select an element to inspect it.'}
+    </p>{/if}
 </section>
-<style>section{padding:.7rem .75rem;border-top:1px solid var(--mble-border,#e5dfd5)}h2{margin:0 0 .5rem;color:var(--mble-text-muted,#59635e);font-size:.75rem;font-weight:600}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}label{display:flex;flex-direction:column;font-size:.75rem;margin-bottom:.5rem}.check{flex-direction:row;align-items:center;gap:.3rem}.render-help{margin:-.2rem 0 .55rem;color:var(--mble-text-muted,#59635e);font-size:.68rem;line-height:1.35}input,textarea,select{max-width:100%;box-sizing:border-box}</style>
+
+<style>
+  section {
+    padding: 0.7rem 0.75rem;
+    border-top: 1px solid var(--mble-border, #e5dfd5);
+  }
+  h2 {
+    margin: 0 0 0.5rem;
+    color: var(--mble-text-muted, #59635e);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .check {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .render-help {
+    margin: -0.2rem 0 0.55rem;
+    color: var(--mble-text-muted, #59635e);
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+  input,
+  textarea,
+  select {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+</style>

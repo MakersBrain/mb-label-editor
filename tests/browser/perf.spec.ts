@@ -84,7 +84,9 @@ test('a drag stays within the interaction budget', async ({ page }) => {
 
   expect(dragTaskMs, 'longest task during the drag').toBeLessThanOrEqual(budget.dragTaskMs);
   expect(measured.settleTaskMs, 'longest task after release').toBeLessThanOrEqual(budget.settleTaskMs);
-  expect(measured.idbWriteTransactions, 'IndexedDB write transactions during the drag').toBeLessThanOrEqual(budget.idbWriteTransactions);
+  expect(measured.idbWriteTransactions, 'IndexedDB write transactions during the drag').toBeLessThanOrEqual(
+    budget.idbWriteTransactions,
+  );
   expect(measured.sdkRenders, 'SDK renders during the drag').toBeLessThanOrEqual(budget.sdkRenders);
   expect(measured.sdkMeasures, 'SDK measures during the drag').toBeLessThanOrEqual(budget.sdkMeasures);
 });

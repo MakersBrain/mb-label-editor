@@ -13,24 +13,33 @@
   $effect(() => {
     const target = document;
     let cancelled = false;
-    draw(target, () => cancelled).catch((reason: unknown) => { if (!cancelled) error = reason instanceof Error ? reason.message : String(reason); });
-    return () => { cancelled = true; };
+    draw(target, () => cancelled).catch((reason: unknown) => {
+      if (!cancelled) error = reason instanceof Error ? reason.message : String(reason);
+    });
+    return () => {
+      cancelled = true;
+    };
   });
-  $effect(() => { paint(canvas, zoom); });
+  $effect(() => {
+    paint(canvas, zoom);
+  });
   async function draw(target: LabelDocument, isCancelled: () => boolean) {
     try {
       const preview = await sdk.render(target, { exactThermal: true, record: target.template?.currentRecord });
       if (isCancelled()) return;
       await tick();
       const full = source ?? globalThis.document.createElement('canvas');
-      full.width = preview.width; full.height = preview.height;
+      full.width = preview.width;
+      full.height = preview.height;
       const context = full.getContext('2d');
       if (!context) throw new Error('Canvas unavailable');
       context.putImageData(new ImageData(new Uint8ClampedArray(preview.rgba), preview.width, preview.height), 0, 0);
       source = full;
       paint(canvas, zoom);
       error = '';
-    } catch (reason) { if (!isCancelled()) error = reason instanceof Error ? reason.message : String(reason); }
+    } catch (reason) {
+      if (!isCancelled()) error = reason instanceof Error ? reason.message : String(reason);
+    }
   }
   /**
    * The printer raster is far denser than the screen. Nearest-neighbour sampling drops most
@@ -45,13 +54,39 @@
     crisp = scale >= 1;
     const width = Math.max(1, Math.round(source.width * scale));
     const height = Math.max(1, Math.round(source.height * scale));
-    canvas.width = width; canvas.height = height;
+    canvas.width = width;
+    canvas.height = height;
     const context = canvas.getContext('2d');
     if (!context) return;
-    context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
     context.drawImage(source, 0, 0, width, height);
   }
 </script>
+
 <canvas bind:this={canvas} class:crisp aria-label="Exact thermal SDK preview"></canvas>
 {#if error}<span class="error" title={error}>SDK preview unavailable</span>{/if}
-<style>canvas{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply;pointer-events:none;z-index:0}canvas.crisp{image-rendering:pixelated}.error{position:absolute;right:.3rem;bottom:.3rem;background:color-mix(in srgb,var(--mble-surface,#fff) 80%,transparent);color:var(--mble-danger,#a21);font-size:9px;z-index:2}</style>
+
+<style>
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    z-index: 0;
+  }
+  canvas.crisp {
+    image-rendering: pixelated;
+  }
+  .error {
+    position: absolute;
+    right: 0.3rem;
+    bottom: 0.3rem;
+    background: color-mix(in srgb, var(--mble-surface, #fff) 80%, transparent);
+    color: var(--mble-danger, #a21);
+    font-size: 9px;
+    z-index: 2;
+  }
+</style>

@@ -2,7 +2,17 @@
 import { describe, expect, it } from 'vitest';
 import { addElement, defaultDocument, EditorStore, moveElements, type LabelElement } from '../src/index.js';
 
-const shape = (id: string, x: number): LabelElement => ({ id, name: id, type: 'rectangle', transform: { x, y: 1, width: 5, height: 5, rotation: 0 }, zIndex: 0, visible: true, locked: false, strokeWidth: 0.2, filled: false });
+const shape = (id: string, x: number): LabelElement => ({
+  id,
+  name: id,
+  type: 'rectangle',
+  transform: { x, y: 1, width: 5, height: 5, rotation: 0 },
+  zIndex: 0,
+  visible: true,
+  locked: false,
+  strokeWidth: 0.2,
+  filled: false,
+});
 
 describe('runes editor store', () => {
   it('replaces the document identity on commands and derives the selection', () => {
@@ -19,7 +29,8 @@ describe('runes editor store', () => {
     expect([...editor.selection]).toEqual(['a', 'missing']);
     editor.clearSelection();
     expect(editor.selectedElements).toEqual([]);
-    editor.undo(); editor.undo();
+    editor.undo();
+    editor.undo();
     expect(editor.document).toBe(original);
     expect(editor.canUndo).toBe(false);
     expect(editor.canRedo).toBe(true);

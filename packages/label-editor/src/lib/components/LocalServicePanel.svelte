@@ -1,11 +1,35 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import type { BrotherWifiConfigureRequest, LocalApiBrotherReport, LocalApiBrotherWifiConfigurePreparation, LocalApiBrotherWifiScan, LocalApiBrotherWifiStatus, LocalApiConnection, LocalApiDiscoveryCandidate, LocalApiPrinterOperation, LocalApiPrintRoute } from '../print/local-api.js';
+  import type {
+    BrotherWifiConfigureRequest,
+    LocalApiBrotherReport,
+    LocalApiBrotherWifiConfigurePreparation,
+    LocalApiBrotherWifiScan,
+    LocalApiBrotherWifiStatus,
+    LocalApiConnection,
+    LocalApiDiscoveryCandidate,
+    LocalApiPrinterOperation,
+    LocalApiPrintRoute,
+  } from '../print/local-api.js';
 
   import { untrack } from 'svelte';
   /** `active` is toggled by the parent with the modal so sensitive fields do not survive reopening. */
-  interface Props { route: LocalApiPrintRoute; onToken?: (token: string) => void; onConnection?: (connection: LocalApiConnection | undefined) => void; selectedId?: string; paired?: boolean; active?: boolean }
-  let { route, onToken = () => {}, onConnection = () => {}, selectedId = $bindable(''), paired = false, active = false }: Props = $props();
+  interface Props {
+    route: LocalApiPrintRoute;
+    onToken?: (token: string) => void;
+    onConnection?: (connection: LocalApiConnection | undefined) => void;
+    selectedId?: string;
+    paired?: boolean;
+    active?: boolean;
+  }
+  let {
+    route,
+    onToken = () => {},
+    onConnection = () => {},
+    selectedId = $bindable(''),
+    paired = false,
+    active = false,
+  }: Props = $props();
 
   let secret = $state('');
   let status = $state('');
@@ -36,7 +60,9 @@
   let wifiConfigureTask = $state('');
   let wifiConfigureStatus = $state('');
   const selectedConnection = $derived(connections.find((item) => item.id === selectedId));
-  $effect(() => { if (!active) untrack(clearWifiConfigure); });
+  $effect(() => {
+    if (!active) untrack(clearWifiConfigure);
+  });
 
   async function pair() {
     try {
@@ -67,7 +93,9 @@
       adminPairingSecret = '';
       adminToken = '';
       wifiConfigureStatus = message(error);
-    } finally { wifiConfigureTask = ''; }
+    } finally {
+      wifiConfigureTask = '';
+    }
   }
 
   async function refresh() {
@@ -92,45 +120,79 @@
   }
 
   async function discover() {
-    if (!paired) { status = 'Pair with the local service before discovering printers.'; return; }
-    diagnosticTask = 'discover'; diagnosticStatus = 'Discovering local printers…';
+    if (!paired) {
+      status = 'Pair with the local service before discovering printers.';
+      return;
+    }
+    diagnosticTask = 'discover';
+    diagnosticStatus = 'Discovering local printers…';
     try {
       const result = await route.discover();
       candidates = result.devices;
-      diagnosticStatus = candidates.length ? `${candidates.length} local printer candidate(s) found.` : 'No local printer candidates found.';
-    } catch (error) { diagnosticStatus = message(error); }
-    finally { diagnosticTask = ''; }
+      diagnosticStatus = candidates.length
+        ? `${candidates.length} local printer candidate(s) found.`
+        : 'No local printer candidates found.';
+    } catch (error) {
+      diagnosticStatus = message(error);
+    } finally {
+      diagnosticTask = '';
+    }
   }
 
   async function readWifiStatus() {
     if (!selectedConnection || !supports('wifi-status')) return;
-    diagnosticTask = 'wifi-status'; diagnosticStatus = 'Reading Brother Wi-Fi status…'; wifi = undefined;
-    try { wifi = await route.brotherWifiStatus(selectedConnection.id); diagnosticStatus = 'Brother Wi-Fi status updated.'; }
-    catch (error) { diagnosticStatus = message(error); }
-    finally { diagnosticTask = ''; }
+    diagnosticTask = 'wifi-status';
+    diagnosticStatus = 'Reading Brother Wi-Fi status…';
+    wifi = undefined;
+    try {
+      wifi = await route.brotherWifiStatus(selectedConnection.id);
+      diagnosticStatus = 'Brother Wi-Fi status updated.';
+    } catch (error) {
+      diagnosticStatus = message(error);
+    } finally {
+      diagnosticTask = '';
+    }
   }
 
   async function scanWifi() {
     if (!selectedConnection || !supports('wifi-scan')) return;
-    diagnosticTask = 'wifi-scan'; diagnosticStatus = 'Scanning Wi-Fi networks…'; scan = undefined;
-    try { scan = await route.brotherWifiScan(selectedConnection.id); diagnosticStatus = `${scan.accessPoints.length} Wi-Fi network(s) found.`; }
-    catch (error) { diagnosticStatus = message(error); }
-    finally { diagnosticTask = ''; }
+    diagnosticTask = 'wifi-scan';
+    diagnosticStatus = 'Scanning Wi-Fi networks…';
+    scan = undefined;
+    try {
+      scan = await route.brotherWifiScan(selectedConnection.id);
+      diagnosticStatus = `${scan.accessPoints.length} Wi-Fi network(s) found.`;
+    } catch (error) {
+      diagnosticStatus = message(error);
+    } finally {
+      diagnosticTask = '';
+    }
   }
 
   async function readReport() {
     if (!selectedConnection || !supports('system-report')) return;
-    diagnosticTask = 'system-report'; diagnosticStatus = 'Reading redacted Brother system report…'; report = undefined;
-    try { report = await route.brotherReport(selectedConnection.id); diagnosticStatus = 'Redacted Brother system report loaded.'; }
-    catch (error) { diagnosticStatus = message(error); }
-    finally { diagnosticTask = ''; }
+    diagnosticTask = 'system-report';
+    diagnosticStatus = 'Reading redacted Brother system report…';
+    report = undefined;
+    try {
+      report = await route.brotherReport(selectedConnection.id);
+      diagnosticStatus = 'Redacted Brother system report loaded.';
+    } catch (error) {
+      diagnosticStatus = message(error);
+    } finally {
+      diagnosticTask = '';
+    }
   }
 
   function wifiConfigureRequest(): BrotherWifiConfigureRequest {
     return {
-      ssid: wifiSsid.trim(), password: wifiPassword, encryption: wifiEncryption,
-      authentication: wifiAuthentication, infrastructure: wifiInfrastructure,
-      wirelessDirect: wifiWirelessDirect, reboot: wifiReboot
+      ssid: wifiSsid.trim(),
+      password: wifiPassword,
+      encryption: wifiEncryption,
+      authentication: wifiAuthentication,
+      infrastructure: wifiInfrastructure,
+      wirelessDirect: wifiWirelessDirect,
+      reboot: wifiReboot,
     };
   }
 
@@ -157,21 +219,34 @@
 
   async function prepareWifiConfigure() {
     if (!selectedConnection || !supports('wifi-configure')) return;
-    wifiConfigureTask = 'prepare'; wifiConfigureStatus = 'Preparing Wi-Fi configuration review…';
+    wifiConfigureTask = 'prepare';
+    wifiConfigureStatus = 'Preparing Wi-Fi configuration review…';
     try {
-      wifiPreparation = await route.prepareBrotherWifiConfigure(selectedConnection.id, wifiConfigureRequest(), adminToken);
+      wifiPreparation = await route.prepareBrotherWifiConfigure(
+        selectedConnection.id,
+        wifiConfigureRequest(),
+        adminToken,
+      );
       wifiConfigureStatus = `Review expires ${new Date(wifiPreparation.expiresAt * 1_000).toLocaleTimeString()}.`;
     } catch (error) {
       wifiConfigureStatus = message(error);
       clearWifiConfigure();
-    } finally { wifiConfigureTask = ''; }
+    } finally {
+      wifiConfigureTask = '';
+    }
   }
 
   async function applyWifiConfigure() {
     if (!selectedConnection || !wifiPreparation || !supports('wifi-configure')) return;
-    wifiConfigureTask = 'apply'; wifiConfigureStatus = 'Applying reviewed Wi-Fi configuration…';
+    wifiConfigureTask = 'apply';
+    wifiConfigureStatus = 'Applying reviewed Wi-Fi configuration…';
     try {
-      const result = await route.configureBrotherWifi(selectedConnection.id, wifiPreparation.approvalId, wifiConfigureRequest(), adminToken);
+      const result = await route.configureBrotherWifi(
+        selectedConnection.id,
+        wifiPreparation.approvalId,
+        wifiConfigureRequest(),
+        adminToken,
+      );
       wifiConfigureStatus = result.applied
         ? `Wi-Fi configuration sent${result.reboot ? '; printer reboot requested.' : '.'}`
         : 'The local service did not apply the Wi-Fi configuration.';
@@ -179,12 +254,23 @@
     } catch (error) {
       wifiConfigureStatus = message(error);
       clearWifiConfigure();
-    } finally { wifiConfigureTask = ''; }
+    } finally {
+      wifiConfigureTask = '';
+    }
   }
 
-  function supports(operation: LocalApiPrinterOperation) { return selectedConnection?.operations?.includes(operation) ?? false; }
-  function clearDiagnostics() { wifi = undefined; scan = undefined; report = undefined; diagnosticStatus = ''; clearWifiConfigure(); wifiConfigureStatus = ''; }
-  const message = (error: unknown) => error instanceof Error ? error.message : String(error);
+  function supports(operation: LocalApiPrinterOperation) {
+    return selectedConnection?.operations?.includes(operation) ?? false;
+  }
+  function clearDiagnostics() {
+    wifi = undefined;
+    scan = undefined;
+    report = undefined;
+    diagnosticStatus = '';
+    clearWifiConfigure();
+    wifiConfigureStatus = '';
+  }
+  const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
   async function configureIpp() {
     try {
@@ -195,8 +281,8 @@
         transport: {
           kind: 'ipp',
           uri: ippUri.trim(),
-          ...(certificatePem.trim() ? { certificatePem: certificatePem.trim() } : {})
-        }
+          ...(certificatePem.trim() ? { certificatePem: certificatePem.trim() } : {}),
+        },
       });
       connections = [...connections.filter((item) => item.id !== configured.id), configured];
       selectedId = configured.id;
@@ -214,7 +300,7 @@
       liveStatus = 'Checking printer…';
       const current = await route.connectionStatus(selectedId);
       const updated = { ...current.connection, status: current.status, media: current.media };
-      connections = connections.map((item) => item.id === updated.id ? updated : item);
+      connections = connections.map((item) => (item.id === updated.id ? updated : item));
       onConnection(updated);
       liveStatus = current.connected
         ? describe(current.status, current.media)
@@ -236,15 +322,18 @@
 <section>
   <h2>Local service</h2>
   <div class="row">
-    <label>One-time pairing secret<input type="password" bind:value={secret} autocomplete="off"></label>
+    <label>One-time pairing secret<input type="password" bind:value={secret} autocomplete="off" /></label>
     <button onclick={pair} disabled={!secret}>Pair on localhost</button>
   </div>
   <div class="row">
-    <label class="grow">Printer connection
+    <label class="grow"
+      >Printer connection
       <select bind:value={selectedId} onchange={choose}>
         <option value="">Select a connection</option>
         {#each connections as connection}
-          <option value={connection.id}>{connection.id} · {connection.model} · {connection.transport.kind} · {connection.status}</option>
+          <option value={connection.id}
+            >{connection.id} · {connection.model} · {connection.transport.kind} · {connection.status}</option
+          >
         {/each}
       </select>
     </label>
@@ -255,12 +344,20 @@
 
   <fieldset>
     <legend>Discover local printers</legend>
-    <button onclick={discover} disabled={!paired || !!diagnosticTask}>{diagnosticTask === 'discover' ? 'Discovering…' : 'Discover'}</button>
+    <button onclick={discover} disabled={!paired || !!diagnosticTask}
+      >{diagnosticTask === 'discover' ? 'Discovering…' : 'Discover'}</button
+    >
     {#if !paired}<p>Pair with the local service to enable discovery.</p>{/if}
     {#if candidates.length}
       <ul aria-label="Discovered printer candidates">
         {#each candidates as candidate}
-          <li><strong>{candidate.name ?? candidate.address}</strong><span>{candidate.transport} · {candidate.address}{candidate.matchedModel ? ` · ${candidate.matchedModel}` : ''}</span></li>
+          <li>
+            <strong>{candidate.name ?? candidate.address}</strong><span
+              >{candidate.transport} · {candidate.address}{candidate.matchedModel
+                ? ` · ${candidate.matchedModel}`
+                : ''}</span
+            >
+          </li>
         {/each}
       </ul>
     {/if}
@@ -270,23 +367,40 @@
     <fieldset>
       <legend>Brother diagnostics</legend>
       <div class="row diagnostics">
-        {#if supports('wifi-status')}<button onclick={readWifiStatus} disabled={!!diagnosticTask}>{diagnosticTask === 'wifi-status' ? 'Reading…' : 'Wi-Fi status'}</button>{/if}
-        {#if supports('wifi-scan')}<button onclick={scanWifi} disabled={!!diagnosticTask}>{diagnosticTask === 'wifi-scan' ? 'Scanning…' : 'Scan Wi-Fi'}</button>{/if}
-        {#if supports('system-report')}<button onclick={readReport} disabled={!!diagnosticTask}>{diagnosticTask === 'system-report' ? 'Reading…' : 'Redacted report'}</button>{/if}
+        {#if supports('wifi-status')}<button onclick={readWifiStatus} disabled={!!diagnosticTask}
+            >{diagnosticTask === 'wifi-status' ? 'Reading…' : 'Wi-Fi status'}</button
+          >{/if}
+        {#if supports('wifi-scan')}<button onclick={scanWifi} disabled={!!diagnosticTask}
+            >{diagnosticTask === 'wifi-scan' ? 'Scanning…' : 'Scan Wi-Fi'}</button
+          >{/if}
+        {#if supports('system-report')}<button onclick={readReport} disabled={!!diagnosticTask}
+            >{diagnosticTask === 'system-report' ? 'Reading…' : 'Redacted report'}</button
+          >{/if}
       </div>
       {#if wifi}
         <dl aria-label="Brother Wi-Fi status">
-          <dt>Connected</dt><dd>{wifi.status.connected ? 'yes' : 'no'}</dd>
-          {#if wifi.status.ipAddress}<dt>IP address</dt><dd>{wifi.status.ipAddress}</dd>{/if}
-          {#if wifi.status.ssid}<dt>SSID</dt><dd>{wifi.status.ssid}</dd>{/if}
-          {#if wifi.status.encryption}<dt>Encryption</dt><dd>{wifi.status.encryption}</dd>{/if}
-          {#if wifi.status.authentication}<dt>Authentication</dt><dd>{wifi.status.authentication}</dd>{/if}
+          <dt>Connected</dt>
+          <dd>{wifi.status.connected ? 'yes' : 'no'}</dd>
+          {#if wifi.status.ipAddress}<dt>IP address</dt>
+            <dd>{wifi.status.ipAddress}</dd>{/if}
+          {#if wifi.status.ssid}<dt>SSID</dt>
+            <dd>{wifi.status.ssid}</dd>{/if}
+          {#if wifi.status.encryption}<dt>Encryption</dt>
+            <dd>{wifi.status.encryption}</dd>{/if}
+          {#if wifi.status.authentication}<dt>Authentication</dt>
+            <dd>{wifi.status.authentication}</dd>{/if}
         </dl>
       {/if}
       {#if scan}
         <ul aria-label="Brother Wi-Fi networks">
           {#each scan.accessPoints as accessPoint}
-            <li><strong>{accessPoint.ssid}</strong><span>channel {accessPoint.channel ?? 'unknown'} · power {accessPoint.power ?? 'unknown'} · {accessPoint.encrypted ? 'encrypted' : 'open'}{accessPoint.enterprise ? ' · enterprise' : ''}</span></li>
+            <li>
+              <strong>{accessPoint.ssid}</strong><span
+                >channel {accessPoint.channel ?? 'unknown'} · power {accessPoint.power ?? 'unknown'} · {accessPoint.encrypted
+                  ? 'encrypted'
+                  : 'open'}{accessPoint.enterprise ? ' · enterprise' : ''}</span
+              >
+            </li>
           {/each}
         </ul>
       {/if}
@@ -294,7 +408,13 @@
         <div class="report" aria-label="Redacted Brother system report">
           <strong>Redacted report</strong>
           {#each Object.entries(report.sections) as [section, values]}
-            <details><summary>{section}</summary><dl>{#each Object.entries(values) as [key, value]}<dt>{key}</dt><dd>{value}</dd>{/each}</dl></details>
+            <details>
+              <summary>{section}</summary>
+              <dl>
+                {#each Object.entries(values) as [key, value]}<dt>{key}</dt>
+                  <dd>{value}</dd>{/each}
+              </dl>
+            </details>
           {/each}
         </div>
       {/if}
@@ -303,57 +423,132 @@
         <fieldset class="wifi-configure">
           <legend>Configure Wi-Fi</legend>
           {#if !wifiPreparation}
-            <p>Changes this USB-connected Brother printer’s network settings. Keep USB or Bluetooth available as the recovery path.</p>
+            <p>
+              Changes this USB-connected Brother printer’s network settings. Keep USB or Bluetooth available as the
+              recovery path.
+            </p>
             {#if !adminToken}
-              <label>One-time administrator pairing secret
-                <input type="password" bind:value={adminPairingSecret} autocomplete="off" spellcheck="false" aria-label="One-time administrator pairing secret">
+              <label
+                >One-time administrator pairing secret
+                <input
+                  type="password"
+                  bind:value={adminPairingSecret}
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="One-time administrator pairing secret"
+                />
               </label>
-              <button onclick={pairAdmin} disabled={!!wifiConfigureTask || !adminPairingSecret.trim()}>{wifiConfigureTask === 'admin-pair' ? 'Authorizing…' : 'Authorize Wi-Fi administration'}</button>
-              <p>Generate this short-lived secret locally with <code>mb-printer api pair-admin</code>. Its issued token stays only in this open panel.</p>
+              <button onclick={pairAdmin} disabled={!!wifiConfigureTask || !adminPairingSecret.trim()}
+                >{wifiConfigureTask === 'admin-pair' ? 'Authorizing…' : 'Authorize Wi-Fi administration'}</button
+              >
+              <p>
+                Generate this short-lived secret locally with <code>mb-printer api pair-admin</code>. Its issued token
+                stays only in this open panel.
+              </p>
             {:else}
               <p>Wi-Fi administration is authorized for this open panel. Closing it clears the token.</p>
             {/if}
-            <label>Wi-Fi network name (SSID)
-              <input bind:value={wifiSsid} autocomplete="off" spellcheck="false" aria-label="Wi-Fi network name" oninput={invalidateWifiPreparation}>
+            <label
+              >Wi-Fi network name (SSID)
+              <input
+                bind:value={wifiSsid}
+                autocomplete="off"
+                spellcheck="false"
+                aria-label="Wi-Fi network name"
+                oninput={invalidateWifiPreparation}
+              />
             </label>
-            <label>Wi-Fi password
-              <input type="password" bind:value={wifiPassword} autocomplete="new-password" spellcheck="false" aria-label="Wi-Fi password" oninput={invalidateWifiPreparation}>
+            <label
+              >Wi-Fi password
+              <input
+                type="password"
+                bind:value={wifiPassword}
+                autocomplete="new-password"
+                spellcheck="false"
+                aria-label="Wi-Fi password"
+                oninput={invalidateWifiPreparation}
+              />
             </label>
             <div class="grid">
-              <label>Encryption
+              <label
+                >Encryption
                 <select bind:value={wifiEncryption} aria-label="Wi-Fi encryption" onchange={invalidateWifiPreparation}>
-                  <option value="aes">WPA2/WPA3 AES</option><option value="tkip">WPA TKIP</option><option value="none">Open network</option>
+                  <option value="aes">WPA2/WPA3 AES</option><option value="tkip">WPA TKIP</option><option value="none"
+                    >Open network</option
+                  >
                 </select>
               </label>
-              <label>Authentication
-                <select bind:value={wifiAuthentication} aria-label="Wi-Fi authentication" onchange={invalidateWifiPreparation}>
-                  <option value="wpa2-only">WPA2 personal</option><option value="wpa-psk">WPA personal</option><option value="open">Open</option>
+              <label
+                >Authentication
+                <select
+                  bind:value={wifiAuthentication}
+                  aria-label="Wi-Fi authentication"
+                  onchange={invalidateWifiPreparation}
+                >
+                  <option value="wpa2-only">WPA2 personal</option><option value="wpa-psk">WPA personal</option><option
+                    value="open">Open</option
+                  >
                 </select>
               </label>
             </div>
             <div class="checks">
-              <label><input type="checkbox" bind:checked={wifiInfrastructure} onchange={invalidateWifiPreparation}> Infrastructure mode</label>
-              <label><input type="checkbox" bind:checked={wifiWirelessDirect} onchange={invalidateWifiPreparation}> Wireless Direct</label>
-              <label><input type="checkbox" bind:checked={wifiReboot} onchange={invalidateWifiPreparation}> Reboot printer after applying</label>
+              <label
+                ><input type="checkbox" bind:checked={wifiInfrastructure} onchange={invalidateWifiPreparation} /> Infrastructure
+                mode</label
+              >
+              <label
+                ><input type="checkbox" bind:checked={wifiWirelessDirect} onchange={invalidateWifiPreparation} /> Wireless
+                Direct</label
+              >
+              <label
+                ><input type="checkbox" bind:checked={wifiReboot} onchange={invalidateWifiPreparation} /> Reboot printer after
+                applying</label
+              >
             </div>
-            <button onclick={prepareWifiConfigure} disabled={!!wifiConfigureTask || !adminToken.trim() || !wifiSsid.trim() || (wifiEncryption !== 'none' && !wifiPassword)}> {wifiConfigureTask === 'prepare' ? 'Preparing review…' : 'Review Wi-Fi configuration'}</button>
+            <button
+              onclick={prepareWifiConfigure}
+              disabled={!!wifiConfigureTask ||
+                !adminToken.trim() ||
+                !wifiSsid.trim() ||
+                (wifiEncryption !== 'none' && !wifiPassword)}
+            >
+              {wifiConfigureTask === 'prepare' ? 'Preparing review…' : 'Review Wi-Fi configuration'}</button
+            >
           {:else}
             <div class="review" aria-label="Wi-Fi configuration review">
               <strong>Review before applying</strong>
               <dl>
-                <dt>Printer</dt><dd>{wifiPreparation.summary.connection} · {wifiPreparation.summary.device}</dd>
-                <dt>SSID</dt><dd>{wifiPreparation.summary.ssid}</dd>
-                <dt>Encryption</dt><dd>{wifiPreparation.summary.encryption}</dd>
-                <dt>Authentication</dt><dd>{wifiPreparation.summary.authentication}</dd>
-                <dt>Infrastructure</dt><dd>{wifiPreparation.summary.infrastructure ? 'yes' : 'no'}</dd>
-                <dt>Wireless Direct</dt><dd>{wifiPreparation.summary.wirelessDirect ? 'yes' : 'no'}</dd>
-                <dt>Reboot</dt><dd>{wifiPreparation.summary.reboot ? 'yes' : 'no'}</dd>
+                <dt>Printer</dt>
+                <dd>{wifiPreparation.summary.connection} · {wifiPreparation.summary.device}</dd>
+                <dt>SSID</dt>
+                <dd>{wifiPreparation.summary.ssid}</dd>
+                <dt>Encryption</dt>
+                <dd>{wifiPreparation.summary.encryption}</dd>
+                <dt>Authentication</dt>
+                <dd>{wifiPreparation.summary.authentication}</dd>
+                <dt>Infrastructure</dt>
+                <dd>{wifiPreparation.summary.infrastructure ? 'yes' : 'no'}</dd>
+                <dt>Wireless Direct</dt>
+                <dd>{wifiPreparation.summary.wirelessDirect ? 'yes' : 'no'}</dd>
+                <dt>Reboot</dt>
+                <dd>{wifiPreparation.summary.reboot ? 'yes' : 'no'}</dd>
               </dl>
-              <p>The password is not displayed or saved. This review expires {new Date(wifiPreparation.expiresAt * 1_000).toLocaleTimeString()}.</p>
+              <p>
+                The password is not displayed or saved. This review expires {new Date(
+                  wifiPreparation.expiresAt * 1_000,
+                ).toLocaleTimeString()}.
+              </p>
               <p>{wifiPreparation.recovery}</p>
               <div class="row">
-                <button onclick={() => { wifiPreparation = undefined; wifiConfigureStatus = 'Review cancelled.'; }}>Edit settings</button>
-                <button class="danger" onclick={applyWifiConfigure} disabled={!!wifiConfigureTask}>{wifiConfigureTask === 'apply' ? 'Applying…' : 'Apply Wi-Fi configuration'}</button>
+                <button
+                  onclick={() => {
+                    wifiPreparation = undefined;
+                    wifiConfigureStatus = 'Review cancelled.';
+                  }}>Edit settings</button
+                >
+                <button class="danger" onclick={applyWifiConfigure} disabled={!!wifiConfigureTask}
+                  >{wifiConfigureTask === 'apply' ? 'Applying…' : 'Apply Wi-Fi configuration'}</button
+                >
               </div>
             </div>
           {/if}
@@ -366,15 +561,31 @@
   <fieldset>
     <legend>Add a network printer using IPP/IPPS</legend>
     <div class="grid">
-      <label>Connection name<input bind:value={connectionId} placeholder="brother-network"></label>
-      <label>Printer model ID<input bind:value={model} placeholder="ql-1110nwb"></label>
+      <label>Connection name<input bind:value={connectionId} placeholder="brother-network" /></label>
+      <label>Printer model ID<input bind:value={model} placeholder="ql-1110nwb" /></label>
     </div>
-    <label>Printer URI<input bind:value={ippUri} spellcheck="false" placeholder="ipps://brother.local:631/ipp/print"></label>
-    <label>Trusted certificate PEM (optional)
-      <textarea bind:value={certificatePem} spellcheck="false" rows="3" placeholder="Leave blank for normal system certificate trust"></textarea>
+    <label
+      >Printer URI<input
+        bind:value={ippUri}
+        spellcheck="false"
+        placeholder="ipps://brother.local:631/ipp/print"
+      /></label
+    >
+    <label
+      >Trusted certificate PEM (optional)
+      <textarea
+        bind:value={certificatePem}
+        spellcheck="false"
+        rows="3"
+        placeholder="Leave blank for normal system certificate trust"></textarea>
     </label>
-    <button onclick={configureIpp} disabled={!connectionId.trim() || !model.trim() || !ippUri.trim()}>Probe, save, and select</button>
-    <p>Use <code>ipps://</code> for encrypted printing. A private or self-signed printer certificate must be supplied explicitly and must match the printer hostname.</p>
+    <button onclick={configureIpp} disabled={!connectionId.trim() || !model.trim() || !ippUri.trim()}
+      >Probe, save, and select</button
+    >
+    <p>
+      Use <code>ipps://</code> for encrypted printing. A private or self-signed printer certificate must be supplied explicitly
+      and must match the printer hostname.
+    </p>
   </fieldset>
   <p>Printing is enabled only after the service has probed and persisted a physical printer connection.</p>
   {#if diagnosticStatus}<p class="live" aria-live="polite">{diagnosticStatus}</p>{/if}
@@ -382,19 +593,145 @@
 </section>
 
 <style>
-  section{padding:.7rem .75rem;border-top:1px solid var(--mble-border,#e5dfd5)}
-  h2{margin:0 0 .5rem;color:var(--mble-text-muted,#59635e);font-size:.75rem;font-weight:600}
-  label{display:flex;flex:1;flex-direction:column;gap:.2rem;font-size:.75rem}
-  input,select,textarea{box-sizing:border-box;max-width:100%;font:inherit}
-  textarea{resize:vertical}
-  button{align-self:end}
-  p{font-size:.72rem}
-  fieldset{display:flex;flex-direction:column;gap:.5rem;margin:.75rem 0 0;padding:.65rem;border:1px solid var(--mble-border,#e5dfd5)}
-  legend{font-size:.75rem;font-weight:600}
-  .row,.grid{display:flex;align-items:end;gap:.5rem}
-  .grow{flex:1}
-  .live{padding:.4rem;background:var(--mble-surface-muted,#f5f3ef);overflow-wrap:anywhere}
-  ul{display:flex;flex-direction:column;gap:.35rem;margin:.25rem 0;padding:0;list-style:none}li{display:flex;flex-direction:column;gap:.1rem;padding:.35rem;background:var(--mble-surface-muted,#f5f3ef);font-size:.72rem;overflow-wrap:anywhere}li span{color:var(--mble-text-muted,#59635e)}
-  dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.2rem .55rem;margin:.35rem 0;font-size:.72rem}dt{font-weight:600}dd{margin:0;overflow-wrap:anywhere}.diagnostics{justify-content:flex-start}.report details{margin-top:.3rem}.report summary{cursor:pointer;font-size:.72rem;font-weight:600}.wifi-configure{background:var(--mble-surface-muted,#f5f3ef)}.wifi-configure>p{margin:0}.checks{display:flex;flex-direction:column;gap:.35rem}.checks label{display:block}.checks input{margin-right:.35rem}.review{padding:.5rem;border:1px solid var(--mble-border,#e5dfd5);background:var(--mble-surface,#fff)}.danger{background:#9b2c2c;color:#fff;border-color:#9b2c2c}
-  @media(max-width:36rem){.row,.grid{align-items:stretch;flex-direction:column}.row button{align-self:stretch}}
+  section {
+    padding: 0.7rem 0.75rem;
+    border-top: 1px solid var(--mble-border, #e5dfd5);
+  }
+  h2 {
+    margin: 0 0 0.5rem;
+    color: var(--mble-text-muted, #59635e);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  label {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.75rem;
+  }
+  input,
+  select,
+  textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+    font: inherit;
+  }
+  textarea {
+    resize: vertical;
+  }
+  button {
+    align-self: end;
+  }
+  p {
+    font-size: 0.72rem;
+  }
+  fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.75rem 0 0;
+    padding: 0.65rem;
+    border: 1px solid var(--mble-border, #e5dfd5);
+  }
+  legend {
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .row,
+  .grid {
+    display: flex;
+    align-items: end;
+    gap: 0.5rem;
+  }
+  .grow {
+    flex: 1;
+  }
+  .live {
+    padding: 0.4rem;
+    background: var(--mble-surface-muted, #f5f3ef);
+    overflow-wrap: anywhere;
+  }
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0.25rem 0;
+    padding: 0;
+    list-style: none;
+  }
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.35rem;
+    background: var(--mble-surface-muted, #f5f3ef);
+    font-size: 0.72rem;
+    overflow-wrap: anywhere;
+  }
+  li span {
+    color: var(--mble-text-muted, #59635e);
+  }
+  dl {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.2rem 0.55rem;
+    margin: 0.35rem 0;
+    font-size: 0.72rem;
+  }
+  dt {
+    font-weight: 600;
+  }
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+  .diagnostics {
+    justify-content: flex-start;
+  }
+  .report details {
+    margin-top: 0.3rem;
+  }
+  .report summary {
+    cursor: pointer;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .wifi-configure {
+    background: var(--mble-surface-muted, #f5f3ef);
+  }
+  .wifi-configure > p {
+    margin: 0;
+  }
+  .checks {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .checks label {
+    display: block;
+  }
+  .checks input {
+    margin-right: 0.35rem;
+  }
+  .review {
+    padding: 0.5rem;
+    border: 1px solid var(--mble-border, #e5dfd5);
+    background: var(--mble-surface, #fff);
+  }
+  .danger {
+    background: #9b2c2c;
+    color: #fff;
+    border-color: #9b2c2c;
+  }
+  @media (max-width: 36rem) {
+    .row,
+    .grid {
+      align-items: stretch;
+      flex-direction: column;
+    }
+    .row button {
+      align-self: stretch;
+    }
+  }
 </style>

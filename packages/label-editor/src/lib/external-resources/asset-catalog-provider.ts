@@ -11,7 +11,7 @@ export const assetCatalogProviderFactory: ExternalResourceProviderFactory = {
       connectionId: connection.id,
       displayName: connection.name,
       token: options.getAccessToken,
-      fetch: options.fetch
+      fetch: options.fetch,
     });
-  }
+  },
 };

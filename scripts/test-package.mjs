@@ -19,7 +19,7 @@ try {
   if (!archive) {
     const { stdout } = await exec('npm', ['pack', '--json', '--pack-destination', temporary], {
       cwd: join(root, 'packages/label-editor'),
-      env: { ...process.env, npm_config_cache: join(temporary, 'cache') }
+      env: { ...process.env, npm_config_cache: join(temporary, 'cache') },
     });
     archive = join(temporary, JSON.parse(stdout)[0].filename);
   }
@@ -34,7 +34,8 @@ try {
     manifest.types !== './dist/index.d.ts' ||
     manifest.exports?.['.']?.svelte !== './dist/index.js' ||
     manifest.publishConfig?.registry !== 'https://registry.npmjs.org/'
-  ) throw new Error('packed package entrypoints or registry are incomplete');
+  )
+    throw new Error('packed package entrypoints or registry are incomplete');
   if (manifest.dependencies?.['@makersbrain/ui'] || manifest.peerDependencies?.['@makersbrain/ui']) {
     throw new Error('standalone editor package must not depend on @makersbrain/ui');
   }
@@ -43,7 +44,7 @@ try {
     await readFile(join(output, manifest.exports[entry].replace('./', '')), 'utf8');
   }
   const adapter = await readFile(join(output, 'dist/themes/mb-ui.css'), 'utf8');
-  if (!adapter.includes("@makersbrain/ui/adapters/shadcn.css")) {
+  if (!adapter.includes('@makersbrain/ui/adapters/shadcn.css')) {
     throw new Error('MB UI adapter must consume the canonical Shadcn token bridge');
   }
   for (const name of ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']) {
@@ -53,13 +54,13 @@ try {
   await writeFile(join(temporary, 'index.html'), '<div id="app"></div><script type="module" src="/main.js"></script>');
   await writeFile(
     join(temporary, 'main.js'),
-    "import{mount}from'svelte';import{LabelEditor,createEditorStore,defaultDocument}from'@makersbrain/label-editor';import'@makersbrain/label-editor/core.css';import'@makersbrain/label-editor/themes/standalone.css';mount(LabelEditor,{target:document.querySelector('#app'),props:{editor:createEditorStore(defaultDocument())}});"
+    "import{mount}from'svelte';import{LabelEditor,createEditorStore,defaultDocument}from'@makersbrain/label-editor';import'@makersbrain/label-editor/core.css';import'@makersbrain/label-editor/themes/standalone.css';mount(LabelEditor,{target:document.querySelector('#app'),props:{editor:createEditorStore(defaultDocument())}});",
   );
   await build({
     root: temporary,
     logLevel: 'silent',
     plugins: [svelte()],
-    build: { outDir: join(temporary, 'consumer-dist') }
+    build: { outDir: join(temporary, 'consumer-dist') },
   });
   await readFile(join(temporary, 'consumer-dist', 'index.html'), 'utf8');
   console.log('dependency-free standalone and optional MB UI package boundaries passed');

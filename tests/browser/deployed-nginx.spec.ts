@@ -11,24 +11,22 @@ test.describe('deployed label-editor nginx boundary', () => {
   test('serves the document policy and authenticated same-origin asset API', async ({ page }) => {
     const navigation = await page.goto('/');
     expect(navigation).not.toBeNull();
-    expect(navigation!.headers()['permissions-policy']).toBe(
-      'local-network=(self), loopback-network=(self)'
-    );
+    expect(navigation!.headers()['permissions-policy']).toBe('local-network=(self), loopback-network=(self)');
 
     const result = await page.evaluate(async (token) => {
       const apiUrl = new URL('/v1/catalog', location.href);
       const unauthenticated = await fetch(apiUrl, { cache: 'no-store' });
       const authenticated = await fetch(apiUrl, {
         cache: 'no-store',
-        headers: { authorization: `Bearer ${token}` }
+        headers: { authorization: `Bearer ${token}` },
       });
       const staticLooking = await fetch(new URL('/v1/not-static.woff2', location.href), {
         cache: 'no-store',
-        headers: { authorization: `Bearer ${token}` }
+        headers: { authorization: `Bearer ${token}` },
       });
-      const cacheKeys = (await Promise.all((await caches.keys()).map(async (name) =>
-        (await caches.open(name)).keys()
-      ))).flat().map((request) => request.url);
+      const cacheKeys = (await Promise.all((await caches.keys()).map(async (name) => (await caches.open(name)).keys())))
+        .flat()
+        .map((request) => request.url);
       return {
         unauthenticated: unauthenticated.status,
         authenticated: authenticated.status,
@@ -37,7 +35,7 @@ test.describe('deployed label-editor nginx boundary', () => {
         staticLooking: staticLooking.status,
         staticLookingType: staticLooking.headers.get('content-type'),
         staticLookingCacheControl: staticLooking.headers.get('cache-control'),
-        cacheKeys
+        cacheKeys,
       };
     }, assetToken);
 

@@ -23,7 +23,12 @@ test('compiled sibling WASM validates and renders the shared exact PNG/PDF fixtu
     const output = execFileSync('node', [smoke, module, fixture], { encoding: 'utf8' });
     expect(output).toContain('Editor Node/WASM exact preview fixture passed');
     if (!existsSync(join(wasmRoot, 'pkg/mb_printer_wasm.js'))) {
-      test.info().annotations.push({ type: 'browser-wasm', description: 'Web-target pkg is not generated; browser loading is intentionally unexecuted.' });
+      test.info().annotations.push({
+        type: 'browser-wasm',
+        description: 'Web-target pkg is not generated; browser loading is intentionally unexecuted.',
+      });
     }
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

@@ -11,9 +11,29 @@ function largeDocument() {
     for (let child = 0; child < 10; child++) {
       const id = `g${group}c${child}`;
       childIds.push(id);
-      elements.push({ id, name: id, type: 'rectangle', transform: { x: group, y: child, width: 2, height: 2, rotation: 0 }, zIndex: elements.length, visible: true, locked: false, strokeWidth: 0.2, filled: false, groupId: `g${group}` });
+      elements.push({
+        id,
+        name: id,
+        type: 'rectangle',
+        transform: { x: group, y: child, width: 2, height: 2, rotation: 0 },
+        zIndex: elements.length,
+        visible: true,
+        locked: false,
+        strokeWidth: 0.2,
+        filled: false,
+        groupId: `g${group}`,
+      });
     }
-    elements.push({ id: `g${group}`, name: `g${group}`, type: 'group', transform: { x: 0, y: 0, width: 0, height: 0, rotation: 0 }, zIndex: elements.length, visible: true, locked: false, childIds });
+    elements.push({
+      id: `g${group}`,
+      name: `g${group}`,
+      type: 'group',
+      transform: { x: 0, y: 0, width: 0, height: 0, rotation: 0 },
+      zIndex: elements.length,
+      visible: true,
+      locked: false,
+      childIds,
+    });
   }
   document.elements = elements;
   assertGroupInvariants(document);
@@ -24,7 +44,11 @@ describe('command cost on large documents', () => {
   it('moves elements in a 500-element document within a few milliseconds', () => {
     let document = largeDocument();
     const ids = ['g0', 'g1', 'g2c3'];
-    const run = () => { const started = performance.now(); document = moveElements(ids, { x: 0.1, y: 0 }).apply(document); return performance.now() - started; };
+    const run = () => {
+      const started = performance.now();
+      document = moveElements(ids, { x: 0.1, y: 0 }).apply(document);
+      return performance.now() - started;
+    };
     for (let warm = 0; warm < 5; warm++) run();
     const samples = Array.from({ length: 20 }, run).sort((a, b) => a - b);
     const median = samples[10];

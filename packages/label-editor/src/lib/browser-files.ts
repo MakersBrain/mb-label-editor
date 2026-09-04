@@ -73,7 +73,11 @@ export async function openPdfInNewWindow(
     return true;
   } catch (error) {
     if (url) port.revokeObjectUrl(url);
-    try { target.close(); } catch { /* Closing a failed popup is best effort. */ }
+    try {
+      target.close();
+    } catch {
+      /* Closing a failed popup is best effort. */
+    }
     throw error;
   }
 }
