@@ -121,7 +121,7 @@
     width: 4rem;
     height: 2.2rem;
     object-fit: contain;
-    background: white;
+    background: var(--mble-paper);
   }
   .slots small {
     display: block;

@@ -15,7 +15,8 @@
     "check:licenses": "node scripts/check-license-policy.mjs",
     "check:runes": "node scripts/check-runes.mjs",
     "check:breakpoints": "node scripts/check-breakpoints.mjs",
-    "lint": "eslint . --max-warnings 85",
+    "lint": "eslint . --max-warnings 85 && npm run lint:css",
+    "lint:css": "stylelint \"packages/label-editor/src/**/*.{css,svelte}\" \"apps/pwa/src/**/*.{css,svelte}\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:browser": "playwright test",
@@ -31,8 +32,10 @@
   "devDependencies": {
     "eslint": "^10.10.0",
     "eslint-plugin-svelte": "^3.23.0",
+    "postcss-html": "^2.0.0",
     "prettier": "^3.9.6",
     "prettier-plugin-svelte": "^4.1.1",
+    "stylelint": "^17.15.0",
     "svelte-eslint-parser": "^1.8.1",
     "typescript-eslint": "^8.69.0"
   }

@@ -955,7 +955,7 @@
   }
   .element.selected {
     border-color: var(--mble-primary);
-    outline: 1px solid white;
+    outline: 1px solid var(--mble-paper);
   }
   .element.locked {
     cursor: not-allowed;
@@ -978,7 +978,7 @@
     position: absolute;
     box-sizing: border-box;
     border: 1px solid var(--mble-primary);
-    outline: 1px solid white;
+    outline: 1px solid var(--mble-paper);
     pointer-events: none;
     z-index: var(--mble-z-canvas-chrome);
   }
@@ -994,7 +994,7 @@
     box-sizing: content-box;
     width: 8px;
     height: 8px;
-    background: white;
+    background: var(--mble-paper);
     border: 1px solid var(--mble-primary);
     pointer-events: auto;
     z-index: 1;

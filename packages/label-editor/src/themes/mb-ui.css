@@ -32,7 +32,7 @@
   --mble-border: var(--border);
   --mble-border-strong: var(--input);
   --mble-selection: var(--accent);
-  --mble-scrim: rgb(30 25 21 / 45%);
+  --mble-scrim: color-mix(in srgb, var(--mb-sand-900) 45%, transparent);
   --mble-paper: var(--mb-sand-0);
   --mble-ink: var(--mb-sand-900);
   --mble-shadow-sm: var(--mb-shadow-sm);
