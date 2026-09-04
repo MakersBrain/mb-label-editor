@@ -13,14 +13,19 @@ export function loadPrinterSdk(diagnostics?: (event: SheetDiagnostic) => void): 
   return instance ??= (async () => { await init(); return adaptSdk(diagnostics); })();
 }
 
+/** Call counters read by tests/browser/perf.spec.ts; compiled out of production builds. */
+const perf = import.meta.env.MODE === 'test' ? (window.__mbPerf ??= { render: 0, measure: 0, materialize: 0, reset() { this.render = 0; this.measure = 0; this.materialize = 0; } }) : undefined;
+
 function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
   const stampCache = new Map<string, Stamp>();
   return {
     buildInfo: parseBuildInfo(wasm.buildInfo()),
     async measure(document) {
+      if (perf) perf.measure++;
       return measurement(JSON.parse(wasm.measureDocument(JSON.stringify(toSdkDocument(document)))) as unknown);
     },
     async materializeRecord(document, record, options) {
+      if (perf) perf.materialize++;
       try { return materializedDocument(JSON.parse(wasm.materializeRecord(JSON.stringify(toSdkDocument(document)), JSON.stringify(record), JSON.stringify(materializeOptions(options)))) as unknown); }
       catch (error) { throw structuredMaterializationError(error); }
     },
@@ -35,7 +40,7 @@ function adaptSdk(diagnostics?: (event: SheetDiagnostic) => void): BrowserSdk {
     async validateCanonical(value) { const errors = JSON.parse(wasm.validateDocument(JSON.stringify(value))) as string[]; return { valid: !errors.length, errors }; },
     async importV3Canonical(value) { return JSON.parse(wasm.importV3(JSON.stringify(value))) as unknown; },
     async validate(document) { const errors = JSON.parse(wasm.validateDocument(JSON.stringify(toSdkDocument(document)))) as string[]; return { valid: !errors.length, errors }; },
-    async render(document) { assertDocumentReadyForOutput(document); return decodePng(wasm.renderPng(JSON.stringify(toSdkDocument(document)))); },
+    async render(document) { if (perf) perf.render++; assertDocumentReadyForOutput(document); return decodePng(wasm.renderPng(JSON.stringify(toSdkDocument(document)))); },
     async exportPng(document) { assertDocumentReadyForOutput(document); return wasm.renderPng(JSON.stringify(toSdkDocument(document))); },
     async exportPdf(documents) { documents.forEach(assertDocumentReadyForOutput); return wasm.renderBatchPdf(JSON.stringify(documents.map(toSdkDocument))); },
     async planSheet(input, layout, options) {
