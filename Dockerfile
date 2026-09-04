@@ -63,6 +63,6 @@ FROM nginx:1.27-alpine AS runtime
 # for Cloudflare Access sessions; only that one variable is substituted.
 ENV NGINX_ENVSUBST_FILTER=^ASSET_CATALOG_PROXY_AUTHORIZATION$
 COPY mb-label-editor/deploy/nginx.conf /etc/nginx/templates/default.conf.template
-COPY mb-label-editor/deploy/15-asset-catalog-proxy.envsh /docker-entrypoint.d/15-asset-catalog-proxy.envsh
+COPY --chmod=755 mb-label-editor/deploy/15-asset-catalog-proxy.envsh /docker-entrypoint.d/15-asset-catalog-proxy.envsh
 COPY --from=build /workspace/mb-label-editor/apps/pwa/dist /usr/share/nginx/html
 EXPOSE 8080
