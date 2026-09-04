@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import type { EditorStore } from '../store.svelte.js';
   import type { PrinterSdk } from '../print/types.js';
   import { addElement, addFont, addResource } from '../commands.js';
@@ -10,70 +10,65 @@
   import type { ExternalAsset, ExternalFont, ExternalResourceProvider } from '../external-resources/types.js';
   import { EditorDatabase } from '../persistence/database.js';
   import RemoteAssetPreview from './RemoteAssetPreview.svelte';
-  import { assetDrag, ASSET_DRAG_TYPE } from '../asset-drag.js';
+  import { assetDrag, ASSET_DRAG_TYPE } from '../asset-drag.svelte.js';
   import type { Point } from '../model.js';
   import manifest from '../../../assets/public-catalogue.json';
   import bundledFonts from '../../../assets/fonts/bundled-fonts.json';
 
-  export let editor: EditorStore;
-  export let sdk: PrinterSdk | undefined = undefined;
-  export let resourceProvider: ExternalResourceProvider | undefined = undefined;
-  /** False while the panel sits in a hidden tab, so it does not query the catalogue in the background. */
-  export let active = true;
+  interface Props { editor: EditorStore; sdk?: PrinterSdk; resourceProvider?: ExternalResourceProvider; /** False while the panel sits in a hidden tab, so it does not query the catalogue in the background. */ active?: boolean }
+  let { editor, sdk, resourceProvider, active = true }: Props = $props();
 
   const database = new EditorDatabase();
   const pageSize = 24;
-  let query = '';
-  let category = '';
-  let status = '';
+  let query = $state('');
+  let category = $state('');
+  let status = $state('');
   /** Search summaries live apart from action feedback so a late search result cannot overwrite an import message. */
-  let searchStatus = '';
-  let source: 'service' | 'browser' = resourceProvider ? 'service' : 'browser';
-  let remoteKind: 'assets' | 'fonts' = 'assets';
-  let privateAssets: CatalogueAsset[] = [];
-  let savedResources: Resource[] = [];
-  let favorites = new Set<string>();
+  let searchStatus = $state('');
+  let source = $state<'service' | 'browser'>(untrack(() => resourceProvider) ? 'service' : 'browser');
+  let remoteKind = $state<'assets' | 'fonts'>('assets');
+  let privateAssets = $state.raw<CatalogueAsset[]>([]);
+  let savedResources = $state.raw<Resource[]>([]);
+  let favorites = $state.raw(new Set<string>());
   /** Catalogue favourites keep the whole record so they can be shown without a search. */
   let remoteFavorites: { assets: Record<string, ExternalAsset>; fonts: Record<string, ExternalFont> } = { assets: {}, fonts: {} };
-  let onlyFavorites = false;
-  let recents: string[] = [];
-  let page = 0;
-  let remotePage = 1;
-  let remotePages = 1;
-  let remoteTotal = 0;
-  let remoteAssets: ExternalAsset[] = [];
-  let remoteFonts: ExternalFont[] = [];
-  let remoteLoading = false;
-  let imageProfile: 'photo' | 'logo' | 'line-art' = 'photo';
-  let mounted = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let requestSequence = 0;
-  let providerFilter = '';
-  let facetCategories: { value: string; count: number }[] = [];
-  let facetProviders: { value: string; count: number }[] = [];
+  let onlyFavorites = $state(false);
+  let recents = $state.raw<string[]>([]);
+  let page = $state(0);
+  let remotePage = $state(1);
+  let remotePages = $state(1);
+  let remoteTotal = $state(0);
+  let remoteAssets = $state.raw<ExternalAsset[]>([]);
+  let remoteFonts = $state.raw<ExternalFont[]>([]);
+  let remoteLoading = $state(false);
+  let imageProfile = $state<'photo' | 'logo' | 'line-art'>('photo');
+  let mounted = $state(false);
+  let timer = $state.raw<ReturnType<typeof setTimeout> | undefined>();
+  let requestSequence = $state(0);
+  let providerFilter = $state('');
+  let facetCategories: { value: string; count: number }[] = $state.raw([]);
+  let facetProviders: { value: string; count: number }[] = $state.raw([]);
   /** Tile the user clicked; placing happens from the detail strip or by double-click. */
-  let selected: { kind: 'local'; item: CatalogueAsset } | { kind: 'asset'; item: ExternalAsset } | { kind: 'font'; item: ExternalFont } | undefined;
-  let importOpen = false;
+  let selected: { kind: 'local'; item: CatalogueAsset } | { kind: 'asset'; item: ExternalAsset } | { kind: 'font'; item: ExternalFont } | undefined = $state.raw();
+  let importOpen = $state(false);
 
-  $: catalogue = new AssetCatalogue([...(manifest as CatalogueAsset[]).filter(item => item.visibility === 'public'), ...privateAssets]);
-  $: all = catalogue.search({ query, category: category || undefined }).filter(item => !onlyFavorites || favorites.has(item.id)).sort((a, b) => recents.indexOf(b.id) - recents.indexOf(a.id));
+  const catalogue = $derived(new AssetCatalogue([...(manifest as CatalogueAsset[]).filter(item => item.visibility === 'public'), ...privateAssets]));
+  const all = $derived(catalogue.search({ query, category: category || undefined }).filter(item => !onlyFavorites || favorites.has(item.id)).sort((a, b) => recents.indexOf(b.id) - recents.indexOf(a.id)));
   const matchesQuery = (text: string) => !query.trim() || text.toLowerCase().includes(query.trim().toLowerCase());
-  $: favoriteAssets = Object.values(remoteFavorites.assets).filter(item => matchesQuery(`${item.title} ${item.category} ${item.provider}`) && (!category || item.category === category));
-  $: favoriteFonts = Object.values(remoteFavorites.fonts).filter(item => matchesQuery(`${item.family} ${item.category} ${item.provider}`) && (!category || item.category === category));
-  $: shownAssets = onlyFavorites ? favoriteAssets : remoteAssets;
-  $: shownFonts = onlyFavorites ? favoriteFonts : remoteFonts;
-  $: favoriteCount = source === 'service' ? (remoteKind === 'assets' ? Object.keys(remoteFavorites.assets).length : Object.keys(remoteFavorites.fonts).length) : favorites.size;
-  $: results = all.slice(page * pageSize, (page + 1) * pageSize);
-  $: pages = Math.max(1, Math.ceil(all.length / pageSize));
-  $: if (mounted && active && source === 'service' && resourceProvider) {
-    query; category; remoteKind; providerFilter;
-    scheduleRemoteSearch();
-  }
-  $: if (mounted && active && source === 'service' && resourceProvider) { query; remoteKind; void loadFacets(); }
-  $: localCategories = (() => { const counts: Record<string, number> = {}; for (const asset of catalogue.search({ query })) counts[asset.category] = (counts[asset.category] ?? 0) + 1; return Object.keys(counts).sort().map(value => ({ value, count: counts[value] })); })();
-  $: chips = source === 'service' ? facetCategories : localCategories;
-  $: selectedSource = source; $: selectedKind = remoteKind;
-  $: { selectedSource; selectedKind; selected = undefined; }
+  const favoriteAssets = $derived(Object.values(remoteFavorites.assets).filter(item => matchesQuery(`${item.title} ${item.category} ${item.provider}`) && (!category || item.category === category)));
+  const favoriteFonts = $derived(Object.values(remoteFavorites.fonts).filter(item => matchesQuery(`${item.family} ${item.category} ${item.provider}`) && (!category || item.category === category)));
+  const shownAssets = $derived(onlyFavorites ? favoriteAssets : remoteAssets);
+  const shownFonts = $derived(onlyFavorites ? favoriteFonts : remoteFonts);
+  const favoriteCount = $derived(source === 'service' ? (remoteKind === 'assets' ? Object.keys(remoteFavorites.assets).length : Object.keys(remoteFavorites.fonts).length) : favorites.size);
+  const results = $derived(all.slice(page * pageSize, (page + 1) * pageSize));
+  const pages = $derived(Math.max(1, Math.ceil(all.length / pageSize)));
+  // Remote search and facets follow the query inputs; the work itself runs untracked so it cannot re-trigger the effect.
+  $effect(() => { const inputs = `${query}\u0000${category}\u0000${remoteKind}\u0000${providerFilter}`; if (mounted && active && source === 'service' && resourceProvider && inputs) untrack(scheduleRemoteSearch); });
+  $effect(() => { const inputs = `${query}\u0000${remoteKind}`; if (mounted && active && source === 'service' && resourceProvider && inputs) untrack(() => loadFacets()).catch(() => {}); });
+  const localCategories = $derived.by(() => { const counts: Record<string, number> = {}; for (const asset of catalogue.search({ query })) counts[asset.category] = (counts[asset.category] ?? 0) + 1; return Object.keys(counts).sort().map(value => ({ value, count: counts[value] })); });
+  const chips = $derived(source === 'service' ? facetCategories : localCategories);
+  /** Switching source or kind drops the detail strip, which belongs to the previous list. */
+  $effect(() => { const scope = `${source}:${remoteKind}`; if (scope) untrack(() => { selected = undefined; }); });
 
   onMount(() => {
     mounted = true;
@@ -166,14 +161,14 @@
   function dragTile(event: DragEvent, label: string, placeAt: (at: Point) => Promise<void> | void) {
     event.dataTransfer?.setData(ASSET_DRAG_TYPE, label); event.dataTransfer?.setData('text/plain', label);
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
-    assetDrag.set({ label, place: placeAt });
+    assetDrag.current = { label, place: placeAt };
   }
-  const endDrag = () => assetDrag.set(undefined);
+  const endDrag = () => { assetDrag.current = undefined; };
   function place(resource: Resource, width = 20, height = 20, at?: Point) {
     if (resource.mimeType.startsWith('font/')) { editor.execute(addFont(resource as FontResource)); return; }
     editor.execute(addResource(resource));
     const origin = at ? { x: Math.max(0, at.x - width / 2), y: Math.max(0, at.y - height / 2) } : { x: 2, y: 2 };
-    const base = { id: uuid(), name: resource.name, resourceId: resource.id, transform: { ...origin, width, height, rotation: 0 }, zIndex: $editor.document.elements.length, visible: true, locked: false };
+    const base = { id: uuid(), name: resource.name, resourceId: resource.id, transform: { ...origin, width, height, rotation: 0 }, zIndex: editor.document.elements.length, visible: true, locked: false };
     const dither = imageProfile === 'photo' ? { algorithm: 'floyd-steinberg' as const, threshold: 128 } : imageProfile === 'logo' ? { algorithm: 'bayer' as const, threshold: 128 } : { algorithm: 'threshold' as const, threshold: 150 };
     editor.execute(addElement(resource.mimeType === 'image/svg+xml' ? { ...base, type: 'svg' } : { ...base, type: 'image', fit: 'contain', dither }));
   }
@@ -208,7 +203,7 @@
         editor.execute(addFont(imported));
         await saveResource(imported);
       } else {
-        const imported = await importAsset(file, sdk, $editor.document.media.dpi);
+        const imported = await importAsset(file, sdk, editor.document.media.dpi);
         place(imported.resource, imported.widthMm ?? 20, imported.heightMm ?? 20, at);
         await saveResource(imported.resource);
       }
@@ -254,7 +249,7 @@
   async function useBundledFont(item: BundledFont) {
     try {
       status = `Adding ${bundledName(item)}…`;
-      const existing = $editor.document.fonts.find(font => font.sha256 === item.sha256);
+      const existing = editor.document.fonts.find(font => font.sha256 === item.sha256);
       if (existing) { status = `${bundledName(item)} is already in this label.`; return; }
       const response = await fetch(bundledFontUrls[item.file]);
       if (!response.ok) throw new Error(`${bundledName(item)} is unavailable (${response.status}).`);
@@ -288,7 +283,7 @@
   async function asset(event: Event) {
     const file = (event.currentTarget as HTMLInputElement).files?.[0]; if (!file) return;
     try {
-      const imported = await importAsset(file, sdk, $editor.document.media.dpi);
+      const imported = await importAsset(file, sdk, editor.document.media.dpi);
       place(imported.resource, imported.widthMm ?? 20, imported.heightMm ?? 20);
       await saveResource(imported.resource); status = `Imported and placed ${file.name}`;
     } catch (error) { status = message(error); }
@@ -302,18 +297,18 @@
 <section class="assets">
   <div class="toolbar">
     <div class="segmented" role="group" aria-label="Asset source">
-      <button type="button" class:active={source === 'browser'} aria-pressed={source === 'browser'} on:click={() => { source = 'browser'; page = 0; }}>This browser</button>
-      <button type="button" class:active={source === 'service'} aria-pressed={source === 'service'} disabled={!resourceProvider} on:click={() => { source = 'service'; }}>{resourceProvider?.displayName ?? 'External resources'}</button>
+      <button type="button" class:active={source === 'browser'} aria-pressed={source === 'browser'} onclick={() => { source = 'browser'; page = 0; }}>This browser</button>
+      <button type="button" class:active={source === 'service'} aria-pressed={source === 'service'} disabled={!resourceProvider} onclick={() => { source = 'service'; }}>{resourceProvider?.displayName ?? 'External resources'}</button>
     </div>
     {#if source === 'service'}
       <div class="segmented" role="group" aria-label="Asset kind">
-        <button type="button" class:active={remoteKind === 'assets'} aria-pressed={remoteKind === 'assets'} on:click={() => { remoteKind = 'assets'; category = ''; }}>Graphics</button>
-        <button type="button" class:active={remoteKind === 'fonts'} aria-pressed={remoteKind === 'fonts'} on:click={() => { remoteKind = 'fonts'; category = ''; }}>Fonts</button>
+        <button type="button" class:active={remoteKind === 'assets'} aria-pressed={remoteKind === 'assets'} onclick={() => { remoteKind = 'assets'; category = ''; }}>Graphics</button>
+        <button type="button" class:active={remoteKind === 'fonts'} aria-pressed={remoteKind === 'fonts'} onclick={() => { remoteKind = 'fonts'; category = ''; }}>Fonts</button>
       </div>
     {/if}
     <div class="search-row">
-      <input type="search" bind:value={query} on:input={() => page = 0} placeholder={source === 'service' ? `Search ${remoteKind}` : 'Search this browser'} aria-label="Search assets">
-      <button type="button" class="favorites-toggle" class:active={onlyFavorites} aria-pressed={onlyFavorites} aria-label="Show favourites only" title="Show favourites only" on:click={() => { onlyFavorites = !onlyFavorites; page = 0; }}>★<span class="count">{favoriteCount}</span></button>
+      <input type="search" bind:value={query} oninput={() => page = 0} placeholder={source === 'service' ? `Search ${remoteKind}` : 'Search this browser'} aria-label="Search assets">
+      <button type="button" class="favorites-toggle" class:active={onlyFavorites} aria-pressed={onlyFavorites} aria-label="Show favourites only" title="Show favourites only" onclick={() => { onlyFavorites = !onlyFavorites; page = 0; }}>★<span class="count">{favoriteCount}</span></button>
     </div>
     {#if source === 'service' && facetProviders.length > 1}
       <select bind:value={providerFilter} aria-label="Provider"><option value="">All providers</option>{#each facetProviders as item}<option value={item.value}>{item.value} ({item.count})</option>{/each}</select>
@@ -321,8 +316,8 @@
   </div>
   {#if chips.length}
     <div class="chips" role="group" aria-label="Categories">
-      <button type="button" class="chip" class:active={!category} aria-pressed={!category} on:click={() => { category = ''; page = 0; }}>All</button>
-      {#each chips as item (item.value)}<button type="button" class="chip" class:active={category === item.value} aria-pressed={category === item.value} on:click={() => toggleCategory(item.value)}>{item.value}<span class="count">{item.count}</span></button>{/each}
+      <button type="button" class="chip" class:active={!category} aria-pressed={!category} onclick={() => { category = ''; page = 0; }}>All</button>
+      {#each chips as item (item.value)}<button type="button" class="chip" class:active={category === item.value} aria-pressed={category === item.value} onclick={() => toggleCategory(item.value)}>{item.value}<span class="count">{item.count}</span></button>{/each}
     </div>
   {/if}
   <p class="status" aria-live="polite">{status || (remoteLoading ? `Searching ${resourceProvider?.displayName ?? 'external resources'}…` : source === 'service' ? searchStatus : '')}</p>
@@ -343,9 +338,9 @@
           <label class="render-profile">Image rendering<select bind:value={imageProfile}><option value="photo">Photo · smooth tones</option><option value="logo">Logo · crisp ordered dots</option><option value="line-art">Line art · solid black/white</option></select></label>
         {/if}
         <div class="detail-actions">
-          <button type="button" class="primary" on:click={placeSelected}>{selected.kind === 'font' || (selected.kind === 'local' && selected.item.kind === 'font') ? 'Add font' : 'Place on label'}</button>
-          <button type="button" aria-pressed={isFavoriteEntry(selected)} on:click={() => { if (selected) toggleFavoriteFor(selected); }}>{isFavoriteEntry(selected) ? '★ Favourite' : '☆ Favourite'}</button>
-          <button type="button" on:click={() => selected = undefined}>Close</button>
+          <button type="button" class="primary" onclick={placeSelected}>{selected.kind === 'font' || (selected.kind === 'local' && selected.item.kind === 'font') ? 'Add font' : 'Place on label'}</button>
+          <button type="button" aria-pressed={isFavoriteEntry(selected)} onclick={() => { if (selected) toggleFavoriteFor(selected); }}>{isFavoriteEntry(selected) ? '★ Favourite' : '☆ Favourite'}</button>
+          <button type="button" onclick={() => selected = undefined}>Close</button>
         </div>
       </div>
     </div>
@@ -356,7 +351,7 @@
     <h3>Bundled fonts<small>Embedded into the label, so it prints anywhere</small></h3>
     <div class="bundled-row">
       {#each bundledFonts as item (item.id)}
-        <button type="button" class="bundled-font" title={`${bundledName(item)} · ${item.license} · ${Math.round(item.bytes / 1024)} kB`} on:click={() => useBundledFont(item)}>
+        <button type="button" class="bundled-font" title={`${bundledName(item)} · ${item.license} · ${Math.round(item.bytes / 1024)} kB`} onclick={() => useBundledFont(item)}>
           <span class="glyph" aria-hidden="true">Aa</span>
           <span class="name">{bundledName(item)}</span>
         </button>
@@ -366,49 +361,49 @@
   {#if source === 'service' && resourceProvider}
     <div class="grid" class:font-list={remoteKind === 'fonts'} class:busy={remoteLoading} role="group" aria-label="Catalogue results">
       {#each shownAssets as item (item.id)}
-        <button type="button" class="tile" class:active={isSelected('asset', item.id)} aria-pressed={isSelected('asset', item.id)} title={`${item.title} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'asset', item }} on:dblclick={() => useRemoteAsset(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.title, (at) => useRemoteAsset(item, at))} on:dragend={endDrag}>
+        <button type="button" class="tile" class:active={isSelected('asset', item.id)} aria-pressed={isSelected('asset', item.id)} title={`${item.title} · ${item.provider} · ${item.category}`} onclick={() => selected = { kind: 'asset', item }} ondblclick={() => useRemoteAsset(item)} draggable="true" ondragstart={(event) => dragTile(event, item.title, (at) => useRemoteAsset(item, at))} ondragend={endDrag}>
           <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt=""/></span>
           <span class="name">{item.title}</span>
           <span class="sub">{item.category}</span>
-          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.title}`} aria-pressed={isRemoteFavorite('asset', item.id)} class:on={isRemoteFavorite('asset', item.id)} on:click|stopPropagation={() => favoriteRemote('asset', item)} on:keydown|stopPropagation={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favoriteRemote('asset', item); } }}>★</span>
+          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.title}`} aria-pressed={isRemoteFavorite('asset', item.id)} class:on={isRemoteFavorite('asset', item.id)} onclick={(event)=>{event.stopPropagation();(() => favoriteRemote('asset', item))()}} onkeydown={(event)=>{event.stopPropagation();((event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favoriteRemote('asset', item); } })(event)}}>★</span>
         </button>
       {/each}
       {#each shownFonts as item (item.id)}
-        <button type="button" class="font-row" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} on:click={() => selected = { kind: 'font', item }} on:dblclick={() => useRemoteFont(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.family, () => useRemoteFont(item))} on:dragend={endDrag}>
+        <button type="button" class="font-row" class:active={isSelected('font', item.id)} aria-pressed={isSelected('font', item.id)} title={`${item.family} · ${item.provider} · ${item.category}`} onclick={() => selected = { kind: 'font', item }} ondblclick={() => useRemoteFont(item)} draggable="true" ondragstart={(event) => dragTile(event, item.family, () => useRemoteFont(item))} ondragend={endDrag}>
           <span class="font-sample">{#key item.id}<RemoteAssetPreview provider={resourceProvider} path={fontSample(item)} alt={item.family}/>{/key}</span>
           <span class="font-meta"><span class="name">{item.family}</span><span class="sub">{item.category} · {item.variants.length} {item.variants.length === 1 ? 'style' : 'styles'}{item.availability === 'remote' ? ' · download' : ''}</span></span>
-          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.family}`} aria-pressed={isRemoteFavorite('font', item.id)} class:on={isRemoteFavorite('font', item.id)} on:click|stopPropagation={() => favoriteRemote('font', item)} on:keydown|stopPropagation={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favoriteRemote('font', item); } }}>★</span>
+          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.family}`} aria-pressed={isRemoteFavorite('font', item.id)} class:on={isRemoteFavorite('font', item.id)} onclick={(event)=>{event.stopPropagation();(() => favoriteRemote('font', item))()}} onkeydown={(event)=>{event.stopPropagation();((event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favoriteRemote('font', item); } })(event)}}>★</span>
         </button>
       {/each}
     </div>
     {#if onlyFavorites && !shownAssets.length && !shownFonts.length}<p class="empty">No favourite {remoteKind} yet. Star a tile to keep it here.</p>
     {:else if !onlyFavorites && !remoteLoading && remoteTotal === 0}<p class="empty">No matching {remoteKind}.</p>{/if}
-    {#if !onlyFavorites}<nav class="pager"><button type="button" on:click={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>Page {remotePage} of {remotePages}{remoteTotal ? ` · ${remoteTotal} ${remoteKind}` : ''}</span><button type="button" on:click={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>{/if}
+    {#if !onlyFavorites}<nav class="pager"><button type="button" onclick={() => searchRemote(remotePage - 1)} disabled={remoteLoading || remotePage <= 1}>Previous</button><span>Page {remotePage} of {remotePages}{remoteTotal ? ` · ${remoteTotal} ${remoteKind}` : ''}</span><button type="button" onclick={() => searchRemote(remotePage + 1)} disabled={remoteLoading || remotePage >= remotePages}>Next</button></nav>{/if}
   {:else}
     <div class="grid" role="group" aria-label="Browser assets">
       {#each results as item (item.id)}
-        <button type="button" class="tile" class:active={isSelected('local', item.id)} aria-pressed={isSelected('local', item.id)} title={`${item.name} · ${item.kind} · ${item.category}`} on:click={() => selected = { kind: 'local', item }} on:dblclick={() => use(item)} draggable="true" on:dragstart={(event) => dragTile(event, item.name, (at) => use(item, at))} on:dragend={endDrag}>
+        <button type="button" class="tile" class:active={isSelected('local', item.id)} aria-pressed={isSelected('local', item.id)} title={`${item.name} · ${item.kind} · ${item.category}`} onclick={() => selected = { kind: 'local', item }} ondblclick={() => use(item)} draggable="true" ondragstart={(event) => dragTile(event, item.name, (at) => use(item, at))} ondragend={endDrag}>
           <span class="thumb">{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img alt="" src={`data:image/svg+xml;base64,${item.dataBase64}`}>{:else}<span class="glyph" aria-hidden="true">{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span>{/if}</span>
           <span class="name">{item.name}</span>
           <span class="sub">{item.category}</span>
-          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.name}`} aria-pressed={favorites.has(item.id)} class:on={favorites.has(item.id)} on:click|stopPropagation={() => favorite(item.id)} on:keydown|stopPropagation={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favorite(item.id); } }}>★</span>
+          <span class="star" role="button" tabindex="0" aria-label={`Favourite ${item.name}`} aria-pressed={favorites.has(item.id)} class:on={favorites.has(item.id)} onclick={(event)=>{event.stopPropagation();(() => favorite(item.id))()}} onkeydown={(event)=>{event.stopPropagation();((event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void favorite(item.id); } })(event)}}>★</span>
         </button>
       {/each}
     </div>
     {#if !all.length}<p class="empty">{onlyFavorites ? 'No favourites match. Star a tile to keep it here.' : 'Nothing in this browser matches. Import a file below or switch to the catalogue.'}</p>{/if}
-    <nav class="pager"><button type="button" on:click={() => page--} disabled={page === 0}>Previous</button><span>Page {page + 1} of {pages}{all.length ? ` · ${all.length} assets` : ''}</span><button type="button" on:click={() => page++} disabled={page + 1 >= pages}>Next</button></nav>
+    <nav class="pager"><button type="button" onclick={() => page--} disabled={page === 0}>Previous</button><span>Page {page + 1} of {pages}{all.length ? ` · ${all.length} assets` : ''}</span><button type="button" onclick={() => page++} disabled={page + 1 >= pages}>Next</button></nav>
   {/if}
 
 
   <details class="import" bind:open={importOpen}>
     <summary>Import files</summary>
     <div class="actions">
-      <label class="upload">Image/SVG/PDF<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif,image/svg+xml,.svg,.webp,application/pdf" on:change={asset}></label>
-      <label class="upload">Font<input type="file" accept=".woff,.woff2,.ttf,.otf,.ttc" on:change={font}></label>
-      <label class="upload">Private .mb-assets<input type="file" accept=".mb-assets,application/json" on:change={collection}></label>
-      <button type="button" on:click={exportCollection} disabled={!privateAssets.length}>Export private collection</button>
+      <label class="upload">Image/SVG/PDF<input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif,image/svg+xml,.svg,.webp,application/pdf" onchange={asset}></label>
+      <label class="upload">Font<input type="file" accept=".woff,.woff2,.ttf,.otf,.ttc" onchange={font}></label>
+      <label class="upload">Private .mb-assets<input type="file" accept=".mb-assets,application/json" onchange={collection}></label>
+      <button type="button" onclick={exportCollection} disabled={!privateAssets.length}>Export private collection</button>
     </div>
-    <label class="render-profile">Image rendering for imports<select bind:value={imageProfile}><option value="photo">Photo · smooth tones</option><option value="logo">Logo · crisp ordered dots</option><option value="line-art">Line art · solid black/white</option></select><small>The original stays intact. Rendering happens at the selected printer's {$editor.document.media.dpi} dpi and can be changed later in Properties.</small></label>
+    <label class="render-profile">Image rendering for imports<select bind:value={imageProfile}><option value="photo">Photo · smooth tones</option><option value="logo">Logo · crisp ordered dots</option><option value="line-art">Line art · solid black/white</option></select><small>The original stays intact. Rendering happens at the selected printer's {editor.document.media.dpi} dpi and can be changed later in Properties.</small></label>
   </details>
 </section>
 <style>
