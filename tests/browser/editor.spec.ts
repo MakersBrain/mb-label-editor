@@ -497,6 +497,25 @@ test('the data tab shows an editable sheet of imported records', async ({ page }
   await expect(panel.getByText('3 records · 3 columns')).toBeVisible();
 });
 
+test('selecting a row previews that record on the canvas', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  const textField = page.locator('#sidebar-panel-layers').getByLabel('Text', { exact: true });
+  await textField.fill('{{name | upper}} {{price | number:2}}');
+  await textField.press('Tab');
+  await page.getByRole('tab', { name: 'Data' }).click();
+  const panel = page.locator('#sidebar-panel-data');
+  await panel.locator('input[type=file]').setInputFiles({ name: 'items.csv', mimeType: 'text/csv', buffer: Buffer.from('name,price\nJam,4.5\nTea,3\n') });
+  const text = page.locator('.element.text span');
+  await expect(text).toHaveText('JAM 4.50');
+  await expect(page.locator('.record-badge')).toHaveText('Record 1 of 2');
+  await panel.getByRole('button', { name: 'Preview record 2' }).click();
+  await expect(text).toHaveText('TEA 3.00');
+  await expect(page.locator('.record-badge')).toHaveText('Record 2 of 2');
+  await panel.getByRole('table', { name: 'Data records' }).getByRole('textbox', { name: 'name, row 1' }).focus();
+  await expect(text).toHaveText('JAM 4.50');
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();

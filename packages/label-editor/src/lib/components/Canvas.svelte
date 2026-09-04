@@ -2,6 +2,7 @@
 <script lang="ts">
   import { moveElements, resizeElements, rotateElements, type Command } from '../commands.js';
   import { assetDrag } from '../asset-drag.js';
+  import { evaluateTemplate } from '../template/evaluate.js';
   import { mediaBounds, snapModeForModifiers, snapMove } from '../snapping.js';
   import { elementRootBounds, elementRootOffset } from '../zones.js';
   import { continuousSettings } from '../continuous-media.js';
@@ -120,6 +121,9 @@
   }
   function boundsOf(elements:LabelElement[],document=$editor.document):Bounds|undefined{if(!elements.length)return;const roots=elements.map(item=>elementRootBounds(document,item));const x=Math.min(...roots.map(item=>item.x));const y=Math.min(...roots.map(item=>item.y));const right=Math.max(...roots.map(item=>item.x+item.width));const bottom=Math.max(...roots.map(item=>item.y+item.height));return{x,y,width:right-x,height:bottom-y}}
   $: displayDocument=dragPreview??$editor.document;
+  $: currentRecord=$editor.document.template?.records[$editor.document.template.currentRecord];
+  /** Text on the canvas shows the selected record's values; the raw expression stays editable in Properties. */
+  function merged(source:string):string{if(!currentRecord||!source.includes('{{'))return source;try{return evaluateTemplate(source,{record:currentRecord,locale:globalThis.navigator?.language})}catch{return source}}
   $: selectionBounds=boundsOf(displayDocument.elements.filter(item=>$editor.selection.has(item.id)&&!isEffectivelyLocked(displayDocument,item)),displayDocument);
   $: rotateElement=$editor.selectedElements.length===1&&$editor.selectedElements[0].type!=='group'?$editor.selectedElements[0]:undefined;
   $: rollSettings=continuousSettings($editor.document);
@@ -137,11 +141,12 @@
       {#if $editor.document.media.shape==='continuous'}<div class="safe-margin leading" style={`height:${rollSettings.leadingMarginMm*pxPerMm}px`}></div><div class="safe-margin trailing" style={`height:${rollSettings.trailingMarginMm*pxPerMm}px`}></div><div class="cut-line"><span>Cut at {displayHeight.toFixed(2)} mm</span></div>{/if}
       {#if sdk&&previewDocument}<ThermalPreview {sdk} document={previewDocument} zoom={$editor.view.zoom}/>{:else if previewError}<span class="preview-error" title={previewError}>Fit preview unavailable</span>{/if}
       {#if previewWarning}<span class="preview-warning" role="status" title={previewWarning}>{previewWarning}</span>{/if}
+      {#if $editor.document.template?.records.length}<span class="record-badge" role="status" title="Values from this record are shown; pick another row in the Data tab">Record {$editor.document.template.currentRecord + 1} of {$editor.document.template.records.length}</span>{/if}
       {#each [...displayDocument.elements].sort((a,b) => a.zIndex - b.zIndex) as element (element.id)}
         {#if element.type !== 'group' && isEffectivelyVisible(displayDocument, element)}
           <button type="button" class:selected={$editor.selection.has(element.id)} class:locked={isEffectivelyLocked(displayDocument, element)} class:exact={!!sdk} class="element {element.type}" data-id={element.id} style={styleFor(element,elementRootOffset(displayDocument,element),movesWithDrag(element)?dragPreviewDelta:undefined)} on:pointerdown={(event) => startDrag(event, element)} on:pointerup={finishDrag} on:dblclick={(event) => enterElement(event, element)} aria-label={element.name}>
-            {#if element.type === 'text'}<span style={`font-family:${element.fontFamily};font-size:${element.fontSize}px;text-align:${element.horizontalAlign}`}>{element.text}</span>
-            {:else if element.type === 'barcode'}<span class="placeholder">▥ {element.value}</span>
+            {#if element.type === 'text'}<span style={`font-family:${element.fontFamily};font-size:${element.fontSize}px;text-align:${element.horizontalAlign}`}>{merged(element.text)}</span>
+            {:else if element.type === 'barcode'}<span class="placeholder">▥ {merged(element.value)}</span>
             {:else if element.type === 'qr'}<span class="placeholder">▦</span>
             {:else if element.type === 'image' || element.type === 'svg'}
               {@const resource = $editor.document.resources.find((item) => item.id === element.resourceId)}
@@ -166,6 +171,7 @@
   .media.drop-target{outline:2px dashed var(--mble-primary,#ed6146);outline-offset:2px}
   .media.continuous{border-radius:3px 3px 0 0!important}.safe-margin{position:absolute;left:0;right:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(135deg,#46a8ed12 0 4px,#46a8ed28 4px 5px)}.safe-margin.leading{top:0;border-bottom:1px dotted var(--mble-guide,#46a8ed)}.safe-margin.trailing{bottom:0;border-top:1px dotted var(--mble-guide,#46a8ed)}.cut-line{position:absolute;left:0;right:0;bottom:-1px;z-index:10001;border-bottom:2px dashed var(--mble-danger,#a22929);pointer-events:none}.cut-line span{position:absolute;right:2px;bottom:2px;width:auto;height:auto;padding:1px 3px;background:#fff;color:var(--mble-danger,#a22929);font-size:8px;white-space:nowrap}.roll-continuation{position:absolute;left:0;height:56px;z-index:-1;border:1px solid #b8b8b8;border-top:0;background:linear-gradient(#fffde8cc,#e9e5ce44),repeating-linear-gradient(90deg,#0000 0 8px,#8a856a18 8px 9px);box-sizing:border-box;box-shadow:0 12px 20px #17231c22;color:#777;text-align:center;font-size:8px;pointer-events:none}.roll-continuation span{display:block;margin-top:30px;opacity:.65}
   .preview-error{position:absolute;right:.3rem;bottom:.3rem;z-index:10002;padding:2px 4px;background:#fff;color:var(--mble-danger,#a21);font-size:9px}
+  .record-badge{position:absolute;left:.3rem;top:.3rem;z-index:10002;padding:2px 5px;border-radius:999px;background:var(--mble-primary,#ed6146);color:#fff;font-size:9px;font-weight:600;pointer-events:none}
   .preview-warning{position:absolute;left:.3rem;bottom:.3rem;z-index:10002;max-width:80%;padding:2px 4px;background:#fff7df;color:var(--mble-danger,#a21);font-size:9px}
   .ruler.horizontal{background-image:repeating-linear-gradient(90deg,transparent 0 18px,var(--mble-text-muted,#59635e) 18px 19px,transparent 19px 37.795px)}
   .ruler.vertical{background-image:repeating-linear-gradient(transparent 0 18px,var(--mble-text-muted,#59635e) 18px 19px,transparent 19px 37.795px)}
