@@ -48,23 +48,33 @@ export interface Autosaver {
   flush(): Promise<void>;
   dispose(): Promise<void>;
 }
-export function createAutosaver(database: EditorDatabase, intervalMs = 1500, onError: (error: unknown) => void = () => {}) {
+/**
+ * Debounces autosaves by `intervalMs`, but never waits longer than `maxWaitMs`
+ * after the first unsaved change, so continuous editing still lands on disk.
+ * Documents are treated as immutable; `put()` clones what it stores.
+ */
+export function createAutosaver(database: EditorDatabase, intervalMs = 1500, onError: (error: unknown) => void = () => {}, maxWaitMs = 5000) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let pending: LabelDocument | undefined;
+  let firstPendingAt: number | undefined;
   let inFlight = Promise.resolve();
   let disposed = false;
   const queue = () => {
     const document = pending;
     pending = undefined;
+    firstPendingAt = undefined;
     if (!document) return inFlight;
     inFlight = inFlight.catch(() => {}).then(() => database.autosave(document));
     return inFlight;
   };
   const autosaver = ((document: LabelDocument) => {
     if (disposed) return;
-    pending = structuredClone(document);
+    pending = document;
+    const now = Date.now();
+    firstPendingAt ??= now;
     if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => { timeout = undefined; void queue().catch(onError); }, intervalMs);
+    const delay = Math.max(0, Math.min(intervalMs, firstPendingAt + maxWaitMs - now));
+    timeout = setTimeout(() => { timeout = undefined; void queue().catch(onError); }, delay);
   }) as Autosaver;
   autosaver.flush = async () => {
     if (timeout) { clearTimeout(timeout); timeout = undefined; }

@@ -14,7 +14,7 @@
     "test": "npm run test --workspaces --if-present",
     "check:licenses": "node scripts/check-license-policy.mjs",
     "check:runes": "node scripts/check-runes.mjs",
-    "lint": "eslint . --max-warnings 121",
+    "lint": "eslint . --max-warnings 117",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:browser": "playwright test",

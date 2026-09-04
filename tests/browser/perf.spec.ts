@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
  */
 const budget = {
   longTaskMs: 250,
-  idbWriteTransactions: 400,
+  idbWriteTransactions: 2, // autosave plus the template save; 1 once commands stop re-cloning an untouched template
   sdkRenders: 150,
   sdkMeasures: 150,
 };
@@ -50,6 +50,8 @@ test('a drag stays within the interaction budget', async ({ page }) => {
   for (let i = 0; i < 40; i++) await insertText.click();
   const insertMs = Date.now() - insertStart;
   await expect(page.locator('.element')).toHaveCount(46);
+  // Let the insert-phase autosave land so only the drag's own writes are counted.
+  await page.waitForTimeout(2500);
 
   await page.evaluate(() => {
     window.__mbPerf?.reset();
@@ -68,6 +70,7 @@ test('a drag stays within the interaction budget', async ({ page }) => {
   const measured = await page.evaluate(() => ({
     longestTaskMs: Math.max(0, ...window.__mbLongTasks),
     idbWriteTransactions: window.__mbIdb.filter((item) => item.mode === 'readwrite').length,
+    idbWrites: window.__mbIdb.filter((item) => item.mode === 'readwrite').map((item) => item.stores.join('+')),
     sdkRenders: window.__mbPerf?.render ?? 0,
     sdkMeasures: window.__mbPerf?.measure ?? 0,
   }));
