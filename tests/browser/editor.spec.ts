@@ -161,11 +161,10 @@ test('continuous CSV records resolve to variable lengths and gate batch cutting'
   await media.getByLabel('Shape').selectOption('continuous');
   await media.getByLabel('Length mode').selectOption('fit-content');
   await media.getByRole('button',{name:'Close Media & zones'}).click();
-  await openDialog(page,'Label','Data…');
-  const data=page.getByRole('dialog',{name:'Data'});
+  await page.getByRole('tab',{name:'Data'}).click();
+  const data=page.locator('#sidebar-panel-data');
   await data.locator('input[type=file]').setInputFiles({name:'records.csv',mimeType:'text/csv',buffer:Buffer.from(`name\nShort\n${'A very long shipping description '.repeat(4)}\n`)});
-  await expect(data.getByText('2 records · name')).toBeVisible();
-  await data.getByRole('button',{name:'Close Data'}).click();
+  await expect(data.getByText('2 records · 1 column')).toBeVisible();
   await openDialog(page,'Print','Batch printing…');
   const batch=page.getByRole('dialog',{name:'Batch printing'});
   const cutting=batch.getByLabel('Batch cutting');
@@ -355,7 +354,7 @@ test('the template syntax reference explains transforms and evaluates expression
   await dialog.getByLabel('Expression').fill('{{missing}}');
   await expect(dialog.locator('.error')).toContainText('unknown field');
   await page.keyboard.press('Escape');
-  await openDialog(page, 'Label', 'Data…');
+  await page.getByRole('tab', { name: 'Data' }).click();
   await page.getByRole('button', { name: 'Template syntax reference' }).click();
   await expect(dialog).toBeVisible();
 });
@@ -374,6 +373,8 @@ test('the sidebar switches between layers and printer tabs and remembers the cho
   await expect(printerTab).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByLabel('Connection')).toBeVisible();
   await printerTab.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('tab', { name: 'Data' })).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('tab', { name: 'Assets' })).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowLeft');
@@ -465,6 +466,35 @@ test('the side panel can be widened by dragging its edge and remembers the width
   await page.getByRole('separator', { name: 'Resize side panel' }).focus();
   await page.keyboard.press('ArrowRight');
   expect((await page.locator('aside').boundingBox())!.width).toBeCloseTo(after.width - 16, -1);
+});
+
+test('the data tab shows an editable sheet of imported records', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Text', exact: true }).click();
+  await page.getByRole('tab', { name: 'Data' }).click();
+  const panel = page.locator('#sidebar-panel-data');
+  await expect(panel.getByRole('button', { name: 'Connect database…' })).toBeDisabled();
+  await panel.locator('input[type=file]').setInputFiles({ name: 'items.csv', mimeType: 'text/csv', buffer: Buffer.from('name,price\nJam,4.5\nTea,3\n') });
+  const sheet = panel.getByRole('table', { name: 'Data records' });
+  await expect(sheet.getByRole('textbox', { name: 'name, row 2' })).toHaveValue('Tea');
+  await expect(panel.getByText('2 records · 2 columns')).toBeVisible();
+  const cell = sheet.getByRole('textbox', { name: 'price, row 2' });
+  await cell.fill('3.75');
+  await cell.press('Enter');
+  await expect(panel.locator('dd').nth(1)).toHaveText('3.75');
+  await panel.getByRole('button', { name: 'Add row' }).click();
+  await expect(panel.getByText('3 records · 2 columns')).toBeVisible();
+  await sheet.getByRole('textbox', { name: 'name, row 3' }).fill('Honey');
+  await sheet.getByRole('textbox', { name: 'name, row 3' }).press('Tab');
+  await expect(panel.locator('dd').first()).toHaveText('Honey');
+  await panel.getByLabel('New column name').fill('sku');
+  await panel.getByRole('button', { name: 'Add column' }).click();
+  await expect(sheet.getByRole('columnheader', { name: /sku/ })).toBeVisible();
+  await sheet.getByRole('button', { name: 'Delete row 1' }).click();
+  await expect(panel.getByText('2 records · 3 columns')).toBeVisible();
+  await expect(sheet.getByRole('textbox', { name: 'name, row 1' })).toHaveValue('Tea');
+  await page.keyboard.press('Control+z');
+  await expect(panel.getByText('3 records · 3 columns')).toBeVisible();
 });
 
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
