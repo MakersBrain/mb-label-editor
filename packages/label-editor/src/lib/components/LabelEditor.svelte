@@ -25,6 +25,7 @@
   import Inspector from './Inspector.svelte';
   import Layers from './Layers.svelte';
   import DataPanel from './DataPanel.svelte';
+  import DataSheet from './DataSheet.svelte';
   import AssetPanel from './AssetPanel.svelte';
   import MediaPanel from './MediaPanel.svelte';
   import LibraryPanel from './LibraryPanel.svelte';
@@ -103,6 +104,9 @@
   );
   /** From 90rem the layers and properties get their own permanent rail beside the tabbed one. */
   const wide = new MediaQuery('(min-width: 90rem)');
+  /** The record sheet can leave the side panel: a region under the label on desktop, a dialog on small screens. */
+  let sheetDocked = $state(false);
+  const sheetOpen = $derived(sheetDocked && !!editor.document.template);
   const tabs = $derived(wide.current ? sidebarTabs.filter((tab) => tab !== 'layers') : sidebarTabs);
   const activeTab = $derived(wide.current && sidebarTab === 'layers' ? 'assets' : sidebarTab);
   function selectSidebarTab(tab: SidebarTab) {
@@ -332,7 +336,18 @@
   <main class:sidebar-closed={!sidebarOpen} class:wide={wide.current} style={`--sidebar-width:${sidebarWidth}px`}>
     <ToolRail {editor} orientation={narrow.current ? 'horizontal' : 'vertical'} />
     <div class="canvas">
-      <Canvas {editor} {sdk} {materializer} printer={selectedPrinter} compact={narrow.current} />
+      <div class="canvas-area">
+        <Canvas {editor} {sdk} {materializer} printer={selectedPrinter} compact={narrow.current} />
+      </div>
+      {#if sheetOpen && !narrow.current}
+        <section class="sheet-dock" aria-label="Data records">
+          <div class="sheet-dock-bar">
+            <h2>Data records</h2>
+            <button type="button" onclick={() => (sheetDocked = false)}>Collapse sheet</button>
+          </div>
+          <div class="sheet-dock-body"><DataSheet {editor} /></div>
+        </section>
+      {/if}
     </div>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
     {#if sidebarOpen}<div
@@ -415,7 +430,12 @@
         <AssetPanel {editor} {sdk} resourceProvider={activeResourceProvider} active={activeTab === 'assets'} />
       </div>
       <div id="sidebar-panel-data" role="tabpanel" aria-labelledby="sidebar-tab-data" hidden={activeTab !== 'data'}>
-        <DataPanel {editor} onSyntaxHelp={() => (dialog = 'syntax')} />
+        <DataPanel
+          {editor}
+          onSyntaxHelp={() => (dialog = 'syntax')}
+          docked={sheetOpen}
+          onDock={() => (sheetDocked = !sheetDocked)}
+        />
       </div>
       <div
         id="sidebar-panel-printer"
@@ -442,6 +462,9 @@
   >
   <Modal open={dialog === 'syntax'} title={dialogTitles.syntax} onClose={() => (dialog = '')}
     ><TemplateSyntaxPanel {editor} /></Modal
+  >
+  <Modal open={sheetOpen && narrow.current} title="Data records" onClose={() => (sheetDocked = false)}
+    ><DataSheet {editor} /></Modal
   >
 </div>
 
@@ -562,10 +585,43 @@
     outline: none;
   }
   .canvas {
-    position: relative;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+  }
+  .canvas-area {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .sheet-dock {
+    display: flex;
+    flex-direction: column;
+    max-height: 40%;
+    border-top: 1px solid var(--mble-border, #d8d0c3);
+    background: var(--mble-surface, #fff);
+  }
+  .sheet-dock-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.3rem 0.75rem;
+    border-bottom: 1px solid var(--mble-border, #d8d0c3);
+  }
+  .sheet-dock-bar h2 {
+    margin: 0;
+    color: var(--mble-text-muted, #59635e);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .sheet-dock-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 0 0.75rem 0.5rem;
   }
   main.sidebar-closed {
     grid-template-columns: auto minmax(0, 1fr);

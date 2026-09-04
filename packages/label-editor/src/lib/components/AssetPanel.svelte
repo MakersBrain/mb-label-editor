@@ -30,6 +30,8 @@
   let status = $state('');
   /** Search summaries live apart from action feedback so a late search result cannot overwrite an import message. */
   let searchStatus = $state('');
+  /** A failed catalogue search is shown as an alert with a retry, instead of vanishing into the status line. */
+  let searchError = $state('');
   let source = $state<'service' | 'browser'>(untrack(() => resourceProvider) ? 'service' : 'browser');
   let remoteKind = $state<'assets' | 'fonts'>('assets');
   let privateAssets = $state.raw<CatalogueAsset[]>([]);
@@ -225,8 +227,12 @@
         remoteAssets = [];
       }
       searchStatus = `${result.total} ${remoteKind} from ${resourceProvider.displayName}.`;
+      searchError = '';
     } catch (error) {
-      if (sequence === requestSequence) searchStatus = message(error);
+      if (sequence === requestSequence) {
+        searchStatus = '';
+        searchError = message(error);
+      }
     } finally {
       if (sequence === requestSequence) remoteLoading = false;
     }
@@ -660,6 +666,10 @@
     </div>
   </div>
   {#if source === 'service' && resourceProvider}
+    {#if searchError}<p class="search-error" role="alert">
+        <span>{searchError}</span>
+        <button type="button" onclick={() => void searchRemote(remotePage)}>Retry</button>
+      </p>{/if}
     <div
       class="grid"
       class:font-list={remoteKind === 'fonts'}
@@ -668,94 +678,72 @@
       aria-label="Catalogue results"
     >
       {#each shownAssets as item (item.id)}
-        <button
-          type="button"
-          class="tile"
-          class:active={isSelected('asset', item.id)}
-          aria-pressed={isSelected('asset', item.id)}
-          title={`${item.title} · ${item.provider} · ${item.category}`}
-          onclick={() => (selected = { kind: 'asset', item })}
-          ondblclick={() => useRemoteAsset(item)}
-          draggable="true"
-          ondragstart={(event) => dragTile(event, item.title, (at) => useRemoteAsset(item, at))}
-          ondragend={endDrag}
-        >
-          <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt="" /></span>
-          <span class="name">{item.title}</span>
-          <span class="sub">{item.category}</span>
-          <span
+        <div class="tile-wrap">
+          <button
+            type="button"
+            class="tile"
+            class:active={isSelected('asset', item.id)}
+            aria-pressed={isSelected('asset', item.id)}
+            title={`${item.title} · ${item.provider} · ${item.category}`}
+            onclick={() => (selected = { kind: 'asset', item })}
+            ondblclick={() => useRemoteAsset(item)}
+            draggable="true"
+            ondragstart={(event) => dragTile(event, item.title, (at) => useRemoteAsset(item, at))}
+            ondragend={endDrag}
+          >
+            <span class="thumb"><RemoteAssetPreview provider={resourceProvider} path={item.previewUrl} alt="" /></span>
+            <span class="name">{item.title}</span>
+            <span class="sub">{item.category}</span>
+          </button>
+          <button
+            type="button"
             class="star"
-            role="button"
-            tabindex="0"
             aria-label={`Favourite ${item.title}`}
             aria-pressed={isRemoteFavorite('asset', item.id)}
             class:on={isRemoteFavorite('asset', item.id)}
-            onclick={(event) => {
-              event.stopPropagation();
-              (() => favoriteRemote('asset', item))();
-            }}
-            onkeydown={(event) => {
-              event.stopPropagation();
-              ((event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  void favoriteRemote('asset', item);
-                }
-              })(event);
-            }}>★</span
+            onclick={() => void favoriteRemote('asset', item)}>★</button
           >
-        </button>
+        </div>
       {/each}
       {#each shownFonts as item (item.id)}
-        <button
-          type="button"
-          class="font-row"
-          class:active={isSelected('font', item.id)}
-          aria-pressed={isSelected('font', item.id)}
-          title={`${item.family} · ${item.provider} · ${item.category}`}
-          onclick={() => (selected = { kind: 'font', item })}
-          ondblclick={() => useRemoteFont(item)}
-          draggable="true"
-          ondragstart={(event) => dragTile(event, item.family, () => useRemoteFont(item))}
-          ondragend={endDrag}
-        >
-          <span class="font-sample"
-            >{#key item.id}<RemoteAssetPreview
-                provider={resourceProvider}
-                path={fontSample(item)}
-                alt={item.family}
-              />{/key}</span
+        <div class="tile-wrap">
+          <button
+            type="button"
+            class="font-row"
+            class:active={isSelected('font', item.id)}
+            aria-pressed={isSelected('font', item.id)}
+            title={`${item.family} · ${item.provider} · ${item.category}`}
+            onclick={() => (selected = { kind: 'font', item })}
+            ondblclick={() => useRemoteFont(item)}
+            draggable="true"
+            ondragstart={(event) => dragTile(event, item.family, () => useRemoteFont(item))}
+            ondragend={endDrag}
           >
-          <span class="font-meta"
-            ><span class="name">{item.family}</span><span class="sub"
-              >{item.category} · {item.variants.length}
-              {item.variants.length === 1 ? 'style' : 'styles'}{item.availability === 'remote'
-                ? ' · download'
-                : ''}</span
-            ></span
-          >
-          <span
+            <span class="font-sample"
+              >{#key item.id}<RemoteAssetPreview
+                  provider={resourceProvider}
+                  path={fontSample(item)}
+                  alt={item.family}
+                />{/key}</span
+            >
+            <span class="font-meta"
+              ><span class="name">{item.family}</span><span class="sub"
+                >{item.category} · {item.variants.length}
+                {item.variants.length === 1 ? 'style' : 'styles'}{item.availability === 'remote'
+                  ? ' · download'
+                  : ''}</span
+              ></span
+            >
+          </button>
+          <button
+            type="button"
             class="star"
-            role="button"
-            tabindex="0"
             aria-label={`Favourite ${item.family}`}
             aria-pressed={isRemoteFavorite('font', item.id)}
             class:on={isRemoteFavorite('font', item.id)}
-            onclick={(event) => {
-              event.stopPropagation();
-              (() => favoriteRemote('font', item))();
-            }}
-            onkeydown={(event) => {
-              event.stopPropagation();
-              ((event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  void favoriteRemote('font', item);
-                }
-              })(event);
-            }}>★</span
+            onclick={() => void favoriteRemote('font', item)}>★</button
           >
-        </button>
+        </div>
       {/each}
     </div>
     {#if onlyFavorites && !shownAssets.length && !shownFonts.length}<p class="empty">
@@ -774,50 +762,39 @@
   {:else}
     <div class="grid" role="group" aria-label="Browser assets">
       {#each results as item (item.id)}
-        <button
-          type="button"
-          class="tile"
-          class:active={isSelected('local', item.id)}
-          aria-pressed={isSelected('local', item.id)}
-          title={`${item.name} · ${item.kind} · ${item.category}`}
-          onclick={() => (selected = { kind: 'local', item })}
-          ondblclick={() => use(item)}
-          draggable="true"
-          ondragstart={(event) => dragTile(event, item.name, (at) => use(item, at))}
-          ondragend={endDrag}
-        >
-          <span class="thumb"
-            >{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img
-                alt=""
-                src={`data:image/svg+xml;base64,${item.dataBase64}`}
-              />{:else}<span class="glyph" aria-hidden="true"
-                >{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span
-              >{/if}</span
+        <div class="tile-wrap">
+          <button
+            type="button"
+            class="tile"
+            class:active={isSelected('local', item.id)}
+            aria-pressed={isSelected('local', item.id)}
+            title={`${item.name} · ${item.kind} · ${item.category}`}
+            onclick={() => (selected = { kind: 'local', item })}
+            ondblclick={() => use(item)}
+            draggable="true"
+            ondragstart={(event) => dragTile(event, item.name, (at) => use(item, at))}
+            ondragend={endDrag}
           >
-          <span class="name">{item.name}</span>
-          <span class="sub">{item.category}</span>
-          <span
+            <span class="thumb"
+              >{#if item.dataBase64 && item.mediaType === 'image/svg+xml'}<img
+                  alt=""
+                  src={`data:image/svg+xml;base64,${item.dataBase64}`}
+                />{:else}<span class="glyph" aria-hidden="true"
+                  >{item.kind === 'font' ? 'Aa' : item.kind === 'template' ? '▤' : '▧'}</span
+                >{/if}</span
+            >
+            <span class="name">{item.name}</span>
+            <span class="sub">{item.category}</span>
+          </button>
+          <button
+            type="button"
             class="star"
-            role="button"
-            tabindex="0"
             aria-label={`Favourite ${item.name}`}
             aria-pressed={favorites.has(item.id)}
             class:on={favorites.has(item.id)}
-            onclick={(event) => {
-              event.stopPropagation();
-              (() => favorite(item.id))();
-            }}
-            onkeydown={(event) => {
-              event.stopPropagation();
-              ((event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  void favorite(item.id);
-                }
-              })(event);
-            }}>★</span
+            onclick={() => void favorite(item.id)}>★</button
           >
-        </button>
+        </div>
       {/each}
     </div>
     {#if !all.length}<p class="empty">
@@ -1115,6 +1092,29 @@
     white-space: nowrap;
     text-overflow: ellipsis;
   }
+  .tile-wrap {
+    position: relative;
+    display: flex;
+    min-width: 0;
+  }
+  .tile-wrap > .tile,
+  .tile-wrap > .font-row {
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .search-error {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--mble-danger, #a21);
+    border-radius: var(--mble-radius-sm, 4px);
+    color: var(--mble-danger, #a21);
+    font-size: 0.75rem;
+  }
   .star {
     position: absolute;
     top: 0.15rem;
@@ -1131,10 +1131,15 @@
     opacity: 0;
     transition: opacity 0.12s;
   }
-  .tile:hover .star,
-  .tile:focus-within .star,
+  .tile-wrap:hover .star,
+  .tile-wrap:focus-within .star,
   .star.on {
     opacity: 1;
+  }
+  @media (hover: none) {
+    .star {
+      opacity: 1;
+    }
   }
   .star.on {
     color: var(--mble-primary, #ed6146);

@@ -165,7 +165,7 @@
       >
     </form>
     <button type="button" onclick={exportCsv}>Export CSV</button>
-    <span class="count"
+    <span class="count" aria-live="polite"
       >{template.records.length}
       {template.records.length === 1 ? 'record' : 'records'} · {template.fields.length}
       {template.fields.length === 1 ? 'column' : 'columns'}</span

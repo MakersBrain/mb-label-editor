@@ -8,7 +8,15 @@
   import { EditorDatabase } from '../persistence/database.js';
   import type { TemplateData } from '../model.js';
   import DataSheet from './DataSheet.svelte';
-  let { editor, onSyntaxHelp = () => {} }: { editor: EditorStore; onSyntaxHelp?: () => void } = $props();
+  import { SAMPLE_CSV, documentFields } from '../template/placeholders.js';
+  /** `docked` means the host shows the sheet beside the canvas, so the panel only offers to collapse it. */
+  let {
+    editor,
+    onSyntaxHelp = () => {},
+    docked = false,
+    onDock = () => {},
+  }: { editor: EditorStore; onSyntaxHelp?: () => void; docked?: boolean; onDock?: () => void } = $props();
+  const labelFields = $derived(documentFields(editor.document));
   const database = new EditorDatabase();
   let error = $state('');
   let templates: { key: IDBValidKey; value: TemplateData }[] = $state.raw([]);
@@ -16,12 +24,8 @@
   async function refresh() {
     templates = await database.entries<TemplateData>('templates');
   }
-  async function load(event: Event) {
+  async function apply(template: TemplateData) {
     try {
-      const file = (event.currentTarget as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const parsed = parseCsv(await file.text());
-      const template = { ...parsed, currentRecord: 0 };
       editor.execute(updateDocument({ template }));
       await database.saveTemplate(editor.document.id, template);
       await database.saveRecent({ id: editor.document.id, kind: 'template', openedAt: new Date().toISOString() });
@@ -30,6 +34,23 @@
     } catch (reason) {
       error = reason instanceof Error ? reason.message : String(reason);
     }
+  }
+  async function load(event: Event) {
+    try {
+      const file = (event.currentTarget as HTMLInputElement).files?.[0];
+      if (!file) return;
+      await apply({ ...parseCsv(await file.text()), currentRecord: 0 });
+    } catch (reason) {
+      error = reason instanceof Error ? reason.message : String(reason);
+    }
+  }
+  /** One empty record per field the label already references, so the sheet starts with the right columns. */
+  function startFromLabel() {
+    const fields = labelFields;
+    void apply({ fields, records: [Object.fromEntries(fields.map((field) => [field, '']))], currentRecord: 0 });
+  }
+  function loadSample() {
+    void apply({ ...parseCsv(SAMPLE_CSV), currentRecord: 0 });
   }
   async function persist(template: TemplateData) {
     try {
@@ -88,7 +109,11 @@
   {#if error}<p class="error">{error}</p>{/if}
   {#if editor.document.template}
     {@const template = editor.document.template}
-    <DataSheet {editor} onChange={persist} />
+    <div class="sheet-tools">
+      <button type="button" onclick={onDock}>{docked ? 'Collapse sheet' : 'Expand sheet'}</button>
+      {#if docked}<span class="muted">The sheet is open beside the label.</span>{/if}
+    </div>
+    {#if !docked}<DataSheet {editor} onChange={persist} />{/if}
     <details open class="section">
       <summary>Preview record</summary>
       <label
@@ -147,6 +172,17 @@
     <p class="muted empty">
       No data yet. Import a CSV to get an editable sheet of records; each row becomes one label.
     </p>
+    <div class="starters">
+      <button
+        type="button"
+        onclick={startFromLabel}
+        disabled={!labelFields.length}
+        title={labelFields.length
+          ? `Columns: ${labelFields.join(', ')}`
+          : 'Add a {{field}} expression to a text, barcode or QR element first'}>Start from this label's fields</button
+      >
+      <button type="button" onclick={loadSample}>Load sample CSV</button>
+    </div>
   {/if}
 </section>
 
@@ -192,6 +228,15 @@
   }
   .empty {
     margin: 0.4rem 0;
+  }
+  .starters,
+  .sheet-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.72rem;
   }
   h2 {
     margin: 0 0 0.5rem;

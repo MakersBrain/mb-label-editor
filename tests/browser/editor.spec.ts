@@ -2057,3 +2057,45 @@ test('dialogs move focus inside, trap Tab and hand focus back on close', async (
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
+
+test("the data tab can start from the label's fields and dock the sheet beside the label", async ({ page }) => {
+  await page.goto('/');
+  await page
+    .getByRole('navigation', { name: 'Drawing tools' })
+    .getByRole('button', { name: 'Text', exact: true })
+    .click();
+  const textField = page.locator('#inspector').getByLabel('Text', { exact: true });
+  await textField.fill('{{name | upper}} {{price | number:2}}');
+  await textField.press('Tab');
+  await page.getByRole('tab', { name: 'Data' }).click();
+  const panel = page.locator('#sidebar-panel-data');
+  await panel.getByRole('button', { name: "Start from this label's fields" }).click();
+  const sheet = panel.getByRole('table', { name: 'Data records' });
+  await expect(sheet.getByRole('columnheader', { name: /name/ })).toBeVisible();
+  await expect(sheet.getByRole('columnheader', { name: /price/ })).toBeVisible();
+  await expect(panel.getByText('1 record · 2 columns')).toBeVisible();
+  await panel.getByRole('button', { name: 'Expand sheet' }).click();
+  const dock = page.getByRole('region', { name: 'Data records' });
+  await expect(dock.getByRole('table', { name: 'Data records' })).toBeVisible();
+  await expect(panel.getByRole('table', { name: 'Data records' })).toHaveCount(0);
+  await dock.getByRole('textbox', { name: 'name, row 1' }).fill('Jam');
+  await dock.getByRole('textbox', { name: 'name, row 1' }).press('Tab');
+  await dock.getByRole('textbox', { name: 'price, row 1' }).fill('4.5');
+  await dock.getByRole('textbox', { name: 'price, row 1' }).press('Tab');
+  await expect(page.locator('.element.text span.text-body')).toHaveText('JAM 4.50');
+  await dock.getByRole('button', { name: 'Collapse sheet' }).click();
+  await expect(dock).toHaveCount(0);
+  await expect(panel.getByRole('table', { name: 'Data records' })).toBeVisible();
+});
+
+test('the data tab can load a sample CSV', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Data' }).click();
+  const panel = page.locator('#sidebar-panel-data');
+  await expect(panel.getByRole('button', { name: "Start from this label's fields" })).toBeDisabled();
+  await panel.getByRole('button', { name: 'Load sample CSV' }).click();
+  await expect(panel.getByText('3 records · 3 columns')).toBeVisible();
+  await expect(
+    panel.getByRole('table', { name: 'Data records' }).getByRole('textbox', { name: 'name, row 1' }),
+  ).toHaveValue('Strawberry jam');
+});
