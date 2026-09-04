@@ -25,6 +25,8 @@
   let query = '';
   let category = '';
   let status = '';
+  /** Search summaries live apart from action feedback so a late search result cannot overwrite an import message. */
+  let searchStatus = '';
   let source: 'service' | 'browser' = resourceProvider ? 'service' : 'browser';
   let remoteKind: 'assets' | 'fonts' = 'assets';
   let privateAssets: CatalogueAsset[] = [];
@@ -110,6 +112,7 @@
   /** Font previews are rendered by the catalogue; the family name set in its own face reads like a type specimen. */
   const fontSample = (item: ExternalFont, text = item.family, size = 40) => `${item.previewUrl}?text=${encodeURIComponent(text)}&size=${size}`;
   function scheduleRemoteSearch() {
+    status = '';
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void searchRemote(1), 250);
   }
@@ -129,9 +132,9 @@
       remoteTotal = result.total;
       if (remoteKind === 'assets') { remoteAssets = result.items as ExternalAsset[]; remoteFonts = []; }
       else { remoteFonts = result.items as ExternalFont[]; remoteAssets = []; }
-      status = `${result.total} ${remoteKind} from ${resourceProvider.displayName}.`;
+      searchStatus = `${result.total} ${remoteKind} from ${resourceProvider.displayName}.`;
     } catch (error) {
-      if (sequence === requestSequence) status = message(error);
+      if (sequence === requestSequence) searchStatus = message(error);
     } finally {
       if (sequence === requestSequence) remoteLoading = false;
     }
@@ -291,7 +294,7 @@
       {#each chips as item (item.value)}<button type="button" class="chip" class:active={category === item.value} aria-pressed={category === item.value} on:click={() => toggleCategory(item.value)}>{item.value}<span class="count">{item.count}</span></button>{/each}
     </div>
   {/if}
-  <p class="status" aria-live="polite">{remoteLoading ? `Searching ${resourceProvider?.displayName ?? 'external resources'}…` : status}</p>
+  <p class="status" aria-live="polite">{status || (remoteLoading ? `Searching ${resourceProvider?.displayName ?? 'external resources'}…` : source === 'service' ? searchStatus : '')}</p>
 
   {#if selected}
     <div class="detail" class:font={selected.kind === 'font'} aria-label="Selected asset">
@@ -389,7 +392,7 @@
   .font-row:hover{border-color:var(--mble-border-strong,#948274)}
   .font-row.active{border-color:var(--mble-primary,#ed6146);box-shadow:0 0 0 1px var(--mble-primary,#ed6146)}
   .font-sample{display:flex;align-items:center;flex:1;min-width:0;height:2.1rem;overflow:hidden}
-  .font-sample :global(img){display:block;height:100%;width:auto;max-width:100%;object-fit:contain;object-position:left center;pointer-events:none}
+  .font-sample :global(img){display:block;height:100%;width:auto;max-width:none;pointer-events:none}
   .font-sample :global(.preview){width:100%;height:100%}
   .font-meta{display:flex;flex-direction:column;flex:none;max-width:40%;min-width:0}
   .font-meta .name{color:#17231c}
