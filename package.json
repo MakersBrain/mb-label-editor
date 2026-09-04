@@ -9,8 +9,9 @@
     "build": "npm run build --workspaces --if-present",
     "check": "npm run check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "check:licenses": "node scripts/check-license-policy.mjs"
-    ,"test:browser": "playwright test",
+    "check:licenses": "node scripts/check-license-policy.mjs",
+    "check:runes": "node scripts/check-runes.mjs",
+    "test:browser": "playwright test",
     "test:package": "node scripts/test-package.mjs",
     "test:pwa-release": "node scripts/test-pwa-release.mjs",
     "check:workflows": "node scripts/check-workflows.mjs",

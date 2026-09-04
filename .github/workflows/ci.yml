@@ -43,6 +43,7 @@ jobs:
         working-directory: mb-printer-sdk/crates/mb-printer-wasm
       - run: npm ci
       - run: npm run check
+      - run: npm run check:runes
       - run: npm run check:workflows
       - run: npm run check:licenses
       - run: npm test

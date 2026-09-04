@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/**
+ * Components not yet converted to Svelte 5 runes mode.
+ *
+ * Both svelte.config.js files compile every other component with `runes: true`.
+ * Entries are only ever removed; scripts/check-runes.mjs fails on stale ones.
+ * Keyed by basename because the PWA compiles the package's dist copies.
+ */
+export const legacyComponents = new Set([
+  'App.svelte',
+  'AssetPanel.svelte',
+  'BatchPanel.svelte',
+  'Canvas.svelte',
+  'CloudPrintPanel.svelte',
+  'DataPanel.svelte',
+  'DataSheet.svelte',
+  'DirectPrintPanel.svelte',
+  'EditorMenus.svelte',
+  'ExternalResourceConnectionsPanel.svelte',
+  'GuidesPanel.svelte',
+  'Icon.svelte',
+  'Inspector.svelte',
+  'JobRecoveryPanel.svelte',
+  'LabelEditor.svelte',
+  'LaPostePanel.svelte',
+  'Layers.svelte',
+  'LibraryPanel.svelte',
+  'LocalServicePanel.svelte',
+  'MediaPanel.svelte',
+  'Menu.svelte',
+  'Modal.svelte',
+  'RemoteAssetPreview.svelte',
+  'SheetPanel.svelte',
+  'TemplateSyntaxPanel.svelte',
+  'ThermalPreview.svelte',
+  'Toolbar.svelte',
+]);
