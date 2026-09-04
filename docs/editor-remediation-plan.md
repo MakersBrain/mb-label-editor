@@ -47,6 +47,25 @@ drag of a text element on the 178 KB image fixture plus 40 inserted texts:
 | Longest task during the drag | 80 ms |
 | Scripted insertion of 40 text elements | 4568 ms |
 
+After Phase 1 (2026-09-04), same spec:
+
+| Measure | Value |
+| --- | --- |
+| IndexedDB write transactions during the drag and 2.5 s settle | 1 |
+| SDK renders during the drag | 1 |
+| Longest task while the pointer is down | 0 ms (none recorded) |
+| Longest task after release (one synchronous WASM raster of the preview) | 64 to 67 ms |
+| Scripted insertion of 40 text elements | 1632 to 1736 ms |
+
+Deviations from the plan below, decided during Phase 1: no separate
+`editor.document` readable was added because Phase 2.1 replaces the store
+shape; ESLint rules the migration will clear are warnings under a
+`--max-warnings` cap that only decreases, and the repository-wide Prettier
+run is deferred to the end of Phase 2; image elements keep memoised data
+URLs rather than object URLs because the browser suite asserts the `data:`
+scheme; the data sheet keeps index keys; the post-release WASM raster stays
+on the main thread until preview rendering moves to a Worker.
+
 Root cause of the slowness: `createEditorStore` in `store.ts` exposes one
 merged snapshot that emits on every document, selection or view change.
 Every component reads `$editor`, and `Canvas.moveDrag` calls `setView` on
