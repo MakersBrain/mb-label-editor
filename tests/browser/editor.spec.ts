@@ -1885,4 +1885,10 @@ test('the label fits the window on open and stops fitting once the user zooms', 
   await page.getByRole('button', { name: 'Fit to window' }).click();
   await expect(page.locator('.zoom-control .fit')).toBeVisible();
   await expect.poll(inside).toBe(true);
+  await viewport.click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Control+0');
+  await expect(page.locator('input.zoom')).toHaveValue('1');
+  await expect(page.locator('.ruler.horizontal text').first()).toBeVisible();
+  await page.keyboard.press('Shift+1');
+  await expect(page.locator('.zoom-control .fit')).toBeVisible();
 });

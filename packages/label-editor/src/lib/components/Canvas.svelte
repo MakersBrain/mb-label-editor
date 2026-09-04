@@ -18,7 +18,7 @@
   import { GestureTracker } from '../gestures.js';
   import { onDestroy, untrack } from 'svelte';
   import type { EditorStore } from '../store.svelte.js';
-  import { fitToView, RULER_SIZE } from '../view.js';
+  import { fitToView, labelToScreen, rulerTicks, RULER_SIZE } from '../view.js';
   import ZoomControl from './ZoomControl.svelte';
   import type { PrinterDefinition, PrinterSdk } from '../print/types.js';
   import ThermalPreview from './ThermalPreview.svelte';
@@ -516,6 +516,16 @@
     cancelPendingMove();
   });
   const displayHeight = $derived(previewDocument?.media.height ?? editor.document.media.height);
+  /** Ruler ticks follow the pan and zoom so the scale stays honest; the label origin is where the media's top-left lands on screen. */
+  const rulerOrigin = $derived(
+    labelToScreen({ x: 0, y: 0 }, editor.view, { width: editor.document.media.width, height: displayHeight }),
+  );
+  const horizontalTicks = $derived(
+    rulerTicks(editor.view.zoom, rulerOrigin.x - RULER_SIZE, Math.max(0, editor.view.viewport.width - RULER_SIZE)),
+  );
+  const verticalTicks = $derived(
+    rulerTicks(editor.view.zoom, rulerOrigin.y - RULER_SIZE, Math.max(0, editor.view.viewport.height - RULER_SIZE)),
+  );
   async function preparePreview() {
     const generation = ++previewGeneration;
     if (!sdk) {
@@ -580,8 +590,27 @@
   role="application"
   aria-label="Label canvas"
 >
-  {#if editor.view.showRulers}<div class="ruler horizontal"></div>
-    <div class="ruler vertical"></div>{/if}
+  {#if editor.view.showRulers}
+    <div class="ruler horizontal" aria-hidden="true">
+      <svg width="100%" height={RULER_SIZE}>
+        {#each horizontalTicks as tick (tick.mm)}
+          <line x1={tick.at} x2={tick.at} y1={tick.major ? 6 : 13} y2={RULER_SIZE} />
+          {#if tick.label !== undefined}<text x={tick.at + 2} y={9}>{tick.label}</text>{/if}
+        {/each}
+      </svg>
+    </div>
+    <div class="ruler vertical" aria-hidden="true">
+      <svg width={RULER_SIZE} height="100%">
+        {#each verticalTicks as tick (tick.mm)}
+          <line y1={tick.at} y2={tick.at} x1={tick.major ? 6 : 13} x2={RULER_SIZE} />
+          {#if tick.label !== undefined}<text x={2} y={tick.at - 2} transform={`rotate(-90 2 ${tick.at - 2})`}
+              >{tick.label}</text
+            >{/if}
+        {/each}
+      </svg>
+    </div>
+    <div class="ruler corner" aria-hidden="true">mm</div>
+  {/if}
   <div
     class="pan"
     style={`transform:translate(calc(-50% + ${editor.view.pan.x}px),calc(-50% + ${editor.view.pan.y}px)) scale(${editor.view.zoom})`}
@@ -867,6 +896,32 @@
     bottom: 0;
     border-right: 1px solid var(--mble-border-strong, #aaa);
   }
+  .ruler.corner {
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    color: var(--mble-text-muted, #59635e);
+    font-size: 8px;
+    border-right: 1px solid var(--mble-border-strong, #aaa);
+    border-bottom: 1px solid var(--mble-border-strong, #aaa);
+  }
+  .ruler svg {
+    display: block;
+    overflow: visible;
+  }
+  .ruler line {
+    stroke: var(--mble-text-muted, #59635e);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+  .ruler text {
+    fill: var(--mble-text-muted, #59635e);
+    font-size: 8px;
+    font-variant-numeric: tabular-nums;
+  }
   .guide {
     position: absolute;
     background: var(--mble-guide, #46a8ed);
@@ -988,20 +1043,5 @@
     background: #fff7df;
     color: var(--mble-danger, #a21);
     font-size: 9px;
-  }
-  .ruler.horizontal {
-    background-image: repeating-linear-gradient(
-      90deg,
-      transparent 0 18px,
-      var(--mble-text-muted, #59635e) 18px 19px,
-      transparent 19px 37.795px
-    );
-  }
-  .ruler.vertical {
-    background-image: repeating-linear-gradient(
-      transparent 0 18px,
-      var(--mble-text-muted, #59635e) 18px 19px,
-      transparent 19px 37.795px
-    );
   }
 </style>

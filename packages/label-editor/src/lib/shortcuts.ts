@@ -55,10 +55,14 @@ export const editorShortcuts: ShortcutGroup[] = [
   {
     title: 'View',
     entries: [
-      { keys: ['Mod+Wheel'], action: 'Zoom around the pointer' },
+      { keys: ['Wheel'], action: 'Zoom around the pointer' },
       { keys: ['Shift+Wheel'], action: 'Pan horizontally' },
-      { keys: ['Wheel'], action: 'Pan vertically' },
+      { keys: ['Mod+Wheel'], action: 'Pan vertically' },
       { keys: ['Pinch'], action: 'Zoom and pan on touch screens' },
+      { keys: ['Shift+1'], action: 'Fit the label to the window' },
+      { keys: ['Mod+0'], action: 'Zoom to 100%' },
+      { keys: ['Shift+2'], action: 'Zoom to 200%' },
+      { keys: ['Mod+=', 'Mod+-'], action: 'Zoom in and out' },
       { keys: ['?'], action: 'Show this shortcut list' },
       { keys: ['Esc'], action: 'Close the open dialog' },
     ],

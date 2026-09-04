@@ -5,6 +5,7 @@ import {
   fitToView,
   labelToScreen,
   PX_PER_MM,
+  rulerTicks,
   screenToLabel,
   visibleLabelArea,
   ZOOM_MAX,
@@ -53,5 +54,19 @@ describe('label and screen coordinates', () => {
     expect(visibleLabelArea({ zoom: 1, pan: { x: 5000, y: 0 }, viewport: { width: 300, height: 200 } }, media)).toEqual(
       { x: 0, y: 0, width: 50, height: 30 },
     );
+  });
+});
+
+describe('ruler ticks', () => {
+  it('spaces ticks by zoom, labels every fifth and stays inside the ruler', () => {
+    const fine = rulerTicks(4, 100, 800);
+    expect(fine[1].mm - fine[0].mm).toBe(1);
+    expect(fine.filter((tick) => tick.label).map((tick) => tick.mm)).toEqual(expect.arrayContaining([0, 5, 10]));
+    expect(fine.every((tick) => tick.at >= 0 && tick.at <= 800)).toBe(true);
+    expect(fine.find((tick) => tick.mm === 0)?.at).toBe(100);
+    const coarse = rulerTicks(0.25, 0, 800);
+    expect(coarse[1].mm - coarse[0].mm).toBe(10);
+    expect(coarse.filter((tick) => tick.label).map((tick) => tick.mm)).toEqual(expect.arrayContaining([0, 50]));
+    expect(rulerTicks(1, 0, 0)).toEqual([]);
   });
 });

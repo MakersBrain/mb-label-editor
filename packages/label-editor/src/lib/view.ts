@@ -78,3 +78,35 @@ export function visibleLabelArea(view: ViewPlacement, media: MediaSize): Bounds 
   if (right <= x || bottom <= y) return whole;
   return { x, y, width: right - x, height: bottom - y };
 }
+
+export interface RulerTick {
+  /** Position along the ruler in CSS pixels from its start. */
+  at: number;
+  /** Position in label millimetres. */
+  mm: number;
+  major: boolean;
+  label?: string;
+}
+
+/**
+ * Tick marks for a ruler of `lengthPx` pixels whose label origin sits at
+ * `originPx` from the ruler's start. The minor spacing is the smallest of
+ * 1, 2, 5, 10, 20 or 50 mm that leaves at least 6 px between ticks, and every
+ * fifth tick is major and labelled, so rulers stay readable at any zoom.
+ */
+export function rulerTicks(zoom: number, originPx: number, lengthPx: number): RulerTick[] {
+  const pxPerMm = PX_PER_MM * zoom;
+  const spacing = [1, 2, 5, 10, 20, 50].find((step) => step * pxPerMm >= 6) ?? 100;
+  const ticks: RulerTick[] = [];
+  if (!(lengthPx > 0) || !Number.isFinite(pxPerMm) || pxPerMm <= 0) return ticks;
+  // `|| 0` turns a negative zero from Math.floor into a plain zero so labels and keys read as 0.
+  const first = Math.floor(-originPx / pxPerMm / spacing) * spacing || 0;
+  const last = Math.ceil((lengthPx - originPx) / pxPerMm / spacing) * spacing;
+  for (let mm = first; mm <= last; mm += spacing) {
+    const at = originPx + mm * pxPerMm;
+    if (at < 0 || at > lengthPx) continue;
+    const major = Math.round(mm / spacing) % 5 === 0;
+    ticks.push({ at, mm, major, label: major ? String(mm) : undefined });
+  }
+  return ticks;
+}

@@ -2,6 +2,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { EditorStore } from '../store.svelte.js';
+  import { ZOOM_STEP } from '../view.js';
   import type { PrinterDefinition, PrinterSdk } from '../print/types.js';
   import type { DocumentMaterializer } from '../materialization.js';
   import type { AssetCatalogClient } from '../asset-catalog/client.js';
@@ -188,6 +189,21 @@
       if (event.shiftKey) {
         for (const item of editor.selectedElements) if (item.type === 'group') editor.execute(ungroup(item.id));
       } else groupSelected();
+    } else if (modifier && (event.key === '0' || event.code === 'Digit0')) {
+      event.preventDefault();
+      editor.setZoom(1);
+    } else if (modifier && (event.key === '=' || event.key === '+')) {
+      event.preventDefault();
+      editor.setZoom(editor.view.zoom * ZOOM_STEP);
+    } else if (modifier && event.key === '-') {
+      event.preventDefault();
+      editor.setZoom(editor.view.zoom / ZOOM_STEP);
+    } else if (!modifier && event.shiftKey && event.code === 'Digit1') {
+      event.preventDefault();
+      editor.setView({ zoomMode: 'fit' });
+    } else if (!modifier && event.shiftKey && event.code === 'Digit2') {
+      event.preventDefault();
+      editor.setZoom(2);
     } else if (event.key === '?' && !modifier) {
       event.preventDefault();
       dialog = dialog === 'shortcuts' ? '' : 'shortcuts';
