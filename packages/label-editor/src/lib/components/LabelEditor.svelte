@@ -1,6 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">import type { EditorStore } from '../store.js';import type{PrinterDefinition,PrinterSdk}from'../print/types.js';import type{DocumentMaterializer}from'../materialization.js';import type{AssetCatalogClient}from'../asset-catalog/client.js';import type{ExternalResourceProvider}from'../external-resources/types.js'; import {addElement,groupElements,moveElements,removeElements,ungroup} from '../commands.js';import {copyElements,pasteElements} from '../clipboard.js'; import Canvas from './Canvas.svelte';import ShortcutsPanel from './ShortcutsPanel.svelte';import TemplateSyntaxPanel from './TemplateSyntaxPanel.svelte';import Inspector from './Inspector.svelte';import Layers from './Layers.svelte';import DataPanel from './DataPanel.svelte';import AssetPanel from './AssetPanel.svelte';import MediaPanel from './MediaPanel.svelte';import LibraryPanel from './LibraryPanel.svelte';import GuidesPanel from './GuidesPanel.svelte';import Toolbar from './Toolbar.svelte';import EditorMenus from './EditorMenus.svelte';import Modal from './Modal.svelte'; export let editor:EditorStore;export let sdk:PrinterSdk|undefined=undefined;export let materializer:Pick<DocumentMaterializer,'materializeRecord'>|undefined=undefined;export let resourceProvider:ExternalResourceProvider|undefined=undefined;/** @deprecated Pass resourceProvider instead. */export let assetCatalog:AssetCatalogClient|undefined=undefined;export let printers:PrinterDefinition[]=[];export let printerId='';export let onPrinter:(id:string)=>void=()=>{};let sidebarOpen=true;let dialog='';$: activeResourceProvider=resourceProvider??assetCatalog;
 const dialogTitles:Record<string,string>={media:'Media & zones',data:'Data',assets:'Assets',library:'Library',guides:'Guides',shortcuts:'Keyboard shortcuts',syntax:'Template syntax'};
+type SidebarTab='layers'|'printer';const sidebarTabKey='mb-label-editor:sidebar-tab';
+/** The chosen tab survives reloads; storage may be unavailable in private windows. */
+let sidebarTab:SidebarTab=(()=>{try{return globalThis.localStorage?.getItem(sidebarTabKey)==='printer'?'printer':'layers'}catch{return 'layers'}})();
+function selectSidebarTab(tab:SidebarTab){sidebarTab=tab;try{globalThis.localStorage?.setItem(sidebarTabKey,tab)}catch{/* storage unavailable */}}
+function tabKeys(event:KeyboardEvent){if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();selectSidebarTab(sidebarTab==='layers'?'printer':'layers');(document.getElementById(`sidebar-tab-${sidebarTab}`) as HTMLElement|null)?.focus()}
 function groupSelected(){if($editor.selection.size<2)return;const command=groupElements($editor.selection);editor.execute(command);editor.select([command.createdId])}
 function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if(['INPUT','TEXTAREA','SELECT'].includes(target.tagName))return;const modifier=event.ctrlKey||event.metaKey;
   if(modifier&&event.key.toLowerCase()==='z'){event.preventDefault();event.shiftKey?editor.redo():editor.undo()}else if(modifier&&event.key.toLowerCase()==='y'){event.preventDefault();editor.redo()}
@@ -26,9 +31,17 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
   <main class:sidebar-closed={!sidebarOpen}>
     <div class="canvas"><Canvas {editor} {sdk} {materializer} printer={printers.find(item=>item.id===printerId)}/></div>
     <aside class:open={sidebarOpen}>
-      <details open><summary>Layers</summary><Layers {editor}/></details>
-      <details open><summary>Properties</summary><Inspector {editor}/></details>
-      <slot name="sidebar"/>
+      <div class="tabs" role="tablist" aria-label="Side panels">
+        <button type="button" role="tab" id="sidebar-tab-layers" aria-selected={sidebarTab==='layers'} aria-controls="sidebar-panel-layers" tabindex={sidebarTab==='layers'?0:-1} on:click={()=>selectSidebarTab('layers')} on:keydown={tabKeys}>Layers</button>
+        <button type="button" role="tab" id="sidebar-tab-printer" aria-selected={sidebarTab==='printer'} aria-controls="sidebar-panel-printer" tabindex={sidebarTab==='printer'?0:-1} on:click={()=>selectSidebarTab('printer')} on:keydown={tabKeys}>Printer</button>
+      </div>
+      <div id="sidebar-panel-layers" role="tabpanel" aria-labelledby="sidebar-tab-layers" hidden={sidebarTab!=='layers'}>
+        <details open><summary>Layers</summary><Layers {editor}/></details>
+        <details open><summary>Properties</summary><Inspector {editor}/></details>
+      </div>
+      <div id="sidebar-panel-printer" role="tabpanel" aria-labelledby="sidebar-tab-printer" hidden={sidebarTab!=='printer'}>
+        <slot name="sidebar"/>
+      </div>
     </aside>
   </main>
   <Modal open={dialog==='media'} title={dialogTitles.media} onClose={()=>dialog=''}><MediaPanel {editor} {sdk} {materializer} {printers} {printerId} {onPrinter}/></Modal>
@@ -49,6 +62,10 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
   .canvas{position:relative;min-width:0;min-height:0;overflow:hidden}
   main.sidebar-closed{grid-template-columns:minmax(0,1fr)}main.sidebar-closed aside{display:none}
   aside{min-width:0;overflow:auto;overscroll-behavior:contain;background:var(--mble-background,#f7f4ed);border-left:1px solid var(--mble-border,#d8d0c3)}
+  .tabs{position:sticky;top:0;z-index:6;display:flex;background:var(--mble-background,#f7f4ed);border-bottom:1px solid var(--mble-border,#d8d0c3)}
+  .tabs [role=tab]{flex:1;padding:.5rem .75rem;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--mble-text-muted,#59635e);font-size:.75rem;font-weight:600;cursor:pointer}
+  .tabs [role=tab][aria-selected=true]{color:var(--mble-text,#17231c);border-bottom-color:var(--mble-primary,#ed6146)}
+  aside [role=tabpanel][hidden]{display:none}
   aside details{border-bottom:1px solid var(--mble-border,#e5dfd5)}
   aside summary{position:sticky;top:0;z-index:5;display:flex;gap:.4rem;align-items:center;padding:.5rem .75rem;background:var(--mble-background,#f7f4ed);color:var(--mble-text-muted,#59635e);cursor:pointer;font-size:.75rem;font-weight:600;list-style:none}
   aside summary::-webkit-details-marker{display:none}

@@ -137,7 +137,7 @@ test('invalid continuous settings disable output until printer limits make them 
 });
 
 test('an unqualified printer cannot send a continuous label',async({page})=>{
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('tab',{name:'Printer'}).click();
   await openDialog(page,'Label','Media & zones…');
   const media=page.getByRole('dialog',{name:'Media & zones'});
   await media.getByLabel('Shape').selectOption('continuous');
@@ -359,6 +359,25 @@ test('the template syntax reference explains transforms and evaluates expression
   await expect(dialog).toBeVisible();
 });
 
+test('the sidebar switches between layers and printer tabs and remembers the choice', async ({ page }) => {
+  await page.goto('/');
+  const layersTab = page.getByRole('tab', { name: 'Layers' });
+  const printerTab = page.getByRole('tab', { name: 'Printer' });
+  await expect(layersTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: '+ Group' })).toBeVisible();
+  await expect(page.getByLabel('Connection')).toBeHidden();
+  await printerTab.click();
+  await expect(page.getByLabel('Connection')).toBeVisible();
+  await expect(page.getByRole('button', { name: '+ Group' })).toBeHidden();
+  await page.reload();
+  await expect(printerTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByLabel('Connection')).toBeVisible();
+  await printerTab.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(layersTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: '+ Group' })).toBeVisible();
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
@@ -477,7 +496,7 @@ test('a saved IPP connection waits for an explicit refresh before probing localh
     const selected = new URL(route.request().url()).searchParams.has('connection');
     return route.fulfill({ status: 200, headers, body: JSON.stringify(selected ? { connection, connected: true, status: 'idle', media: connection.media } : { connections: [connection], connected: false, status: 'not-connected', media: null }) });
   });
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('tab',{name:'Printer'}).click();
   await expect(page.getByLabel('Printer model')).toBeVisible();
   expect(applicationRequests).toBe(0);
   expect(await page.evaluate(() => localStorage.getItem('mb-local-api-connection'))).toBe('brother-network');
@@ -525,7 +544,7 @@ test('runs discovery and capability-gated Brother diagnostics only after explici
     if (request.url().endsWith('/brother/report')) return route.fulfill({ status: 200, headers, body: JSON.stringify({ connectionId: brother.id, redacted: true, sections: { General: { Model: 'QL-1110NWB' } } }) });
     return route.fulfill({ status: 200, headers, body: JSON.stringify({ connections: [brother, generic], connected: false, status: 'not-connected', media: null }) });
   });
-  await page.goto('/');
+  await page.goto('/');await page.getByRole('tab',{name:'Printer'}).click();
   await expect(page.getByLabel('Printer model')).toBeVisible();
   await openDialog(page, 'Print', 'Local service…');
   const dialog = page.getByRole('dialog', { name: 'Local service' });
@@ -796,7 +815,7 @@ test('the SDK lists the media a model can carry and names what it reported',asyn
   expect(probe.tape.every(id=>['30x6','50x12','40x12','30x12'].includes(id))).toBe(true);
   expect(probe.media).toBe('62mm x 29mm')});
 
-test('the label takes its size from the media the printer reports',async({page})=>{await page.goto('/');
+test('the label takes its size from the media the printer reports',async({page})=>{await page.goto('/');await page.getByRole('tab',{name:'Printer'}).click();
   await page.getByLabel('Printer model').focus();
   await page.getByLabel('Printer model').selectOption('ql-1110nwb');
   // Answer the status query from a stub transport instead of real hardware.
@@ -814,7 +833,7 @@ test('the label takes its size from the media the printer reports',async({page})
   await expect(dialog.getByLabel('width')).toHaveValue('62');
   await expect(dialog.getByLabel('height')).toHaveValue('29')});
 
-test('printer-reported continuous stock sets roll width without discarding authored length',async({page})=>{await page.goto('/');
+test('printer-reported continuous stock sets roll width without discarding authored length',async({page})=>{await page.goto('/');await page.getByRole('tab',{name:'Printer'}).click();
   await page.getByLabel('Printer model').selectOption('ql-1110nwb');
   const authoredLength=30;
   await page.evaluate(()=>{const reply=new Uint8Array(32);reply.set([0x80,0x20,0x42]);reply[10]=62;reply[11]=0x0a;reply[17]=0;
@@ -830,7 +849,7 @@ test('printer-reported continuous stock sets roll width without discarding autho
   await expect(dialog.getByLabel('Cut length (mm)')).toHaveValue(String(authoredLength));
 });
 
-test('the print route follows the selected printer and stays where it is put',async({page})=>{await page.goto('/');
+test('the print route follows the selected printer and stays where it is put',async({page})=>{await page.goto('/');await page.getByRole('tab',{name:'Printer'}).click();
   await page.getByLabel('Printer model').focus();
   const route=page.getByLabel('Connection');
   await page.getByLabel('Printer model').selectOption('m110');
@@ -867,7 +886,7 @@ test('a dialog the app mounts outside the editor still carries its styling',asyn
   expect(styling.button).toBe('13px');
   expect(styling.body).not.toBe('13px')});
 
-test('WebUSB offers every attached printer without an identity',async({page})=>{await page.goto('/');
+test('WebUSB offers every attached printer without an identity',async({page})=>{await page.goto('/');await page.getByRole('tab',{name:'Printer'}).click();
   await page.getByLabel('Printer model').selectOption('m200');
   await page.getByLabel('Connection').selectOption('usb');
   await expect(page.getByLabel('Vendor ID')).toBeHidden();
@@ -877,7 +896,7 @@ test('WebUSB offers every attached printer without an identity',async({page})=>{
     await new Promise(resolve=>setTimeout(resolve,400));return captured});
   expect(filters).toEqual([{classCode:7}])});
 
-test('continuous cutter preferences are isolated by printer model',async({page})=>{await page.goto('/');
+test('continuous cutter preferences are isolated by printer model',async({page})=>{await page.goto('/');await page.getByRole('tab',{name:'Printer'}).click();
   await openDialog(page,'Label','Media & zones…');
   const media=page.getByRole('dialog',{name:'Media & zones'});
   await media.getByLabel('Shape').selectOption('continuous');
