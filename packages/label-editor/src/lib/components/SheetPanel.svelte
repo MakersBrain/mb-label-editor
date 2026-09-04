@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { LabelDocument } from '../model.js';
   import { downloadBytes, openPdfInNewWindow } from '../browser-files.js';
   import type { DocumentMaterializer } from '../materialization.js';
@@ -10,42 +11,42 @@
   import { presetToDefinition, sheetPlanInput } from '../sheets/normalize.js';
   import { isSheetPlanForRequest, type SheetDefinition, type SheetExporter, type SheetFillOrder, type SheetLayoutPreset, type SheetPaper, type SheetPlan, type SheetPreferencesV1 } from '../sheets/types.js';
 
-  export let document: LabelDocument;
-  export let exporter: SheetExporter;
-  export let materializer: DocumentMaterializer;
-  export let measurer: DocumentMeasurer;
-  export let initialLayoutId = '';
-  export let initialPreferences: SheetPreferencesV1 | undefined = undefined;
-  export let onLayout: (layoutId: string, fillOrder: SheetFillOrder, custom?: NonNullable<SheetLayoutPreset['grid']>) => void = () => {};
-  export let onStatus: (message: string) => void = () => {};
+  interface Props {
+    document: LabelDocument; exporter: SheetExporter; materializer: DocumentMaterializer; measurer: DocumentMeasurer;
+    initialLayoutId?: string; initialPreferences?: SheetPreferencesV1;
+    onLayout?: (layoutId: string, fillOrder: SheetFillOrder, custom?: NonNullable<SheetLayoutPreset['grid']>) => void; onStatus?: (message: string) => void;
+  }
+  let { document, exporter, materializer, measurer, initialLayoutId = '', initialPreferences, onLayout = () => {}, onStatus = () => {} }: Props = $props();
 
   const presets = sheetLayoutPresets();
-  const savedLayoutId = initialPreferences?.layoutId ?? initialLayoutId;
-  const savedCustom = initialPreferences?.lastCustomGrid;
-  let layoutId = savedLayoutId === 'custom' || presets.some((item) => item.id === savedLayoutId) ? savedLayoutId : (presets[0]?.id ?? 'custom');
-  let mode: 'copies' | 'records' = 'copies';
-  let copies = 1;
-  let firstSlot = 0;
-  let fillOrder: SheetFillOrder = initialPreferences?.fillOrder ?? 'row-major';
-  let customPaper: Exclude<SheetPaper, 'custom'> = 'a4';
-  let customOrientation: 'portrait' | 'landscape' = 'portrait';
-  let rows = savedCustom?.rows ?? 8;
-  let columns = savedCustom?.columns ?? 3;
-  let labelWidthMm = savedCustom?.labelWidthMm ?? document.media.width;
-  let labelHeightMm = savedCustom?.labelHeightMm ?? document.media.height;
-  let marginLeftMm = savedCustom?.marginLeftMm ?? 0;
-  let marginTopMm = savedCustom?.marginTopMm ?? 4.5;
-  let gapXMm = savedCustom?.gapXMm ?? 0;
-  let gapYMm = savedCustom?.gapYMm ?? 0;
-  let plan: SheetPlan | undefined;
-  let error = '';
-  let busy = false;
+  // The dialog seeds its form from the props once; later prop changes are not meant to reset a form the user is editing.
+  const initial = untrack(() => ({ layoutId: initialPreferences?.layoutId ?? initialLayoutId, custom: initialPreferences?.lastCustomGrid, fillOrder: initialPreferences?.fillOrder ?? 'row-major', width: document.media.width, height: document.media.height }));
+  const savedLayoutId = initial.layoutId;
+  const savedCustom = initial.custom;
+  let layoutId = $state(savedLayoutId === 'custom' || presets.some((item) => item.id === savedLayoutId) ? savedLayoutId : (presets[0]?.id ?? 'custom'));
+  let mode: 'copies' | 'records' = $state('copies');
+  let copies = $state(1);
+  let firstSlot = $state(0);
+  let fillOrder: SheetFillOrder = $state(initial.fillOrder);
+  let customPaper: Exclude<SheetPaper, 'custom'> = $state('a4');
+  let customOrientation: 'portrait' | 'landscape' = $state('portrait');
+  let rows = $state(savedCustom?.rows ?? 8);
+  let columns = $state(savedCustom?.columns ?? 3);
+  let labelWidthMm = $state(savedCustom?.labelWidthMm ?? initial.width);
+  let labelHeightMm = $state(savedCustom?.labelHeightMm ?? initial.height);
+  let marginLeftMm = $state(savedCustom?.marginLeftMm ?? 0);
+  let marginTopMm = $state(savedCustom?.marginTopMm ?? 4.5);
+  let gapXMm = $state(savedCustom?.gapXMm ?? 0);
+  let gapYMm = $state(savedCustom?.gapYMm ?? 0);
+  let plan: SheetPlan | undefined = $state.raw();
+  let error = $state('');
+  let busy = $state(false);
   let requestVersion = 0;
-  let plannedFingerprint = '';
+  let plannedFingerprint = $state('');
 
-  $: itemCount = mode === 'copies' ? copies : (document.template?.records.length ?? 0);
-  $: fingerprint = [layoutId, mode, itemCount, firstSlot, fillOrder, customPaper, customOrientation, rows, columns, labelWidthMm, labelHeightMm, marginLeftMm, marginTopMm, gapXMm, gapYMm, document.media.width, document.media.height].join(':');
-  $: if (fingerprint) void refreshPlan(fingerprint);
+  const itemCount = $derived(mode === 'copies' ? copies : (document.template?.records.length ?? 0));
+  const fingerprint = $derived([layoutId, mode, itemCount, firstSlot, fillOrder, customPaper, customOrientation, rows, columns, labelWidthMm, labelHeightMm, marginLeftMm, marginTopMm, gapXMm, gapYMm, document.media.width, document.media.height].join(':'));
+  $effect(() => { const key = fingerprint; if (key) untrack(() => refreshPlan(key)).catch(() => {}); });
 
   function selectedPreset(): SheetLayoutPreset {
     if (layoutId !== 'custom') {
@@ -158,7 +159,7 @@
       <p>{document.template?.records.length ?? 0} records in displayed order</p>
     {/if}
     <label>Label sheet
-      <select value={layoutId} on:change={(event) => chooseLayout(event.currentTarget.value)}>
+      <select value={layoutId} onchange={(event) => chooseLayout(event.currentTarget.value)}>
         {#each presets as preset}<option value={preset.id}>{preset.name}</option>{/each}
         <option value="custom">Custom grid…</option>
       </select>
@@ -197,7 +198,7 @@
             aria-pressed={firstSlot === index}
             title={`Slot ${index + 1}`}
             style={`left:${slot.xUm / plan.layout.paperWidthUm * 100}%;top:${slot.yUm / plan.layout.paperHeightUm * 100}%;width:${slot.widthUm / plan.layout.paperWidthUm * 100}%;height:${slot.heightUm / plan.layout.paperHeightUm * 100}%`}
-            on:click={() => firstSlot = index}>{index + 1}</button>
+            onclick={() => firstSlot = index}>{index + 1}</button>
         {/each}
       </div>
       <p aria-live="polite">{plan.pageCount} page{plan.pageCount === 1 ? '' : 's'} · {plan.layout.slots.length} labels per full sheet</p>
@@ -205,7 +206,7 @@
   {/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <p class="guidance">Opening the PDF does not print automatically. In the PDF viewer choose Print, select the matching paper size, use Actual size or 100%, disable Fit to page, and test on plain paper before using label stock.</p>
-  <div class="actions"><button on:click={download} disabled={!plan || busy}>Export sheet PDF</button><button on:click={openPrintPdf} disabled={!plan || busy}>Open print PDF</button></div>
+  <div class="actions"><button onclick={download} disabled={!plan || busy}>Export sheet PDF</button><button onclick={openPrintPdf} disabled={!plan || busy}>Open print PDF</button></div>
 </section>
 
 <style>

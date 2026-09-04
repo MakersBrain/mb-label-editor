@@ -13,5 +13,4 @@ export const legacyComponents = new Set([
   'DirectPrintPanel.svelte',
   'ExternalResourceConnectionsPanel.svelte',
   'LocalServicePanel.svelte',
-  'SheetPanel.svelte',
 ]);
