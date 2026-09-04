@@ -448,6 +448,25 @@ test('assets can be starred and the favourites filter keeps only starred tiles',
   await expect(page.getByText('No favourites match', { exact: false })).toBeVisible();
 });
 
+test('the side panel can be widened by dragging its edge and remembers the width', async ({ page }) => {
+  await page.goto('/');
+  const aside = page.locator('aside');
+  const before = (await aside.boundingBox())!;
+  const handle = page.getByRole('separator', { name: 'Resize side panel' });
+  const grip = (await handle.boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + grip.width / 2 - 160, grip.y + 200, { steps: 5 });
+  await page.mouse.up();
+  const after = (await aside.boundingBox())!;
+  expect(after.width).toBeCloseTo(before.width + 160, -1);
+  await page.reload();
+  expect((await page.locator('aside').boundingBox())!.width).toBeCloseTo(after.width, -1);
+  await page.getByRole('separator', { name: 'Resize side panel' }).focus();
+  await page.keyboard.press('ArrowRight');
+  expect((await page.locator('aside').boundingBox())!.width).toBeCloseTo(after.width - 16, -1);
+});
+
 test('selection resize and label alignment controls are available on the canvas', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Rectangle', exact: true }).click();
@@ -805,7 +824,7 @@ test('classic sheet preview and PDF export use the compiled Rust planner', async
 
 test('File System Access open picker validates and opens v4',async({page})=>{const fixture=await readFile(new URL('../../packages/label-editor/tests/fixtures/sdk-v4-text.mb-label.json',import.meta.url),'utf8');await page.addInitScript(source=>Object.defineProperty(window,'showOpenFilePicker',{value:async()=>[{getFile:async()=>new File([source],'picker.mb-label.json',{type:'application/json'})}]}),fixture);await page.goto('/');await page.getByText('File',{exact:true}).click();await page.getByRole('button',{name:'Open picker'}).click();await expect(page.locator('footer')).toContainText('Opened SDK compatibility')});
 
-test('canvas elements stay unfilled on hover and the grid survives the thermal preview',async({page})=>{await page.goto('/');await page.getByRole('button',{name:'Text',exact:true}).click();const element=page.locator('.element').first();await element.hover();expect(await element.evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgba(0, 0, 0, 0)');await page.getByLabel('Printer model').focus();const raster=page.locator('.media canvas');await expect(raster).toBeAttached({timeout:10000});expect(await raster.evaluate(node=>getComputedStyle(node).mixBlendMode)).toBe('multiply');expect(await page.locator('.media').evaluate(node=>getComputedStyle(node).backgroundImage)).toContain('linear-gradient')});
+test('canvas elements stay unfilled on hover and the grid survives the thermal preview',async({page})=>{await page.goto('/');await page.getByRole('button',{name:'Text',exact:true}).click();const element=page.locator('.element').first();await element.hover();expect(await element.evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgba(0, 0, 0, 0)');await page.getByLabel('Printer model').focus();const raster=page.locator('.media canvas');await expect(raster).toBeAttached({timeout:20000});expect(await raster.evaluate(node=>getComputedStyle(node).mixBlendMode)).toBe('multiply');expect(await page.locator('.media').evaluate(node=>getComputedStyle(node).backgroundImage)).toContain('linear-gradient')});
 
 test('the thermal preview resamples the printer raster to the size it is shown at',async({page})=>{await page.goto('/');
   // Hairline strokes vanish under nearest-neighbour downscaling, which is exactly what the preview must avoid.

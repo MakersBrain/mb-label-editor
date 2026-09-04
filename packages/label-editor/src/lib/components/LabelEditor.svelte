@@ -8,6 +8,16 @@ function selectSidebarTab(tab:SidebarTab){sidebarTab=tab;try{globalThis.localSto
 function tabKeys(event:KeyboardEvent){if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;event.preventDefault();const index=sidebarTabs.indexOf(sidebarTab);const next=sidebarTabs[(index+(event.key==='ArrowRight'?1:sidebarTabs.length-1))%sidebarTabs.length];selectSidebarTab(next);(document.getElementById(`sidebar-tab-${next}`) as HTMLElement|null)?.focus()}
 /** Assets live in the sidebar; the Label menu entry reveals that tab instead of a dialog. */
 function openPanel(name:string){if(name==='assets'){selectSidebarTab('assets');sidebarOpen=true}else dialog=name}
+const sidebarWidthKey='mb-label-editor:sidebar-width';const defaultSidebarWidth=304;const minSidebarWidth=240;
+/** Width in pixels; wider panels let the asset grid grow more columns and keep font rows from wrapping. */
+let sidebarWidth:number=(()=>{try{const saved=Number(globalThis.localStorage?.getItem(sidebarWidthKey));return Number.isFinite(saved)&&saved>=minSidebarWidth?saved:defaultSidebarWidth}catch{return defaultSidebarWidth}})();
+const maxSidebarWidth=()=>Math.max(minSidebarWidth,Math.round((globalThis.innerWidth||1200)*0.6));
+function setSidebarWidth(width:number){sidebarWidth=Math.round(Math.min(maxSidebarWidth(),Math.max(minSidebarWidth,width)));try{globalThis.localStorage?.setItem(sidebarWidthKey,String(sidebarWidth))}catch{/* storage unavailable */}}
+let resizing:{pointerId:number;startX:number;startWidth:number}|undefined;
+function startSidebarResize(event:PointerEvent){if(event.button!==0)return;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);resizing={pointerId:event.pointerId,startX:event.clientX,startWidth:sidebarWidth};event.preventDefault()}
+function moveSidebarResize(event:PointerEvent){if(!resizing||event.pointerId!==resizing.pointerId)return;setSidebarWidth(resizing.startWidth+(resizing.startX-event.clientX))}
+function endSidebarResize(event:PointerEvent){if(resizing&&event.pointerId===resizing.pointerId)resizing=undefined}
+function sidebarResizeKeys(event:KeyboardEvent){const step=event.shiftKey?64:16;if(event.key==='ArrowLeft'){event.preventDefault();setSidebarWidth(sidebarWidth+step)}else if(event.key==='ArrowRight'){event.preventDefault();setSidebarWidth(sidebarWidth-step)}else if(event.key==='Home'){event.preventDefault();setSidebarWidth(maxSidebarWidth())}else if(event.key==='End'){event.preventDefault();setSidebarWidth(minSidebarWidth)}}
 function groupSelected(){if($editor.selection.size<2)return;const command=groupElements($editor.selection);editor.execute(command);editor.select([command.createdId])}
 function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if(['INPUT','TEXTAREA','SELECT'].includes(target.tagName))return;const modifier=event.ctrlKey||event.metaKey;
   if(modifier&&event.key.toLowerCase()==='z'){event.preventDefault();event.shiftKey?editor.redo():editor.undo()}else if(modifier&&event.key.toLowerCase()==='y'){event.preventDefault();editor.redo()}
@@ -30,8 +40,10 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
     <div class="appbar-actions"><slot name="actions"/></div>
   </header>
   <Toolbar {editor}/>
-  <main class:sidebar-closed={!sidebarOpen}>
+  <main class:sidebar-closed={!sidebarOpen} style={`--sidebar-width:${sidebarWidth}px`}>
     <div class="canvas"><Canvas {editor} {sdk} {materializer} printer={printers.find(item=>item.id===printerId)}/></div>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex a11y_no_noninteractive_element_interactions -->
+    {#if sidebarOpen}<div class="sidebar-resizer" role="separator" aria-orientation="vertical" aria-label="Resize side panel" aria-valuemin={minSidebarWidth} aria-valuemax={maxSidebarWidth()} aria-valuenow={sidebarWidth} tabindex="0" title="Drag to resize the side panel" on:pointerdown={startSidebarResize} on:pointermove={moveSidebarResize} on:pointerup={endSidebarResize} on:pointercancel={endSidebarResize} on:keydown={sidebarResizeKeys} on:dblclick={()=>setSidebarWidth(defaultSidebarWidth)}></div>{/if}
     <aside class:open={sidebarOpen}>
       <div class="tabs" role="tablist" aria-label="Side panels">
         <button type="button" role="tab" id="sidebar-tab-layers" aria-selected={sidebarTab==='layers'} aria-controls="sidebar-panel-layers" tabindex={sidebarTab==='layers'?0:-1} on:click={()=>selectSidebarTab('layers')} on:keydown={tabKeys}>Layers</button>
@@ -63,9 +75,14 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
   .brand{min-width:0;display:flex;align-items:center}
   .menubar{display:flex;gap:.1rem;align-items:center;flex-wrap:wrap;min-width:0}
   .appbar-actions{display:flex;gap:.25rem;align-items:center;margin-left:auto}
-  main{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 19rem;min-width:0;min-height:0;flex:1}
+  main{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,var(--sidebar-width,19rem));min-width:0;min-height:0;flex:1}
+  .sidebar-resizer{position:relative;z-index:7;width:6px;margin:0 -3px;cursor:col-resize;touch-action:none;background:transparent}
+  .sidebar-resizer::after{content:'';position:absolute;top:0;bottom:0;left:2px;width:2px;background:transparent;transition:background .12s}
+  .sidebar-resizer:hover::after,.sidebar-resizer:focus-visible::after{background:var(--mble-primary,#ed6146)}
+  .sidebar-resizer:focus-visible{outline:none}
   .canvas{position:relative;min-width:0;min-height:0;overflow:hidden}
   main.sidebar-closed{grid-template-columns:minmax(0,1fr)}main.sidebar-closed aside{display:none}
+  aside{width:100%;box-sizing:border-box}
   aside{min-width:0;overflow:auto;overscroll-behavior:contain;background:var(--mble-background,#f7f4ed);border-left:1px solid var(--mble-border,#d8d0c3)}
   .tabs{position:sticky;top:0;z-index:6;display:flex;background:var(--mble-background,#f7f4ed);border-bottom:1px solid var(--mble-border,#d8d0c3)}
   .tabs [role=tab]{flex:1;padding:.5rem .75rem;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--mble-text-muted,#59635e);font-size:.75rem;font-weight:600;cursor:pointer}
@@ -80,5 +97,5 @@ function keys(event:KeyboardEvent){const target=event.target as HTMLElement;if([
   aside :global(details>section){border-top:0}
   aside :global(details>section>h2){display:none}
   @media(max-width:800px){.appbar{flex-wrap:wrap;gap:.35rem}.brand{flex:none;order:0}.appbar-actions{order:1;margin-left:auto}.menubar{order:2;flex-basis:100%}}
-  @media(max-width:760px){main,main.sidebar-closed{grid-template-columns:1fr;grid-template-rows:minmax(16rem,1fr) minmax(0,42vh)}main.sidebar-closed{grid-template-rows:minmax(0,1fr)}aside{display:block;max-height:none;border-left:0;border-top:1px solid var(--mble-border,#d8d0c3)}}
+  @media(max-width:760px){.sidebar-resizer{display:none}main,main.sidebar-closed{grid-template-columns:1fr;grid-template-rows:minmax(16rem,1fr) minmax(0,42vh)}main.sidebar-closed{grid-template-rows:minmax(0,1fr)}aside{display:block;max-height:none;border-left:0;border-top:1px solid var(--mble-border,#d8d0c3)}}
 </style>
