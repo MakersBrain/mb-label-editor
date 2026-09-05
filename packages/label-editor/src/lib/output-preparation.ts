@@ -10,6 +10,7 @@ import {
   type DocumentMeasurer,
   type ResolvedLabelDocument,
 } from './continuous-media.js';
+import { resolveRecord } from './template/derived.js';
 import type { DocumentMaterializer } from './materialization.js';
 import type { LabelDocument } from './model.js';
 
@@ -101,5 +102,5 @@ function selectedRecord(
   const template = document.template;
   if (!template?.records.length) return {};
   const index = Math.max(0, Math.min(template.currentRecord, template.records.length - 1));
-  return { record: template.records[index], index };
+  return { record: resolveRecord(template, template.records[index]), index };
 }

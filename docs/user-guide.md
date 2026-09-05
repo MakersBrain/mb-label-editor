@@ -86,6 +86,14 @@ The Data tab can start a sheet from the fields the label already references in
 own CSV. Expand sheet moves the record sheet under the label on desktop or into
 a dialog on small screens; edits there update the label at once.
 
+Derived columns compute a value from the other columns with the same
+`{{field | transform}}` expressions the label uses, for example
+`{{price | number:0}} €` as `price_short`. They evaluate in order, so a later
+formula may use an earlier derived column, and they behave like any other
+field on the label, in field mapping, in batch output and in the CSV export
+(which can leave them out). The sheet shows them read-only with a formula
+editor.
+
 ## Printing on label sheets
 
 Use **Print → Label sheet…** to place the current label on adhesive sheets for

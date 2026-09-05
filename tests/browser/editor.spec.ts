@@ -2182,3 +2182,65 @@ test('the status bar shows the label media, the pointer position and the selecti
   await page.mouse.move(0, 0);
   await expect(bar.locator('.pointer')).toHaveText('X — · Y —');
 });
+
+test('derived columns are computed from a formula and flow to the label and the CSV export', async ({ page }) => {
+  await page.goto('/');
+  await page
+    .getByRole('navigation', { name: 'Drawing tools' })
+    .getByRole('button', { name: 'Text', exact: true })
+    .click();
+  const textField = page.locator('#inspector').getByLabel('Text', { exact: true });
+  await textField.fill('{{line}}');
+  await textField.press('Tab');
+  await page.getByRole('tab', { name: 'Data' }).click();
+  const panel = page.locator('#sidebar-panel-data');
+  await panel.getByRole('button', { name: 'Load sample CSV' }).click();
+  await panel.getByRole('button', { name: 'Add derived column' }).click();
+  const form = panel.getByRole('form', { name: 'Derived column' });
+  await form.getByLabel('Column name').fill('price_short');
+  await form.getByLabel('Formula').fill('{{price | number:0}} €');
+  await expect(form.locator('.preview')).toHaveText('= 5 €');
+  await form.getByRole('button', { name: 'Add column' }).click();
+  const sheet = panel.getByRole('table', { name: 'Data records' });
+  await expect(sheet.getByRole('columnheader', { name: /price_short/ })).toBeVisible();
+  await expect(sheet.locator('td.derived').nth(1)).toHaveText('3 €');
+  // A second formula may use the first.
+  await panel.getByRole('button', { name: 'Add derived column' }).click();
+  await form.getByLabel('Column name').fill('line');
+  await form.getByLabel('Formula').fill('{{name | upper}} · {{price_short}}');
+  await form.getByRole('button', { name: 'Add column' }).click();
+  await expect(page.locator('.element.text span.text-body')).toHaveText('STRAWBERRY JAM · 5 €');
+  await expect(panel.getByText('3 records · 3 columns · 2 derived')).toBeVisible();
+  // The record preview (open by default) knows the derived columns.
+  await expect(panel.locator('dt', { hasText: 'line' })).toBeVisible();
+  await expect(panel.locator('dd', { hasText: 'STRAWBERRY JAM · 5 €' })).toBeVisible();
+  // A data column of the same name is refused.
+  await panel.getByRole('button', { name: 'Add derived column' }).click();
+  await form.getByLabel('Column name').fill('price');
+  await form.getByLabel('Formula').fill('{{price}}');
+  await expect(form.getByText('already a data column')).toBeVisible();
+  await form.getByRole('button', { name: 'Cancel' }).click();
+  // CSV export includes the derived values, and can leave them out.
+  const withDerived = page.waitForEvent('download');
+  await panel.getByRole('button', { name: 'Export CSV' }).click();
+  const csv = await (await (await withDerived).createReadStream()).toArray();
+  expect(Buffer.concat(csv).toString()).toContain(
+    'name,price,sku,price_short,line\nStrawberry jam,4.50,JAM-001,5 €,STRAWBERRY JAM · 5 €',
+  );
+  await panel.getByLabel('Include derived columns').uncheck();
+  const without = page.waitForEvent('download');
+  await panel.getByRole('button', { name: 'Export CSV' }).click();
+  const plain = Buffer.concat(await (await (await without).createReadStream()).toArray()).toString();
+  expect(plain.split('\n')[0]).toBe('name,price,sku');
+  // Derived definitions survive a save and reopen.
+  const saved = page.waitForEvent('download');
+  await page.getByText('File', { exact: true }).click();
+  await page.getByRole('button', { name: 'Export JSON', exact: true }).click();
+  const json = JSON.parse(Buffer.concat(await (await (await saved).createReadStream()).toArray()).toString());
+  const state = json.extensions['makersbrain.editor:state'];
+  expect(state.template.derived).toEqual([
+    { name: 'price_short', expression: '{{price | number:0}} €' },
+    { name: 'line', expression: '{{name | upper}} · {{price_short}}' },
+  ]);
+  expect(state.template.records[0].line).toBe('STRAWBERRY JAM · 5 €');
+});

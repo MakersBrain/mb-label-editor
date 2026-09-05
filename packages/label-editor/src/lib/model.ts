@@ -120,11 +120,18 @@ export interface DitherSettings {
   algorithm: 'auto' | 'threshold' | 'bayer' | 'floyd-steinberg' | 'atkinson';
   threshold: number;
 }
+/** A column computed from the others with a template expression, in declaration order. */
+export interface DerivedField {
+  name: string;
+  expression: string;
+}
 export interface TemplateData {
   fields: string[];
   fieldLabels?: Record<string, string>;
   records: Record<string, string>[];
   currentRecord: number;
+  /** Computed columns; they are resolved into every record before elements, previews and prints read it. */
+  derived?: DerivedField[];
 }
 export interface LabelDocument {
   version: 4;

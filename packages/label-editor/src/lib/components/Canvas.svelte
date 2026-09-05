@@ -20,6 +20,7 @@
   import type { EditorStore } from '../store.svelte.js';
   import { fitToView, labelToScreen, screenToLabel, rulerTicks, PX_PER_MM, RULER_SIZE } from '../view.js';
   import { insertElement } from '../insert.js';
+  import { currentResolvedRecord } from '../template/derived.js';
   import { patchElement } from '../commands.js';
   import ZoomControl from './ZoomControl.svelte';
   import SelectionBar from './SelectionBar.svelte';
@@ -453,7 +454,7 @@
   }
   const sortedElements = $derived([...displayDocument.elements].sort((a, b) => a.zIndex - b.zIndex));
   const movedIds = $derived(drag?.kind === 'move' ? new Set(drag.ids) : undefined);
-  const currentRecord = $derived(editor.document.template?.records[editor.document.template.currentRecord]);
+  const currentRecord = $derived(currentResolvedRecord(editor.document.template));
   /** Text on the canvas shows the selected record's values; the raw expression stays editable in Properties. */
   function merged(source: string): string {
     if (!currentRecord || !source.includes('{{')) return source;

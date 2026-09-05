@@ -14,6 +14,7 @@ import {
   isEffectivelyLocked,
   isEffectivelyVisible,
 } from './model.js';
+import { allFieldNames, resolvedRecords } from './template/derived.js';
 export interface SdkBounds {
   x: number;
   y: number;
@@ -103,6 +104,26 @@ const common = (element: LabelElement, document: LabelDocument) => {
 /** The canvas always letterboxes SVGs and contain-fit images, so the printer must keep the same ratio instead of stretching artwork to the element box. */
 const rendersContained = (element: LabelElement): boolean =>
   element.type === 'svg' || (element.type === 'image' && element.fit === 'contain');
+/**
+ * The SDK materialises records itself, so it receives derived columns as plain
+ * values; the definitions ride along so the editor can restore them on read.
+ */
+function flattenTemplate(template: LabelDocument['template']): LabelDocument['template'] {
+  if (!template?.derived?.length) return template;
+  return { ...template, fields: allFieldNames(template), records: resolvedRecords(template, { lenient: true }) };
+}
+function restoreTemplate<T extends NonNullable<LabelDocument['template']>>(template: T): T {
+  const derived = template.derived ?? [];
+  if (!derived.length) return template;
+  const names = new Set(derived.map((item) => item.name));
+  return {
+    ...template,
+    fields: template.fields.filter((field) => !names.has(field)),
+    records: template.records.map((record) =>
+      Object.fromEntries(Object.entries(record).filter(([key]) => !names.has(key))),
+    ),
+  };
+}
 export function toSdkDocument(document: LabelDocument): SdkDocument {
   assertV4Document(document);
   const allResources = [
@@ -113,7 +134,7 @@ export function toSdkDocument(document: LabelDocument): SdkDocument {
     id: document.id,
     createdAt: document.createdAt,
     modifiedAt: document.modifiedAt,
-    template: document.template,
+    template: flattenTemplate(document.template),
     continuousSettings: document.media.continuousSettings,
     fonts: document.fonts,
     resourceNames: Object.fromEntries(allResources.map((resource) => [resource.id, resource.name])),
@@ -211,7 +232,7 @@ export function toSdkDocument(document: LabelDocument): SdkDocument {
       sha256: resource.sha256,
       dataBase64: resource.data,
     })),
-    fields: (document.template?.fields ?? []).map((key) => ({
+    fields: allFieldNames(document.template).map((key) => ({
       key,
       label: document.template?.fieldLabels?.[key] ?? key,
     })),
@@ -332,11 +353,11 @@ export function fromSdkDocument(value: unknown): LabelDocument {
   const canonicalFields = sdk.fields ?? [];
   const canonicalLabels = Object.fromEntries(canonicalFields.map((field) => [field.key, field.label]));
   const template = complete.template
-    ? {
+    ? restoreTemplate({
         ...complete.template,
         fields: canonicalFields.length ? canonicalFields.map((field) => field.key) : complete.template.fields,
         fieldLabels: { ...(complete.template.fieldLabels ?? {}), ...canonicalLabels },
-      }
+      })
     : canonicalFields.length
       ? {
           fields: canonicalFields.map((field) => field.key),
@@ -446,6 +467,14 @@ function isTemplate(value: unknown): value is LabelDocument['template'] {
     !value.fields.every((field) => typeof field === 'string') ||
     !Array.isArray(value.records) ||
     !Number.isSafeInteger(value.currentRecord)
+  )
+    return false;
+  if (
+    value.derived !== undefined &&
+    (!Array.isArray(value.derived) ||
+      !value.derived.every(
+        (item) => isRecord(item) && typeof item.name === 'string' && typeof item.expression === 'string',
+      ))
   )
     return false;
   if (

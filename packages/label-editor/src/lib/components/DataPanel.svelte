@@ -10,6 +10,7 @@
   import type { TemplateData } from '../model.js';
   import DataSheet from './DataSheet.svelte';
   import { SAMPLE_CSV, documentFields } from '../template/placeholders.js';
+  import { allFieldNames, currentResolvedRecord } from '../template/derived.js';
   /** `docked` means the host shows the sheet beside the canvas, so the panel only offers to collapse it. */
   let {
     title = 'Data',
@@ -25,6 +26,8 @@
     onDock?: () => void;
   } = $props();
   const labelFields = $derived(documentFields(editor.document));
+  /** The previewed record with derived columns filled in. */
+  const shownRecord = $derived(currentResolvedRecord(editor.document.template) ?? {});
   const database = new EditorDatabase();
   let error = $state('');
   let templates: { key: IDBValidKey; value: TemplateData }[] = $state.raw([]);
@@ -133,8 +136,8 @@
         /> <span class="muted">{template.currentRecord + 1} of {template.records.length}</span></label
       >
       <dl class="mb-datalist">
-        {#each template.fields as field}<dt>{field}</dt>
-          <dd>{template.records[template.currentRecord]?.[field] ?? ''}</dd>{/each}
+        {#each allFieldNames(template) as field (field)}<dt>{field}</dt>
+          <dd>{shownRecord[field] ?? ''}</dd>{/each}
       </dl>
     </details>
     <details class="section">
@@ -144,8 +147,8 @@
         >
           <label
             >{element.name}<select class="field"
-              ><option value="">Choose CSV field</option>{#each template.fields as field}<option value={field}
-                  >{field}</option
+              ><option value="">Choose CSV field</option>{#each allFieldNames(template) as field (field)}<option
+                  value={field}>{field}</option
                 >{/each}</select
             ></label
           ><label
@@ -170,7 +173,7 @@
           >
             {element.name}: {resolved(
               element.type === 'text' ? element.text : element.value,
-              template.records[template.currentRecord] ?? {},
+              currentResolvedRecord(template) ?? {},
             )}
           </li>{/each}
       </ul>

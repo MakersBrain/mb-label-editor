@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import { resolvedRecords } from '../template/derived.js';
   import { untrack } from 'svelte';
   import type { LabelDocument } from '../model.js';
   import { downloadBytes, openPdfInNewWindow } from '../browser-files.js';
@@ -166,7 +167,7 @@
       mode === 'copies'
         ? materializeSheetJob(document, { mode, copies })
         : await Promise.all(
-            (document.template?.records ?? []).map((record) => materializer.materializeRecord(document, record)),
+            resolvedRecords(document.template).map((record) => materializer.materializeRecord(document, record)),
           );
     const documents = await Promise.all(
       sources.map(async (source) => (await prepareDocumentForOutput(source, { materializer, measurer })).document),

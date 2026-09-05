@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
+  import { resolvedRecords } from '../template/derived.js';
   import Panel from './Panel.svelte';
   import { onDestroy, untrack } from 'svelte';
   import { downloadBytes } from '../browser-files.js';
@@ -98,7 +99,7 @@
     }
   }
   async function documents() {
-    const records = document.template?.records ?? [];
+    const records = resolvedRecords(document.template);
     if (!records.length) throw new Error('Import CSV records first.');
     return zones.length
       ? materializer.materializeZoneBatch(document, records, { zoneIds: zones.map((item) => item.id) })

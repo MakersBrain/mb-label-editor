@@ -61,3 +61,10 @@ export * from './lib/sheets/catalogue.js';
 export * from './lib/sheets/normalize.js';
 export * from './lib/sheets/job.js';
 export { default as SheetPanel } from './lib/components/SheetPanel.svelte';
+export {
+  allFieldNames,
+  currentResolvedRecord,
+  resolveRecord,
+  resolvedRecords,
+  validateDerivedField,
+} from './lib/template/derived.js';
