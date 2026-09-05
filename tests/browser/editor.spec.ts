@@ -1820,7 +1820,7 @@ test('an imported face is bound to the element and painted on the canvas', async
   const element = page.locator('.element.text[data-id="text-1"]');
   await element.click({ force: true });
   const font = page.getByRole('combobox', { name: 'Font' });
-  await expect(font.locator('option')).toHaveText(['System sans', 'plex-latin 400']);
+  await expect(font.locator('optgroup[label="In this label"] option')).toHaveText(['plex-latin 400']);
   await font.selectOption({ index: 1 });
   await expect(element.locator('span.text-body')).toHaveCSS('font-family', 'plex-latin, sans-serif');
   await expect(async () =>
@@ -1847,7 +1847,7 @@ test('a bundled face embeds into the label and prints', async ({ page }) => {
   await page.getByText('Layers', { exact: true }).first().click();
   await page.locator('.element.text[data-id="text-1"]').click({ force: true });
   const font = page.getByRole('combobox', { name: 'Font' });
-  await expect(font.locator('option')).toHaveText(['System sans', 'IBM Plex Sans 700']);
+  await expect(font.locator('optgroup[label="In this label"] option')).toHaveText(['IBM Plex Sans 700']);
   await font.selectOption({ index: 1 });
   // The SDK, not the browser, rasterises the export: a face it cannot parse fails here.
   const download = page.waitForEvent('download');
@@ -2243,4 +2243,93 @@ test('derived columns are computed from a formula and flow to the label and the 
     { name: 'line', expression: '{{name | upper}} · {{price_short}}' },
   ]);
   expect(state.template.records[0].line).toBe('STRAWBERRY JAM · 5 €');
+});
+
+test('the font menu offers common families and embeds one from the catalogue when it has it', async ({ page }) => {
+  const ttf = await readFile(new URL('../../packages/label-editor/assets/fonts/plex-sans-400.ttf', import.meta.url));
+  await page.route('http://127.0.0.1:8766/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/v1/fonts' && (url.searchParams.get('q') ?? '').toLowerCase() === 'inter') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [
+            {
+              id: 'inter',
+              family: 'Inter',
+              provider: 'google',
+              category: 'sans-serif',
+              availability: 'cached',
+              license: 'OFL',
+              variants: ['regular', '700'],
+              faces: [
+                {
+                  variant: 'regular',
+                  familyName: 'Inter',
+                  weight: 400,
+                  style: 'normal',
+                  format: 'truetype',
+                  fileUrl: '/v1/files/inter.ttf',
+                },
+              ],
+              previewUrl: '/v1/preview/inter.png',
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 10,
+          pages: 1,
+          revision: 'test',
+        }),
+      });
+    } else if (url.pathname === '/v1/files/inter.ttf') {
+      await route.fulfill({ status: 200, contentType: 'font/ttf', body: ttf });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [], total: 0, page: 1, pageSize: 24, pages: 1, revision: 'test' }),
+      });
+    }
+  });
+  await page.goto('/');
+  await page
+    .getByRole('navigation', { name: 'Drawing tools' })
+    .getByRole('button', { name: 'Text', exact: true })
+    .click();
+  const font = page.locator('#inspector').getByRole('combobox', { name: 'Font' });
+  await expect(font.locator('optgroup')).toHaveCount(4);
+  await expect(font.locator('optgroup[label="Sans-Serif"] option')).toHaveText([
+    'Inter',
+    'Roboto',
+    'Open Sans',
+    'Lato',
+    'Montserrat',
+    'Oswald',
+    'Arial',
+    'Helvetica',
+  ]);
+  await expect(font.locator('optgroup[label="Serif"] option')).toHaveText([
+    'Playfair Display',
+    'Merriweather',
+    'Georgia',
+    'Times New Roman',
+  ]);
+  await expect(font.locator('optgroup[label="Monospace"] option')).toHaveText([
+    'Roboto Mono',
+    'Source Code Pro',
+    'Courier New',
+  ]);
+  await expect(font.locator('optgroup[label="Display"] option')).toHaveText(['Impact', 'Comic Sans MS']);
+  // A family the catalogue has is downloaded and embedded, so it prints exactly.
+  await font.selectOption('family:Inter');
+  await expect(page.locator('.font-status')).toContainText('Inter embedded from');
+  await expect(font.locator('optgroup[label="In this label"] option')).toHaveText(['Inter 400']);
+  await expect(page.locator('.element.text .text-body')).toHaveCSS('font-family', /^(")?Inter/);
+  // A family the catalogue lacks is named on the element and the person is told the printer falls back.
+  await font.selectOption('family:Georgia');
+  await expect(page.locator('.font-status')).toContainText('Georgia is not embedded');
+  await expect(font).toHaveValue('family:Georgia');
+  await expect(page.locator('.element.text .text-body')).toHaveCSS('font-family', /Georgia.*serif/);
 });

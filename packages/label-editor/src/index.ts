@@ -68,3 +68,4 @@ export {
   resolvedRecords,
   validateDerivedField,
 } from './lib/template/derived.js';
+export { FONT_GROUPS, fontStack, genericFor, supportsLocalFonts, queryLocalFontFamilies } from './lib/fonts.js';

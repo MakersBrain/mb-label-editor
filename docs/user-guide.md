@@ -60,6 +60,17 @@ Press ? for the full shortcut list. The status bar under the label shows the
 media size, shape and dpi, the pointer position in millimetres, the size and
 position of the selection, and the zoom.
 
+## Fonts
+
+The Font menu in Properties lists the faces embedded in the label, the common
+families (Inter, Roboto, Open Sans, Lato, Montserrat, Oswald, Arial, Helvetica,
+Playfair Display, Merriweather, Georgia, Times New Roman, Roboto Mono, Source
+Code Pro, Courier New, Impact, Comic Sans) and, after Load system fonts, the
+fonts installed on the device. Choosing a family embeds its bytes into the
+label when they can be found, from the device or from the asset catalogue, so
+the printer renders it exactly; otherwise the family is only named, the canvas
+shows it if the browser has it, and the printer falls back to its default face.
+
 ## Phones, tablets and wide screens
 
 Below 640 px the menus collapse behind one Menu button, the tool rail runs

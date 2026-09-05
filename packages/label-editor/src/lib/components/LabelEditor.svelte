@@ -342,7 +342,7 @@
       </section>
       <section class="props-pane" aria-label="Properties">
         <h3 class="pane-title">Properties</h3>
-        <Inspector {editor} title="" />
+        <Inspector {editor} title="" resourceProvider={activeResourceProvider} />
       </section>
     </div>
   {/snippet}

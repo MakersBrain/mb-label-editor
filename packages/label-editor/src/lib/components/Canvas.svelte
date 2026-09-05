@@ -20,6 +20,7 @@
   import type { EditorStore } from '../store.svelte.js';
   import { fitToView, labelToScreen, screenToLabel, rulerTicks, PX_PER_MM, RULER_SIZE } from '../view.js';
   import { insertElement } from '../insert.js';
+  import { fontStack } from '../fonts.js';
   import { currentResolvedRecord } from '../template/derived.js';
   import { patchElement } from '../commands.js';
   import ZoomControl from './ZoomControl.svelte';
@@ -507,7 +508,7 @@
     // The printer truncates a long line from its tail, so an overflowing line is pinned to the start rather than centred.
     const align =
       !wraps && lineWidth(element, text, size) > element.transform.width * pxPerMm ? 'left' : element.horizontalAlign;
-    return `font-family:${JSON.stringify(element.fontFamily)},sans-serif;font-weight:${element.fontWeight};font-size:${size * pxPerMm}px;text-align:${align};white-space:${wraps ? 'pre-wrap' : 'pre'};overflow-wrap:${wraps ? 'anywhere' : 'normal'}`;
+    return `font-family:${fontStack(element.fontFamily)};font-weight:${element.fontWeight};font-size:${size * pxPerMm}px;text-align:${align};white-space:${wraps ? 'pre-wrap' : 'pre'};overflow-wrap:${wraps ? 'anywhere' : 'normal'}`;
   }
   const registeredFonts = new Set<string>();
   /** An embedded face is only a byte array until it is registered, so the canvas would otherwise preview every label in the fallback font. */

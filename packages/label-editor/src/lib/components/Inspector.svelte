@@ -3,20 +3,103 @@
   import Panel from './Panel.svelte';
   import type { EditorStore } from '../store.svelte.js';
   import { patchElement } from '../commands.js';
+  import type { ExternalResourceProvider } from '../external-resources/types.js';
+  import {
+    FONT_GROUPS,
+    applyFamily,
+    applyFont,
+    embedLocalFont,
+    embedProviderFont,
+    embeddedFont,
+    genericFor,
+    pickFace,
+    queryLocalFontFamilies,
+    supportsLocalFonts,
+    type LocalFontData,
+  } from '../fonts.js';
   /** `title` is the panel heading; pass undefined when the host already names the panel. */
-  let { editor, title = 'Inspector' }: { editor: EditorStore; title?: string } = $props();
+  let {
+    editor,
+    title = 'Inspector',
+    resourceProvider,
+  }: { editor: EditorStore; title?: string; resourceProvider?: ExternalResourceProvider } = $props();
   const number = (value: string) => (Number.isFinite(Number(value)) ? Number(value) : 0);
   const patch = (id: string, value: Record<string, unknown>) => editor.execute(patchElement(id, value));
-  /** Binding the face by id keeps the printed font exact: family alone cannot tell two weights of one family apart. */
-  function chooseFont(id: string, value: string) {
-    const font = editor.document.fonts.find((item) => item.id === value);
-    patch(
-      id,
-      font
-        ? { fontResourceId: font.id, fontFamily: font.family, fontWeight: font.weight }
-        : { fontResourceId: undefined, fontFamily: 'sans-serif', fontWeight: 400 },
-    );
+  /** Installed fonts by family once the person has granted access; undefined until then. */
+  let localFonts = $state.raw<Map<string, LocalFontData[]> | undefined>(undefined);
+  let fontStatus = $state('');
+  let fontBusy = $state(false);
+  async function loadLocalFonts() {
+    try {
+      fontStatus = 'Reading installed fonts…';
+      localFonts = await queryLocalFontFamilies();
+      fontStatus = localFonts.size
+        ? `${localFonts.size} installed font families available.`
+        : 'No installed fonts were shared.';
+    } catch (error) {
+      fontStatus = error instanceof Error ? error.message : String(error);
+    }
   }
+  /**
+   * The select value is a font resource id, a curated `family:Name`, or an installed `local:Family`.
+   * Embedding wins over naming: a face whose bytes travel with the label prints the same everywhere.
+   */
+  async function chooseFont(id: string, value: string) {
+    if (value === 'sans-serif') {
+      patch(id, { fontResourceId: undefined, fontFamily: 'sans-serif', fontWeight: 400 });
+      fontStatus = '';
+      return;
+    }
+    const existing = editor.document.fonts.find((item) => item.id === value);
+    if (existing) {
+      applyFont(editor, id, existing);
+      fontStatus = '';
+      return;
+    }
+    const family = value.replace(/^(family|local):/, '');
+    const already = embeddedFont(editor, family);
+    if (already) {
+      applyFont(editor, id, already);
+      fontStatus = `${family} is embedded in this label.`;
+      return;
+    }
+    fontBusy = true;
+    try {
+      const installed = (localFonts ?? (value.startsWith('local:') ? await queryLocalFontFamilies() : undefined))?.get(
+        family,
+      );
+      if (installed?.length) {
+        fontStatus = `Embedding ${family} from this device…`;
+        applyFont(editor, id, await embedLocalFont(editor, pickFace(installed)));
+        fontStatus = `${family} embedded from this device; it prints exactly.`;
+        return;
+      }
+      if (resourceProvider) {
+        fontStatus = `Looking for ${family} in ${resourceProvider.displayName}…`;
+        const font = await embedProviderFont(editor, resourceProvider, family);
+        if (font) {
+          applyFont(editor, id, font);
+          fontStatus = `${family} embedded from ${resourceProvider.displayName}; it prints exactly.`;
+          return;
+        }
+      }
+      applyFamily(editor, id, family);
+      fontStatus = `${family} is not embedded: the canvas uses it if installed here, the printer uses its default ${genericFor(family)} face.${supportsLocalFonts() && !localFonts ? ' Load system fonts to embed an installed copy.' : ''}`;
+    } catch (error) {
+      fontStatus = error instanceof Error ? error.message : String(error);
+    } finally {
+      fontBusy = false;
+    }
+  }
+  /** What the select shows for the element: its embedded face, or its named family. */
+  const fontValue = (element: { fontResourceId?: string; fontFamily: string }) =>
+    element.fontResourceId ??
+    (element.fontFamily === 'sans-serif'
+      ? 'sans-serif'
+      : localFonts?.has(element.fontFamily) &&
+          !FONT_GROUPS.some((group) => group.families.some((f) => f.name === element.fontFamily))
+        ? `local:${element.fontFamily}`
+        : `family:${element.fontFamily}`);
 </script>
 
 <Panel {title} id="inspector">
@@ -89,11 +172,24 @@
         <div class="grid">
           <label
             >Font<select
-              value={element.fontResourceId ?? 'sans-serif'}
-              onchange={(e) => chooseFont(element.id, e.currentTarget.value)}
-              ><option value="sans-serif">System sans</option>{#each editor.document.fonts as font}<option
-                  value={font.id}>{font.family} {font.weight}</option
-                >{/each}</select
+              value={fontValue(element)}
+              disabled={fontBusy}
+              onchange={(e) => void chooseFont(element.id, e.currentTarget.value)}
+              ><option value="sans-serif">System sans</option>{#if editor.document.fonts.length}<optgroup
+                  label="In this label"
+                  >{#each editor.document.fonts as font (font.id)}<option value={font.id}
+                      >{font.family} {font.weight}</option
+                    >{/each}</optgroup
+                >{/if}{#each FONT_GROUPS as group (group.label)}<optgroup label={group.label}
+                  >{#each group.families as choice (choice.name)}<option value={`family:${choice.name}`}
+                      >{choice.name}</option
+                    >{/each}</optgroup
+                >{/each}{#if localFonts?.size}<optgroup label="System fonts"
+                  >{#each [...localFonts.keys()] as family (family)}<option value={`local:${family}`}>{family}</option
+                    >{/each}</optgroup
+                >{/if}{#if element.fontFamily !== 'sans-serif' && !element.fontResourceId && !FONT_GROUPS.some( (g) => g.families.some((f) => f.name === element.fontFamily) ) && !localFonts?.has(element.fontFamily)}<option
+                  value={`family:${element.fontFamily}`}>{element.fontFamily}</option
+                >{/if}</select
             ></label
           ><label
             >Size (mm)<input
@@ -104,6 +200,16 @@
               onchange={(e) => patch(element.id, { fontSize: number(e.currentTarget.value) })}
             /></label
           >
+        </div>
+        <div class="font-tools">
+          {#if supportsLocalFonts()}<button
+              type="button"
+              onclick={loadLocalFonts}
+              disabled={fontBusy}
+              title="Read the fonts installed on this device so a label can embed one"
+              >{localFonts ? 'Reload system fonts' : 'Load system fonts…'}</button
+            >{/if}
+          {#if fontStatus}<p class="hint font-status" role="status">{fontStatus}</p>{/if}
         </div>
         <label
           >Overflow<select
@@ -280,6 +386,17 @@
 </Panel>
 
 <style>
+  .font-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    margin-bottom: 0.4rem;
+  }
+  .font-status {
+    flex-basis: 100%;
+    margin: 0;
+  }
   .grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
