@@ -109,7 +109,10 @@ export interface QrElement extends ElementBase {
   type: 'qr';
   value: string;
   errorCorrection: 'L' | 'M' | 'Q' | 'H';
+  /** Blank modules around the symbol; the standard asks for 4. Absent means 4. */
+  quietZone?: number;
 }
+export const DEFAULT_QR_QUIET_ZONE = 4;
 export interface GroupElement extends ElementBase {
   type: 'group';
   childIds: Id[];

@@ -3,6 +3,7 @@
   import Panel from './Panel.svelte';
   import type { EditorStore } from '../store.svelte.js';
   import { patchElement } from '../commands.js';
+  import { DEFAULT_QR_QUIET_ZONE } from '../model.js';
   import type { ExternalResourceProvider } from '../external-resources/types.js';
   import {
     FONT_GROUPS,
@@ -418,7 +419,23 @@
             onchange={(e) => patch(element.id, { errorCorrection: e.currentTarget.value })}
             ><option>L</option><option>M</option><option>Q</option><option>H</option></select
           ></label
+        ><label
+          >Quiet zone (modules)<input
+            type="number"
+            min="0"
+            max="16"
+            step="1"
+            value={element.quietZone ?? DEFAULT_QR_QUIET_ZONE}
+            title="Blank modules around the code. The standard asks for 4; below 2 many scanners fail."
+            onchange={(e) =>
+              patch(element.id, {
+                quietZone: Math.max(0, Math.min(16, Math.round(number(e.currentTarget.value)))),
+              })}
+          /></label
         >
+        {#if (element.quietZone ?? DEFAULT_QR_QUIET_ZONE) < 2}<p class="mb-notice warn">
+            A quiet zone under 2 modules makes the code hard to scan; 4 is the standard.
+          </p>{/if}
       {:else if element.type === 'line' || element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'triangle'}<div
           class="grid"
         >

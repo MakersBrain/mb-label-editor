@@ -201,7 +201,14 @@ export function toSdkDocument(document: LabelDocument): SdkDocument {
           humanReadable: element.showText,
         };
       case 'qr':
-        return { ...base, type: 'qr-code', data: element.value, errorCorrection: element.errorCorrection };
+        // Only written when set: older SDKs reject unknown element fields.
+        return {
+          ...base,
+          type: 'qr-code',
+          data: element.value,
+          errorCorrection: element.errorCorrection,
+          ...(element.quietZone !== undefined ? { quietZone: element.quietZone } : {}),
+        };
       case 'group':
         return { ...base, type: 'group', children: element.childIds };
     }
@@ -330,7 +337,13 @@ export function fromSdkDocument(value: unknown): LabelDocument {
         showText: raw.humanReadable === true,
       };
     if (type === 'qr-code' || type === 'qr')
-      return { ...base, type: 'qr', value: String(raw.data ?? ''), errorCorrection: raw.errorCorrection };
+      return {
+        ...base,
+        type: 'qr',
+        value: String(raw.data ?? ''),
+        errorCorrection: raw.errorCorrection,
+        ...(typeof raw.quietZone === 'number' ? { quietZone: raw.quietZone } : {}),
+      };
     if (type === 'group') return { ...base, type: 'group', childIds: raw.children };
     return { ...base, type, strokeWidth: fromMm(Number(raw.strokeWidth ?? 0)), filled: raw.fill === true };
   }) as LabelElement[];

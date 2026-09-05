@@ -114,3 +114,24 @@ it('ignores malformed editor-private metadata without losing canonical extension
   const encoded = toSdkDocument(fromSdkDocument(fixture));
   expect(encoded.extensions['fixture:source']).toBe('external');
 });
+
+it('carries a QR quiet zone only when it is set', () => {
+  const editor = defaultDocument();
+  const base = {
+    name: 'QR',
+    transform: { x: 1, y: 1, width: 10, height: 10, rotation: 0 },
+    zIndex: 0,
+    visible: true,
+    locked: false,
+  };
+  editor.elements = [
+    { ...base, id: 'q1', type: 'qr', value: 'x', errorCorrection: 'M' } as never,
+    { ...base, id: 'q2', type: 'qr', value: 'y', errorCorrection: 'L', quietZone: 1 } as never,
+  ];
+  const sdk = toSdkDocument(editor) as unknown as { elements: Record<string, unknown>[] };
+  expect(sdk.elements[0]).not.toHaveProperty('quietZone');
+  expect(sdk.elements[1]).toMatchObject({ type: 'qr-code', quietZone: 1 });
+  const back = fromSdkDocument(sdk as unknown as SdkDocument);
+  expect(back.elements[0]).not.toHaveProperty('quietZone');
+  expect(back.elements[1]).toMatchObject({ type: 'qr', quietZone: 1 });
+});

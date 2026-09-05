@@ -60,6 +60,15 @@ Press ? for the full shortcut list. The status bar under the label shows the
 media size, shape and dpi, the pointer position in millimetres, the size and
 position of the selection, and the zoom.
 
+## QR codes
+
+A QR code fills its box with whole printer dots per module and keeps a quiet
+zone of blank modules around the symbol; the standard asks for 4. Properties
+lets you set the quiet zone from 0 to 16 modules when a design needs the code
+tighter to its box, with a warning below 2 because many scanners then fail.
+Shorter data and a lower error correction level also give larger modules in
+the same box.
+
 ## Fonts
 
 Text size is set in points (1 pt is 25.4/72 mm) and stored in millimetres for
