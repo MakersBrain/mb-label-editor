@@ -62,6 +62,10 @@ position of the selection, and the zoom.
 
 ## Fonts
 
+Text size is set in points (1 pt is 25.4/72 mm) and stored in millimetres for
+the printer; the field's tooltip shows the millimetre value. Bold switches to
+the family's bold face, embedding it when the editor ships or can read one.
+
 The Font menu in Properties lists the faces embedded in the label, the common
 families (Inter, Roboto, Open Sans, Lato, Montserrat, Oswald, Arial, Helvetica,
 Playfair Display, Merriweather, Georgia, Times New Roman, Roboto Mono, Source

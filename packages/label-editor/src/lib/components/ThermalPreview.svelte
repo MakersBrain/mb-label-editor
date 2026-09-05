@@ -85,6 +85,19 @@
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
     context.drawImage(source, 0, 0, width, height);
+    // Area averaging keeps one-dot lines from vanishing but turns the printer's dots into grey haze.
+    // Snap the result back to ink or paper, leaning towards ink so thin strokes survive.
+    if (scale < 1) {
+      const image = context.getImageData(0, 0, width, height);
+      const pixels = image.data;
+      for (let index = 0; index < pixels.length; index += 4) {
+        const luminance = 0.2126 * pixels[index] + 0.7152 * pixels[index + 1] + 0.0722 * pixels[index + 2];
+        const ink = pixels[index + 3] > 64 && luminance < 176;
+        pixels[index] = pixels[index + 1] = pixels[index + 2] = ink ? 0 : 255;
+        pixels[index + 3] = ink ? 255 : pixels[index + 3] > 64 ? 255 : 0;
+      }
+      context.putImageData(image, 0, 0);
+    }
   }
 </script>
 

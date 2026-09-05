@@ -2327,10 +2327,28 @@ test('the font menu offers common families and embeds one from the catalogue whe
   await expect(page.locator('.font-status')).toContainText('Inter embedded');
   await expect(font.locator('optgroup[label="In this label"] option')).toHaveText(['Inter 400']);
   await expect(page.locator('.element.text .text-body')).toHaveCSS('font-family', /^(")?Inter/);
+  // Bold switches to the family's bold face and embeds it too; sizes are edited in points.
+  const bold = page.locator('#inspector').getByRole('button', { name: 'Bold' });
+  await bold.click();
+  await expect(bold).toHaveAttribute('aria-pressed', 'true');
+  await expect(font.locator('optgroup[label="In this label"] option')).toHaveText(['Inter 400', 'Inter 700']);
+  await expect(page.locator('.element.text .text-body')).toHaveCSS('font-weight', '700');
+  await bold.click();
+  await expect(bold).toHaveAttribute('aria-pressed', 'false');
+  const size = page.locator('#inspector').getByLabel('Size (pt)');
+  await expect(size).toHaveValue('11.3');
+  await size.fill('12');
+  await size.press('Tab');
+  await expect(size).toHaveValue('12');
+  await expect(page.locator('.statusbar .selection')).toBeVisible();
   // A family the catalogue has is downloaded and embedded.
   await font.selectOption('family:Arial');
   await expect(page.locator('.font-status')).toContainText('Arial embedded from');
-  await expect(font.locator('optgroup[label="In this label"] option')).toHaveText(['Inter 400', 'Arial 400']);
+  await expect(font.locator('optgroup[label="In this label"] option')).toHaveText([
+    'Inter 400',
+    'Inter 700',
+    'Arial 400',
+  ]);
   // A family the catalogue lacks is named on the element and the person is told the printer falls back.
   await font.selectOption('family:Georgia');
   await expect(page.locator('.font-status')).toContainText('Georgia is not embedded');

@@ -11,6 +11,7 @@
     embedLocalFont,
     embedProviderFont,
     embeddedFont,
+    faceMetrics,
     genericFor,
     pickFace,
     queryLocalFontFamilies,
@@ -96,6 +97,51 @@
       }
       applyFamily(editor, id, family);
       fontStatus = `${family} is not embedded, so the printer will use its default ${genericFor(family)} face. ${supportsLocalFonts() ? 'Load system fonts to embed the installed copy.' : 'Import the font file from the Assets tab to embed it.'}`;
+      fontWarning = true;
+    } catch (error) {
+      fontStatus = error instanceof Error ? error.message : String(error);
+    } finally {
+      fontBusy = false;
+    }
+  }
+  /** Type is set in points like every layout tool; the label stores millimetres for the printer. */
+  const MM_PER_POINT = 25.4 / 72;
+  const toPoints = (mm: number) => Math.round((mm / MM_PER_POINT) * 10) / 10;
+  const fromPoints = (pt: number) => Math.round(pt * MM_PER_POINT * 1000) / 1000;
+  /** Bold and back: switch to the family's face of that weight, embedding it when the editor can. */
+  async function setWeight(id: string, family: string, weight: number) {
+    fontWarning = false;
+    if (family === 'sans-serif') {
+      patch(id, { fontWeight: weight });
+      fontStatus = '';
+      return;
+    }
+    const lower = family.toLowerCase();
+    const exact = editor.document.fonts.find(
+      (font) => font.family.toLowerCase() === lower && font.weight === weight && font.style === 'normal',
+    );
+    if (exact) {
+      applyFont(editor, id, exact);
+      fontStatus = '';
+      return;
+    }
+    fontBusy = true;
+    try {
+      const bundled = bundledFace(family, weight);
+      if (bundled && bundled.weight === weight) {
+        applyFont(editor, id, await embedBundledFont(editor, bundled));
+        fontStatus = `${family} ${weight === 700 ? 'Bold' : 'Regular'} embedded; it prints exactly.`;
+        return;
+      }
+      const installed = localFonts?.get(family);
+      const face = installed?.length ? pickFace(installed, weight) : undefined;
+      if (face && faceMetrics(face.style).weight === weight) {
+        applyFont(editor, id, await embedLocalFont(editor, face));
+        fontStatus = `${family} ${face.style} embedded from this device; it prints exactly.`;
+        return;
+      }
+      patch(id, { fontWeight: weight });
+      fontStatus = `${family} has no ${weight === 700 ? 'bold' : 'regular'} face in this label; the canvas fakes it and the printer keeps the embedded face.`;
       fontWarning = true;
     } catch (error) {
       fontStatus = error instanceof Error ? error.message : String(error);
@@ -204,16 +250,26 @@
                 >{/if}</select
             ></label
           ><label
-            >Size (mm)<input
+            >Size (pt)<input
               type="number"
-              min=".1"
-              step=".1"
-              value={element.fontSize}
-              onchange={(e) => patch(element.id, { fontSize: number(e.currentTarget.value) })}
+              min="1"
+              step="0.5"
+              value={toPoints(element.fontSize)}
+              title={`${element.fontSize} mm on the label`}
+              onchange={(e) => patch(element.id, { fontSize: fromPoints(number(e.currentTarget.value)) })}
             /></label
           >
         </div>
         <div class="font-tools">
+          <button
+            type="button"
+            class="weight"
+            aria-pressed={element.fontWeight >= 600}
+            disabled={fontBusy}
+            title="Bold uses the family's bold face when the label has or can embed one"
+            onclick={() => void setWeight(element.id, element.fontFamily, element.fontWeight >= 600 ? 400 : 700)}
+            >Bold</button
+          >
           {#if supportsLocalFonts()}<button
               type="button"
               onclick={loadLocalFonts}
@@ -416,6 +472,14 @@
   .font-status {
     flex-basis: 100%;
     margin: 0;
+  }
+  .weight {
+    font-weight: 700;
+  }
+  .weight[aria-pressed='true'] {
+    border-color: var(--mble-primary);
+    background: var(--mble-primary-tint);
+    color: var(--mble-primary);
   }
   .grid {
     display: grid;
