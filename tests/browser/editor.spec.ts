@@ -2144,3 +2144,24 @@ test('elements paint in dense rank order so no stored z-index can outrank the ca
   await expect(page.locator('.selection-box')).toHaveCSS('z-index', '10');
   await expect(page.locator('.elements')).toHaveCSS('isolation', 'isolate');
 });
+
+test('menus open below the header and their items receive the pointer at laptop width', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/');
+  const menubar = page.locator('.menubar');
+  for (const name of ['File', 'View', 'Help']) {
+    await menubar.getByText(name, { exact: true }).click();
+    const item = menubar.locator('details[open] .sheet button').first();
+    await expect(item).toBeVisible();
+    const box = (await item.boundingBox())!;
+    const hit = await page.evaluate(
+      ([x, y]) => document.elementFromPoint(x, y)?.closest('button')?.textContent?.trim() ?? '',
+      [box.x + box.width / 2, box.y + box.height / 2],
+    );
+    expect(hit, `${name} menu item under the pointer`).toBe((await item.textContent())!.trim());
+    await page.keyboard.press('Escape');
+  }
+  // The header stays one row: the Print menu is inside the viewport.
+  const print = (await menubar.getByText('Print', { exact: true }).boundingBox())!;
+  expect(print.x + print.width).toBeLessThan(1366);
+});

@@ -553,15 +553,13 @@
     display: flex;
     align-items: center;
   }
-  /* One row: a menubar that wraps pushes the canvas down; when space runs out it scrolls instead. */
+  /* One row, never a scroll container: an overflow rule here would clip the menu sheets that open below it. */
   .menubar {
     display: flex;
     gap: 0.1rem;
     align-items: center;
     flex-wrap: nowrap;
     min-width: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
   }
   .appbar-actions {
     display: flex;
