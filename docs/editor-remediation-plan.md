@@ -98,8 +98,8 @@ under `VISUAL=1`, with baselines rendered by `scripts/visual-update.sh` in the
 pinned Playwright image (the host Chromium renders glyph fallbacks
 differently); the contrast walk skips paper surfaces, disabled controls and
 form fields, and requires at least 30 examined nodes per tab so an empty walk
-cannot pass. The 14 mm default text size predates this work and is left as
-is.
+cannot pass. The default text element used a 14 mm font in a 7 mm box; the
+visual baselines made that visible and it now inserts at 4 mm.
 
 Deviations decided during Phases 3 and 4: keyboard resize lives on
 Ctrl+Arrow and rotate on Ctrl+Alt+Arrow and the bracket keys, because

@@ -97,7 +97,8 @@ export function insertElement(
       type,
       text: 'Text',
       fontFamily: 'sans-serif',
-      fontSize: 14,
+      // Millimetres: 4 mm sits inside the default 7 mm box with room for descenders.
+      fontSize: 4,
       fontWeight: 400,
       horizontalAlign: 'left',
       verticalAlign: 'top',

@@ -7,7 +7,7 @@ export default defineConfig({
   timeout: 30000,
   // Baselines are Linux renders from the pinned Playwright image; keep the path free of the host platform.
   // Visual baselines are Linux renders from the pinned image; compare them in CI or via npm run test:visual.
-  testIgnore: process.env.CI || process.env.VISUAL ? [] : ['**/visual.spec.ts'],
+  testIgnore: process.env.CI || process.env.VISUAL === '1' ? [] : ['**/visual.spec.ts'],
   snapshotPathTemplate: '{testDir}/__screenshots__/{testFileName}/{arg}{ext}',
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
   use: {
