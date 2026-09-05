@@ -1151,8 +1151,9 @@
     right: 0;
     height: 1px;
   }
-  .element.exact:not(.selected) span,
-  .element.exact:not(.selected) .asset {
+  /* With the exact printer raster on the label, the browser's own rendering stays hidden even when selected: the selection box marks the element and the inline editor takes over for text edits. */
+  .element.exact span,
+  .element.exact .asset {
     visibility: hidden;
   }
   .asset {
