@@ -17,6 +17,7 @@
     supportsLocalFonts,
     type LocalFontData,
   } from '../fonts.js';
+  import { bundledFace, embedBundledFont } from '../bundled-fonts.js';
   /** `title` is the panel heading; pass undefined when the host already names the panel. */
   let {
     editor,
@@ -28,6 +29,8 @@
   /** Installed fonts by family once the person has granted access; undefined until then. */
   let localFonts = $state.raw<Map<string, LocalFontData[]> | undefined>(undefined);
   let fontStatus = $state('');
+  /** True when the chosen family could not be embedded and the print will differ from the canvas. */
+  let fontWarning = $state(false);
   let fontBusy = $state(false);
   async function loadLocalFonts() {
     try {
@@ -45,6 +48,7 @@
    * Embedding wins over naming: a face whose bytes travel with the label prints the same everywhere.
    */
   async function chooseFont(id: string, value: string) {
+    fontWarning = false;
     if (value === 'sans-serif') {
       patch(id, { fontResourceId: undefined, fontFamily: 'sans-serif', fontWeight: 400 });
       fontStatus = '';
@@ -65,6 +69,13 @@
     }
     fontBusy = true;
     try {
+      const bundled = bundledFace(family);
+      if (bundled) {
+        fontStatus = `Embedding ${family}…`;
+        applyFont(editor, id, await embedBundledFont(editor, bundled));
+        fontStatus = `${family} embedded; it prints exactly.`;
+        return;
+      }
       const installed = (localFonts ?? (value.startsWith('local:') ? await queryLocalFontFamilies() : undefined))?.get(
         family,
       );
@@ -84,7 +95,8 @@
         }
       }
       applyFamily(editor, id, family);
-      fontStatus = `${family} is not embedded: the canvas uses it if installed here, the printer uses its default ${genericFor(family)} face.${supportsLocalFonts() && !localFonts ? ' Load system fonts to embed an installed copy.' : ''}`;
+      fontStatus = `${family} is not embedded, so the printer will use its default ${genericFor(family)} face. ${supportsLocalFonts() ? 'Load system fonts to embed the installed copy.' : 'Import the font file from the Assets tab to embed it.'}`;
+      fontWarning = true;
     } catch (error) {
       fontStatus = error instanceof Error ? error.message : String(error);
     } finally {
@@ -209,7 +221,15 @@
               title="Read the fonts installed on this device so a label can embed one"
               >{localFonts ? 'Reload system fonts' : 'Load system fonts…'}</button
             >{/if}
-          {#if fontStatus}<p class="hint font-status" role="status">{fontStatus}</p>{/if}
+          {#if fontStatus}<p
+              class="font-status"
+              class:hint={!fontWarning}
+              class:mb-notice={fontWarning}
+              class:warn={fontWarning}
+              role="status"
+            >
+              {fontStatus}
+            </p>{/if}
         </div>
         <label
           >Overflow<select

@@ -1842,7 +1842,7 @@ test('a bundled face embeds into the label and prints', async ({ page }) => {
   await input.setInputFiles({ name: 'fixture.mb-label.json', mimeType: 'application/json', buffer: fixture });
   await expect(page.locator('footer')).toContainText('Opened SDK compatibility');
   await page.getByText('Assets', { exact: true }).first().click();
-  await expect(page.locator('.bundled-font')).toHaveCount(4);
+  await expect(page.locator('.bundled-font')).toHaveCount(24);
   await page.locator('.bundled-font').filter({ hasText: 'IBM Plex Sans Bold' }).click();
   await page.getByText('Layers', { exact: true }).first().click();
   await page.locator('.element.text[data-id="text-1"]').click({ force: true });
@@ -2249,16 +2249,16 @@ test('the font menu offers common families and embeds one from the catalogue whe
   const ttf = await readFile(new URL('../../packages/label-editor/assets/fonts/plex-sans-400.ttf', import.meta.url));
   await page.route('http://127.0.0.1:8766/**', async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname === '/v1/fonts' && (url.searchParams.get('q') ?? '').toLowerCase() === 'inter') {
+    if (url.pathname === '/v1/fonts' && (url.searchParams.get('q') ?? '').toLowerCase() === 'arial') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           items: [
             {
-              id: 'inter',
-              family: 'Inter',
-              provider: 'google',
+              id: 'arial',
+              family: 'Arial',
+              provider: 'test',
               category: 'sans-serif',
               availability: 'cached',
               license: 'OFL',
@@ -2266,14 +2266,14 @@ test('the font menu offers common families and embeds one from the catalogue whe
               faces: [
                 {
                   variant: 'regular',
-                  familyName: 'Inter',
+                  familyName: 'Arial',
                   weight: 400,
                   style: 'normal',
                   format: 'truetype',
-                  fileUrl: '/v1/files/inter.ttf',
+                  fileUrl: '/v1/files/arial.ttf',
                 },
               ],
-              previewUrl: '/v1/preview/inter.png',
+              previewUrl: '/v1/preview/arial.png',
             },
           ],
           total: 1,
@@ -2283,7 +2283,7 @@ test('the font menu offers common families and embeds one from the catalogue whe
           revision: 'test',
         }),
       });
-    } else if (url.pathname === '/v1/files/inter.ttf') {
+    } else if (url.pathname === '/v1/files/arial.ttf') {
       await route.fulfill({ status: 200, contentType: 'font/ttf', body: ttf });
     } else {
       await route.fulfill({
@@ -2322,11 +2322,15 @@ test('the font menu offers common families and embeds one from the catalogue whe
     'Courier New',
   ]);
   await expect(font.locator('optgroup[label="Display"] option')).toHaveText(['Impact', 'Comic Sans MS']);
-  // A family the catalogue has is downloaded and embedded, so it prints exactly.
+  // A bundled family embeds from the app's own files, so it prints exactly without a network.
   await font.selectOption('family:Inter');
-  await expect(page.locator('.font-status')).toContainText('Inter embedded from');
+  await expect(page.locator('.font-status')).toContainText('Inter embedded');
   await expect(font.locator('optgroup[label="In this label"] option')).toHaveText(['Inter 400']);
   await expect(page.locator('.element.text .text-body')).toHaveCSS('font-family', /^(")?Inter/);
+  // A family the catalogue has is downloaded and embedded.
+  await font.selectOption('family:Arial');
+  await expect(page.locator('.font-status')).toContainText('Arial embedded from');
+  await expect(font.locator('optgroup[label="In this label"] option')).toHaveText(['Inter 400', 'Arial 400']);
   // A family the catalogue lacks is named on the element and the person is told the printer falls back.
   await font.selectOption('family:Georgia');
   await expect(page.locator('.font-status')).toContainText('Georgia is not embedded');

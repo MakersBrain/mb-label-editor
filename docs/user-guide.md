@@ -66,10 +66,13 @@ The Font menu in Properties lists the faces embedded in the label, the common
 families (Inter, Roboto, Open Sans, Lato, Montserrat, Oswald, Arial, Helvetica,
 Playfair Display, Merriweather, Georgia, Times New Roman, Roboto Mono, Source
 Code Pro, Courier New, Impact, Comic Sans) and, after Load system fonts, the
-fonts installed on the device. Choosing a family embeds its bytes into the
-label when they can be found, from the device or from the asset catalogue, so
-the printer renders it exactly; otherwise the family is only named, the canvas
-shows it if the browser has it, and the printer falls back to its default face.
+fonts installed on the device. Inter, Roboto, Open Sans, Lato, Montserrat,
+Oswald, Playfair Display, Merriweather, Roboto Mono and Source Code Pro ship
+with the editor in regular and bold and embed at once. Arial, Helvetica,
+Georgia, Times New Roman, Courier New, Impact and Comic Sans are system fonts:
+load system fonts to embed the installed copy, or the asset catalogue is asked.
+A family that cannot be embedded is only named: the canvas shows it if the
+browser has it, and a warning says the printer will use its default face.
 
 ## Phones, tablets and wide screens
 
@@ -96,6 +99,10 @@ The Data tab can start a sheet from the fields the label already references in
 `{{field}}` expressions, or load a small sample CSV, as well as importing your
 own CSV. Expand sheet moves the record sheet under the label on desktop or into
 a dialog on small screens; edits there update the label at once.
+
+Use `{{price | decimals:2}}` to print at most two decimals while dropping
+trailing zeros (30.0 prints as 30, 4.5 stays 4.5); `number:2` always prints
+two.
 
 Derived columns compute a value from the other columns with the same
 `{{field | transform}}` expressions the label uses, for example

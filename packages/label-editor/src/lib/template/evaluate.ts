@@ -52,6 +52,15 @@ function apply(transform: string, value: string, context: EvaluationContext): st
     const formatted = formatDecimal(value, Math.min(9, Number(raw)));
     return (context.locale ?? 'en').startsWith('fr') ? formatted.replace('.', ',') : formatted;
   }
+  if (transform.startsWith('decimals:')) {
+    // Up to N decimals: rounds like number:N, then drops trailing zeros and a bare point, so 30.0 prints as 30.
+    const raw = transform.slice(9);
+    if (!/^\d+$/.test(raw)) throw new Error(`invalid numeric/date value: ${transform}`);
+    let formatted = formatDecimal(value, Math.min(9, Number(raw)));
+    if (formatted.includes('.')) formatted = formatted.replace(/0+$/, '').replace(/\.$/, '');
+    if (formatted === '-0') formatted = '0';
+    return (context.locale ?? 'en').startsWith('fr') ? formatted.replace('.', ',') : formatted;
+  }
   if (transform.startsWith('if-empty:')) {
     const parts = transform.slice(9).split(/:(.*)/s);
     if (parts.length < 2) throw new Error(`unknown transform: ${transform}`);

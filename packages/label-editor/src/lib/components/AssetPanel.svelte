@@ -13,7 +13,12 @@
   import { assetDrag, ASSET_DRAG_TYPE } from '../asset-drag.svelte.js';
   import type { Point } from '../model.js';
   import manifest from '../../../assets/public-catalogue.json';
-  import bundledFonts from '../../../assets/fonts/bundled-fonts.json';
+  import {
+    bundledFonts,
+    bundledFontName as bundledName,
+    embedBundledFont,
+    type BundledFont,
+  } from '../bundled-fonts.js';
 
   interface Props {
     editor: EditorStore;
@@ -392,38 +397,15 @@
       status = message(error);
     }
   }
-  /** Static URLs so the bundler emits the faces as assets: they are fetched on demand rather than inlined into the app. */
-  const bundledFontUrls: Record<string, string> = {
-    'plex-sans-400.ttf': new URL('../../../assets/fonts/plex-sans-400.ttf', import.meta.url).href,
-    'plex-sans-700.ttf': new URL('../../../assets/fonts/plex-sans-700.ttf', import.meta.url).href,
-    'plex-mono-400.ttf': new URL('../../../assets/fonts/plex-mono-400.ttf', import.meta.url).href,
-    'plex-mono-700.ttf': new URL('../../../assets/fonts/plex-mono-700.ttf', import.meta.url).href,
-  };
-  type BundledFont = (typeof bundledFonts)[number];
-  const bundledName = (item: BundledFont) => `${item.family} ${item.weight === 700 ? 'Bold' : 'Regular'}`;
-  /** Embeds a shipped face into the document, so a label prints in it without a catalogue or a network. */
   async function useBundledFont(item: BundledFont) {
     try {
       status = `Adding ${bundledName(item)}…`;
-      const existing = editor.document.fonts.find((font) => font.sha256 === item.sha256);
-      if (existing) {
+      if (editor.document.fonts.some((font) => font.sha256 === item.sha256)) {
         status = `${bundledName(item)} is already in this label.`;
         return;
       }
-      const response = await fetch(bundledFontUrls[item.file]);
-      if (!response.ok) throw new Error(`${bundledName(item)} is unavailable (${response.status}).`);
-      const data = new Uint8Array(await response.arrayBuffer());
-      const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', data))]
-        .map((value) => value.toString(16).padStart(2, '0'))
-        .join('');
-      if (digest !== item.sha256) throw new Error(`Bundled font hash mismatch for ${item.file}`);
-      const imported = await importFont(new File([data as BlobPart], item.file, { type: item.mediaType }), {
-        family: item.family,
-        weight: item.weight,
-        style: item.style as 'normal' | 'italic',
-      });
-      editor.execute(addFont({ ...imported, name: bundledName(item) }));
-      await saveResource({ ...imported, name: bundledName(item) });
+      const imported = await embedBundledFont(editor, item);
+      await saveResource(imported);
       status = `Added ${bundledName(item)}`;
     } catch (error) {
       status = message(error);

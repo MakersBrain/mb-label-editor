@@ -161,9 +161,9 @@
                 )}
               ><option value="">None</option><option>upper</option><option>lower</option><option>trim</option><option
                 >ascii</option
-              ><option value="number:2">number (2 decimals)</option><option value="date:%Y-%m-%d"
-                >date YYYY-MM-DD</option
-              ></select
+              ><option value="number:2">number (2 decimals)</option><option value="decimals:2"
+                >number (up to 2 decimals)</option
+              ><option value="date:%Y-%m-%d">date YYYY-MM-DD</option></select
             ></label
           >
         </div>{:else}<p class="muted">Add a text, barcode, or QR element to map fields onto it.</p>{/each}

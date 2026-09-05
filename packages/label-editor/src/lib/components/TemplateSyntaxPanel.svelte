@@ -45,6 +45,12 @@
       example: '{{price | number:2}}',
     },
     {
+      syntax: 'decimals:2',
+      effect:
+        'Up to that many decimals, rounding half away from zero and dropping trailing zeros (30.0 prints as 30, 4.5 stays 4.5)',
+      example: '{{price | decimals:2}}',
+    },
+    {
       syntax: 'date:%d/%m/%Y',
       effect: 'Reformats a YYYY-MM-DD date with %Y, %m, %d and %% tokens',
       example: '{{best_before | date:%d.%m.%Y}}',

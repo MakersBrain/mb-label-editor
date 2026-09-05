@@ -23,4 +23,16 @@ describe('shared SDK template parity', () => {
   it('rejects transforms outside the allowlist', () => {
     expect(() => evaluateTemplate('{{name|eval}}', { record: { name: 'Ada' } })).toThrow('unknown transform: eval');
   });
+  it('decimals:N keeps only the digits a value needs', () => {
+    const run = (value: string, locale = 'en') =>
+      evaluateTemplate('{{v|decimals:2}}', { record: { v: value }, locale });
+    expect(run('30.0')).toBe('30');
+    expect(run('30')).toBe('30');
+    expect(run('4.5')).toBe('4.5');
+    expect(run('4.50')).toBe('4.5');
+    expect(run('4.256')).toBe('4.26');
+    expect(run('-0.001')).toBe('0');
+    expect(run('2.675', 'fr-FR')).toBe('2,68');
+    expect(() => run('abc')).toThrow();
+  });
 });
