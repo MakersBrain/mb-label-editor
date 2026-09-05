@@ -26,7 +26,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         await expect(page.getByText('3 records · 3 columns')).toBeVisible();
       }
       await expect(page.locator('.media')).toBeVisible();
-      await expect(page.locator('.element.text .text-body')).toBeVisible();
+      await expect(page.locator('.element.text')).toBeVisible();
       await page.waitForTimeout(400);
       await expect(page).toHaveScreenshot(`${tab.toLowerCase()}-${colorScheme}.png`, {
         mask: [page.locator('footer .build'), page.locator('.status')],
