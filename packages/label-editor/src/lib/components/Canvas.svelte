@@ -700,6 +700,7 @@
         previewDocument = undefined;
         previewWarning = '';
         previewError = error instanceof Error ? error.message : String(error);
+        console.error('Label preview failed', error);
       }
     }
   }
@@ -876,8 +877,12 @@
     {/if}
     {#if previewError && !previewDocument}
       {@const corner = chromeAt({ x: editor.document.media.width, y: displayHeight })}
-      <span class="preview-error" style={`left:${corner.x - 6}px;top:${corner.y - 6}px`} title={previewError}
-        >Fit preview unavailable</span
+      <span
+        class="preview-error"
+        role="alert"
+        style={`left:${corner.x - 6}px;top:${corner.y - 6}px`}
+        title={previewError}
+        >Fit preview unavailable: {previewError.length > 90 ? `${previewError.slice(0, 89)}…` : previewError}</span
       >
     {/if}
     {#if !editor.document.elements.length}
@@ -1253,8 +1258,10 @@
   }
   .preview-error {
     transform: translate(-100%, -100%);
+    max-width: min(32rem, 90%);
     background: var(--mble-surface);
     color: var(--mble-danger);
+    white-space: normal;
   }
   .empty-hint {
     position: absolute;
