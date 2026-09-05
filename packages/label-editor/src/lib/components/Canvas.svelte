@@ -194,7 +194,16 @@
     editor.setTool(undefined);
     drewJustNow = true;
   }
+  /** The status bar reads the pointer in label millimetres; a tenth of a millimetre is what the rulers resolve. */
+  function trackPointer(event: PointerEvent) {
+    const point = screenToLabel(viewportPoint(event), editor.view, {
+      width: editor.document.media.width,
+      height: displayHeight,
+    });
+    editor.pointer = { x: Math.round(point.x * 10) / 10, y: Math.round(point.y * 10) / 10 };
+  }
   function moveDrag(event: PointerEvent) {
+    trackPointer(event);
     if (draw) {
       draw = { ...draw, current: viewportPoint(event) };
       return;
@@ -706,6 +715,7 @@
   onwheel={wheel}
   onpointerdown={gestureStart}
   onpointermove={moveDrag}
+  onpointerleave={() => (editor.pointer = undefined)}
   onpointerup={gestureEnd}
   onpointercancel={cancelInteraction}
   role="application"

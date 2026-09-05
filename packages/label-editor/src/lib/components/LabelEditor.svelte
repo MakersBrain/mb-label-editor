@@ -27,6 +27,7 @@
   import Layers from './Layers.svelte';
   import DataPanel from './DataPanel.svelte';
   import DataSheet from './DataSheet.svelte';
+  import StatusBar from './StatusBar.svelte';
   import { toolForKey } from '../insert.js';
   import AssetPanel from './AssetPanel.svelte';
   import MediaPanel from './MediaPanel.svelte';
@@ -362,9 +363,6 @@
     {:else}
       <nav class="menubar" aria-label="Editor menus">{@render menus()}</nav>
     {/if}
-    <span class="media-chip" title="Label media"
-      >{editor.document.media.width} × {editor.document.media.height} mm · {editor.document.media.shape}</span
-    >
     <div class="appbar-actions">{@render actions?.()}</div>
   </header>
   <main
@@ -507,6 +505,7 @@
       >
     {/if}
   </main>
+  <StatusBar {editor} />
   <Modal open={dialog === 'media'} title={dialogTitles.media} onClose={() => (dialog = '')}
     ><MediaPanel title="" {editor} {sdk} {materializer} {printers} {printerId} {onPrinter} /></Modal
   >
@@ -567,15 +566,6 @@
     align-items: center;
     margin-left: auto;
   }
-  .media-chip {
-    flex: none;
-    padding: 0.22rem 0.45rem;
-    border: 1px solid var(--mble-border);
-    border-radius: var(--mble-radius-sm);
-    color: var(--mble-text-muted);
-    font-size: var(--mble-text-small);
-    white-space: nowrap;
-  }
   .menu-drawer {
     position: relative;
   }
@@ -605,12 +595,6 @@
     border: 1px solid var(--mble-border);
     border-radius: var(--mble-radius-md);
     box-shadow: var(--mble-shadow);
-  }
-  /* The chip is a convenience; the menubar and the print controls come first when the row is tight. */
-  @media (max-width: 90rem) {
-    .media-chip {
-      display: none;
-    }
   }
   main {
     position: relative;

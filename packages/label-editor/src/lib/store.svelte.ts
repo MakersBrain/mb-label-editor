@@ -46,6 +46,8 @@ export class EditorStore {
   view: ViewState = $state(defaultView());
   /** An armed drawing tool: the next drag on the label draws that element instead of panning. */
   tool: InsertType | undefined = $state(undefined);
+  /** Pointer position over the label in millimetres, for the status bar; undefined when the pointer is elsewhere. */
+  pointer: Point | undefined = $state.raw(undefined);
   canUndo = $state(false);
   canRedo = $state(false);
   undoLabel = $state<string | undefined>(undefined);

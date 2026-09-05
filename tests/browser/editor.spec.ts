@@ -1993,7 +1993,7 @@ test('the header shows an editable document title and the saved state', async ({
   await page.getByText('File', { exact: true }).click();
   await page.getByRole('button', { name: 'Export JSON', exact: true }).click();
   expect((await download).suggestedFilename()).toBe('Shelf tags.mb-label.json');
-  await expect(page.locator('.appbar .media-chip')).toContainText('50 × 30 mm');
+  await expect(page.locator('.statusbar .label-info')).toContainText('50 × 30 mm · rectangle · 203 dpi');
 });
 
 test('canvas chrome stays unscaled, the empty label shows a hint and text edits inline', async ({ page }) => {
@@ -2164,4 +2164,21 @@ test('menus open below the header and their items receive the pointer at laptop 
   // The header stays one row: the Print menu is inside the viewport.
   const print = (await menubar.getByText('Print', { exact: true }).boundingBox())!;
   expect(print.x + print.width).toBeLessThan(1366);
+});
+
+test('the status bar shows the label media, the pointer position and the selection', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('input.zoom').fill('1');
+  const bar = page.locator('.statusbar');
+  await expect(bar.locator('.label-info')).toHaveText('50 × 30 mm · rectangle · 203 dpi');
+  await expect(bar.locator('.zoom')).toHaveText('100%');
+  const media = (await page.locator('.media').boundingBox())!;
+  const px = 3.7795275591;
+  await page.mouse.move(media.x + 10 * px, media.y + 5 * px);
+  await expect(bar.locator('.pointer')).toHaveText('X 10.0 mm · Y 5.0 mm');
+  await page.getByRole('navigation', { name: 'Drawing tools' }).getByRole('button', { name: 'Rectangle' }).click();
+  await expect(bar.locator('.selection')).toContainText('Selection 12 × 12 mm at');
+  await page.mouse.move(media.x - 60, media.y - 60);
+  await page.mouse.move(0, 0);
+  await expect(bar.locator('.pointer')).toHaveText('X — · Y —');
 });

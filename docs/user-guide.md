@@ -56,7 +56,9 @@ front, send to back, duplicate or delete.
 With elements selected, the arrow keys nudge by 0.1 mm (1 mm with Shift),
 Ctrl+Arrow resizes by the same steps, Ctrl+Alt+Arrow rotates a single element
 by one degree and the bracket keys rotate by 15 degrees (one with Shift).
-Press ? for the full shortcut list.
+Press ? for the full shortcut list. The status bar under the label shows the
+media size, shape and dpi, the pointer position in millimetres, the size and
+position of the selection, and the zoom.
 
 ## Phones, tablets and wide screens
 

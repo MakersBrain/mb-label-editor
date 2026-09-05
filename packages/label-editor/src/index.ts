@@ -50,6 +50,7 @@ export { default as ExternalResourceConnectionsPanel } from './lib/components/Ex
 export { default as LibraryPanel } from './lib/components/LibraryPanel.svelte';
 export { default as Modal } from './lib/components/Modal.svelte';
 export { default as Panel } from './lib/components/Panel.svelte';
+export { default as StatusBar } from './lib/components/StatusBar.svelte';
 export { default as Menu } from './lib/components/Menu.svelte';
 export { default as Icon } from './lib/components/Icon.svelte';
 export { default as GuidesPanel } from './lib/components/GuidesPanel.svelte';
